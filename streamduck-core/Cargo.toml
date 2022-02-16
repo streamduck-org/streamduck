@@ -1,0 +1,22 @@
+[package]
+name = "streamduck-core"
+authors = ["TheJebForge"]
+version = "0.0.2"
+description = "Core library of the Streamduck project"
+edition = "2021"
+readme = "../Readme.md"
+license-file = "../LICENSE"
+repository = "https://github.com/TheJebForge/streamduck"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+streamdeck = "0.4.10"
+hidapi = "1.2"
+image = "0.23.14"
+rand = "0.8.4"
+rusttype = "0.9.2"
+palette = "0.6.0"
+serde = { version = "1.0.130", features = ["derive"] }
+serde_json = "1.0.69"
+log = "0.4"

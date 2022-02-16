@@ -1,0 +1,33 @@
+[package]
+name = "streamduck-daemon"
+authors = ["TheJebForge"]
+version = "0.0.2"
+description = "Daemon of the Streamduck project"
+edition = "2021"
+readme = "../Readme.md"
+license-file = "../LICENSE"
+repository = "https://github.com/TheJebForge/streamduck"
+
+[lib]
+name = "streamduck_daemon"
+path = "src/lib.rs"
+
+[[bin]]
+name = "streamduck_daemon"
+path = "src/main.rs"
+
+[dependencies]
+streamduck-core = {path = "../streamduck-core", version = "0.0.2"}
+rusttype = "0.9.2"
+serde = { version = "1.0.130", features = ["derive"] }
+serde_json = "1.0.69"
+strum = "0.23"
+strum_macros = "0.23"
+toml = "0.5.8"
+dlopen = "0.1.8"
+dlopen_derive = "0.1.4"
+
+flexi_logger = "0.22.2"
+log = "0.4"
+
+ctrlc = "3.2.1"

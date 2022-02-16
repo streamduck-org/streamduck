@@ -1,0 +1,9 @@
+[workspace]
+members = [
+	"streamduck-core",
+	"streamduck-core-derive",
+	"streamduck-daemon",
+	"streamduck-client",
+	"streamduck-cli",
+	"streamduck-module-example"
+]

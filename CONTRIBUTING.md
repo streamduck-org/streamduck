@@ -1,0 +1,1 @@
+Project still is in heavy development as there's still quite a few components missing including UI. I would like to keep the project on myself for now, so I can finish the project according to my vision. I'll be open for contributions as soon as I have a working piece of software
