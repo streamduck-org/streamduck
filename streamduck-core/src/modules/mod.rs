@@ -142,6 +142,18 @@ impl ModuleManager {
 
         result
     }
+
+    pub fn get_component(&self, component_name: &str) -> Option<ComponentDefinition> {
+        let handle = self.0.read().unwrap();
+
+        for module in handle.iter() {
+            if let Some(definition) = module.components().remove(component_name) {
+                return Some(definition);
+            }
+        }
+
+        None
+    }
 }
 
 /// Loads built-in modules into the module manager

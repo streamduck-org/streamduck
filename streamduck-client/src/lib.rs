@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::io::Error;
 use streamduck_core::core::button::Button;
 use streamduck_core::core::RawButtonPanel;
-use streamduck_daemon::socket::daemon_data::{AddComponentResult, AddDeviceResult, ClearButtonResult, CommitChangesToConfigResult, Device, DoButtonActionResult, ForciblyPopScreenResult, GetButtonResult, GetComponentValuesResult, GetCurrentScreenResult, GetDeviceResult, GetStackResult, NewButtonFromComponentResult, NewButtonResult, PopScreenResult, PushScreenResult, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, RemoveComponentResult, RemoveDeviceResult, ReplaceScreenResult, ResetStackResult, SaveDeviceConfigResult, SaveDeviceConfigsResult, SetBrightnessResult, SetButtonResult, SetComponentValueResult};
+use streamduck_daemon::socket::daemon_data::{AddComponentResult, AddDeviceResult, ClearButtonResult, CommitChangesToConfigResult, Device, DoButtonActionResult, ForciblyPopScreenResult, GetButtonResult, GetComponentValuesResult, GetCurrentScreenResult, GetDeviceResult, GetModuleValuesResult, GetStackResult, NewButtonFromComponentResult, NewButtonResult, PopScreenResult, PushScreenResult, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, RemoveComponentResult, RemoveDeviceResult, ReplaceScreenResult, ResetStackResult, SaveDeviceConfigResult, SaveDeviceConfigsResult, SetBrightnessResult, SetButtonResult, SetComponentValueResult, SetModuleValueResult};
 
 pub use streamduck_daemon as daemon;
 use streamduck_core::modules::components::{ComponentDefinition, UIValue};
@@ -49,6 +49,11 @@ pub trait SDClient {
     fn list_modules(&self) -> Result<Vec<PluginMetadata>, SDClientError>;
     /// Lists all components that were introduced by modules
     fn list_components(&self) -> Result<HashMap<String, HashMap<String, ComponentDefinition>>, SDClientError>;
+
+    /// Gets module settings
+    fn get_module_values(&self, module_name: &str) -> Result<GetModuleValuesResult, SDClientError>;
+    /// Sets module settings
+    fn set_module_value(&self, module_name: &str, value: Vec<UIValue>) -> Result<SetModuleValueResult, SDClientError>;
 
     // Panel management
     /// Gets stack of a device

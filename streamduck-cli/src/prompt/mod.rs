@@ -3,6 +3,7 @@ mod config;
 mod info;
 mod utils;
 mod buttons;
+mod module;
 
 use std::io::Write;
 use std::sync::Arc;
@@ -11,7 +12,8 @@ use streamduck_client::SDClient;
 use crate::prompt::buttons::{button_component, button_from, button_new, button_remove};
 use crate::prompt::config::{reload_config, save_config};
 use crate::prompt::device::{add_device, device_list, remove_device};
-use crate::prompt::info::{button_info, component_info, list_buttons, list_components, list_modules, module_info, prompt_help};
+use crate::prompt::info::{button_info, component_info, list_buttons, list_components, prompt_help};
+use crate::prompt::module::{list_modules, module_info, module_list_params, module_params_add, module_params_remove, module_params_set};
 
 type ClientRef<'a> = &'a Arc<Box<dyn SDClient>>;
 
@@ -126,6 +128,20 @@ pub fn prompt(client: Arc<Box<dyn SDClient>>) {
                         match command {
                             "list" | "l" => list_modules(&client),
                             "info" | "i" => module_info(&client, args),
+                            "params" | "p" => {
+                                if let Some(command) = args.next() {
+                                    match command {
+                                        "add" | "a" => module_params_add(&client, args),
+                                        "remove" | "r" => module_params_remove(&client, args),
+                                        "set" | "s" => module_params_set(&client, args),
+                                        "list" | "l" => module_list_params(&client, args),
+
+                                        _ => println!("module params: Unknown command"),
+                                    }
+                                } else {
+                                    println!("module params: Unknown command");
+                                }
+                            }
 
                             _ => println!("module: Unknown command"),
                         }

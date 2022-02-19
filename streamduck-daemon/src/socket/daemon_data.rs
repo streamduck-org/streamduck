@@ -45,6 +45,9 @@ impl SocketListener for DaemonListener {
         process_for_type::<ListModules>(self,socket, &packet);
         process_for_type::<ListComponents>(self,socket, &packet);
 
+        process_for_type::<GetModuleValues>(self,socket, &packet);
+        process_for_type::<SetModuleValue>(self,socket, &packet);
+
         // Panel management
         process_for_type::<GetStack>(self, socket, &packet);
         process_for_type::<GetCurrentScreen>(self, socket, &packet);
@@ -580,7 +583,86 @@ impl DaemonRequest for ListComponents {
     }
 }
 
-// TODO: Expose plugin settings to socket
+/// Request for adding components onto buttons
+#[derive(Serialize, Deserialize)]
+pub struct GetModuleValues {
+    pub module_name: String,
+}
+
+/// Response of AddComponent request
+#[derive(Serialize, Deserialize)]
+pub enum GetModuleValuesResult {
+    /// Sent if module wasn't found
+    ModuleNotFound,
+
+    /// Sent if module values were successfully retrieved
+    Values(Vec<UIValue>),
+}
+
+impl SocketData for GetModuleValues {
+    const NAME: &'static str = "get_module_values";
+}
+
+impl SocketData for GetModuleValuesResult {
+    const NAME: &'static str = "get_module_values";
+}
+
+impl DaemonRequest for GetModuleValues {
+    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+        if let Ok(request) = parse_packet_to_data::<GetModuleValues>(packet) {
+            for module in listener.module_manager.get_module_list() {
+                if module.name() == request.module_name {
+                    let values = module.settings();
+                    send_packet(handle, packet, &GetModuleValuesResult::Values(values)).ok();
+                    return;
+                }
+            }
+
+            send_packet(handle, packet, &GetModuleValuesResult::ModuleNotFound).ok();
+        }
+    }
+}
+
+/// Request for adding components onto buttons
+#[derive(Serialize, Deserialize)]
+pub struct SetModuleValue {
+    pub module_name: String,
+    pub value: Vec<UIValue>,
+}
+
+/// Response of AddComponent request
+#[derive(Serialize, Deserialize)]
+pub enum SetModuleValueResult {
+    /// Sent if module wasn't found
+    ModuleNotFound,
+
+    /// Sent if module value was successfully set
+    Set
+}
+
+impl SocketData for SetModuleValue {
+    const NAME: &'static str = "set_module_value";
+}
+
+impl SocketData for SetModuleValueResult {
+    const NAME: &'static str = "set_module_value";
+}
+
+impl DaemonRequest for SetModuleValue {
+    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+        if let Ok(request) = parse_packet_to_data::<SetModuleValue>(packet) {
+            for module in listener.module_manager.get_module_list() {
+                if module.name() == request.module_name {
+                    module.set_setting(request.value);
+                    send_packet(handle, packet, &SetModuleValueResult::Set).ok();
+                    return;
+                }
+            }
+
+            send_packet(handle, packet, &SetModuleValueResult::ModuleNotFound).ok();
+        }
+    }
+}
 
 // Panel management
 /// Request for getting current stack on a device

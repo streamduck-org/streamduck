@@ -9,7 +9,7 @@ use streamduck_core::core::RawButtonPanel;
 use streamduck_core::modules::components::{ComponentDefinition, UIValue};
 use streamduck_core::modules::PluginMetadata;
 use streamduck_core::versions::SOCKET_API;
-use streamduck_daemon::socket::daemon_data::{AddDevice, AddDeviceResult, Device, ListDevices, GetDevice, GetDeviceResult, RemoveDevice, RemoveDeviceResult, SocketAPIVersion, ReloadDeviceConfigsResult, ReloadDeviceConfigResult, SaveDeviceConfigsResult, SaveDeviceConfigResult, SetBrightnessResult, ReloadDeviceConfig, SaveDeviceConfig, SetBrightness, ListModules, ListComponents, GetButtonResult, SetButtonResult, ClearButtonResult, PushScreenResult, PopScreenResult, ReplaceScreenResult, ResetStackResult, CommitChangesToConfigResult, GetStackResult, GetCurrentScreenResult, GetStack, GetCurrentScreen, GetButton, SetButton, ClearButton, PushScreen, PopScreen, ReplaceScreen, ResetStack, CommitChangesToConfig, DoButtonActionResult, DoButtonAction, ForciblyPopScreenResult, ForciblyPopScreen, AddComponentResult, GetComponentValuesResult, SetComponentValueResult, RemoveComponentResult, AddComponent, GetComponentValues, SetComponentValue, RemoveComponent, NewButtonResult, NewButtonFromComponentResult, NewButton, NewButtonFromComponent};
+use streamduck_daemon::socket::daemon_data::{AddDevice, AddDeviceResult, Device, ListDevices, GetDevice, GetDeviceResult, RemoveDevice, RemoveDeviceResult, SocketAPIVersion, ReloadDeviceConfigsResult, ReloadDeviceConfigResult, SaveDeviceConfigsResult, SaveDeviceConfigResult, SetBrightnessResult, ReloadDeviceConfig, SaveDeviceConfig, SetBrightness, ListModules, ListComponents, GetButtonResult, SetButtonResult, ClearButtonResult, PushScreenResult, PopScreenResult, ReplaceScreenResult, ResetStackResult, CommitChangesToConfigResult, GetStackResult, GetCurrentScreenResult, GetStack, GetCurrentScreen, GetButton, SetButton, ClearButton, PushScreen, PopScreen, ReplaceScreen, ResetStack, CommitChangesToConfig, DoButtonActionResult, DoButtonAction, ForciblyPopScreenResult, ForciblyPopScreen, AddComponentResult, GetComponentValuesResult, SetComponentValueResult, RemoveComponentResult, AddComponent, GetComponentValues, SetComponentValue, RemoveComponent, NewButtonResult, NewButtonFromComponentResult, NewButton, NewButtonFromComponent, GetModuleValuesResult, SetModuleValueResult, GetModuleValues, SetModuleValue};
 use streamduck_daemon::socket::{parse_packet_to_data, send_no_data_packet_with_requester, send_packet_with_requester, SocketData, SocketPacket};
 use crate::{SDClient, SDClientError};
 use std::io::Write;
@@ -147,6 +147,23 @@ impl SDClient for UnixClient {
         let response: ListComponents = self.process_request_without_data()?;
 
         Ok(response.components)
+    }
+
+    fn get_module_values(&self, module_name: &str) -> Result<GetModuleValuesResult, SDClientError> {
+        let response: GetModuleValuesResult = self.process_request(&GetModuleValues {
+            module_name: module_name.to_string()
+        })?;
+
+        Ok(response)
+    }
+
+    fn set_module_value(&self, module_name: &str, value: Vec<UIValue>) -> Result<SetModuleValueResult, SDClientError> {
+        let response: SetModuleValueResult = self.process_request(&SetModuleValue {
+            module_name: module_name.to_string(),
+            value
+        })?;
+
+        Ok(response)
     }
 
     fn get_stack(&self, serial_number: &str) -> Result<GetStackResult, SDClientError> {

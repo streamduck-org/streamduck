@@ -17,58 +17,6 @@ pub fn prompt_help() -> String {
     help
 }
 
-pub fn list_modules(client: ClientRef) {
-    let mut table = vec![
-        vec!["Name"],
-        vec!["Version"],
-        vec!["Description"]
-    ];
-
-    let module_list = client.list_modules().expect("Failed to list modules");
-
-    for module in &module_list {
-        table[0].push(module.name.as_str());
-        table[1].push(module.version.as_str());
-        table[2].push(module.description.as_str());
-    }
-
-    print_table(table, "-", "|");
-
-    println!("\nFor more information on module, enter 'module info <name>'")
-}
-
-pub fn module_info(client: ClientRef, mut args: Split<&str>) {
-    if let Some(name) = args.next() {
-        let module_list = client.list_modules().expect("Failed to list modules");
-
-        for module in module_list {
-            if name == module.name {
-                println!(
-                    "- {} v{} by {}\n{}\n- Using features: {}",
-                    module.name,
-                    module.version,
-                    module.author,
-                    module.description,
-                    {
-                        let mut names = vec![];
-
-                        for (name, _) in &module.used_features {
-                            names.push(name.as_str())
-                        }
-
-                        names.join(", ")
-                    }
-                );
-                return;
-            }
-        }
-
-        println!("module info: Module not found");
-    } else {
-        println!("module info: Specify name");
-    }
-}
-
 pub fn list_components(client: ClientRef) {
     let mut table = vec![
         vec!["Display Name"],

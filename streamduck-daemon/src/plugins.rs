@@ -116,7 +116,12 @@ pub fn load_plugin<T: AsRef<OsStr>>(module_manager: Arc<ModuleManager>, socket_m
 
     // Adding module if it wasn't defined before
     if module_manager.get_module(&module_proxy.name()).is_none() {
-        // TODO: Check for component name conflicts
+        for component in module_proxy.components().keys() {
+            if module_manager.get_component(component).is_some() {
+                return Err(PluginError::ComponentConflict(module_proxy.name(), component.to_string()))
+            }
+        }
+
         module_manager.add_module(module_proxy);
         Ok(())
     } else {
@@ -139,6 +144,7 @@ pub fn load_plugins_from_folder<T: AsRef<OsStr>>(module_manager: Arc<ModuleManag
                                     PluginError::WrongVersion(plugin, software) => log::error!("Failed to load plugin: Plugin is using unsupported version of '{}', software's using '{}'", plugin, software),
                                     PluginError::TooNew(version) => log::error!("Failed to load plugin: Software doesn't support '{}', try updating the software", version),
                                     PluginError::AlreadyExists(name) => log::error!("Failed to load plugin: Module '{}' was already defined", name),
+                                    PluginError::ComponentConflict(name, component_name) => log::error!("Failed to load plugin: Module '{}' is declaring '{}' component, but it was already previously declared by other module", name, component_name),
                                 },
                                 _ => {}
                             }
@@ -158,7 +164,8 @@ pub enum PluginError {
     LoadError(dlopen::Error),
     WrongVersion(String, String),
     TooNew(String),
-    AlreadyExists(String)
+    AlreadyExists(String),
+    ComponentConflict(String, String),
 }
 
 impl From<dlopen::Error> for PluginError {
