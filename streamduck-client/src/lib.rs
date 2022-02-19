@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::io::Error;
 use streamduck_core::core::button::Button;
 use streamduck_core::core::RawButtonPanel;
-use streamduck_daemon::socket::daemon_data::{AddComponentResult, AddDeviceResult, ClearButtonResult, CommitChangesToConfigResult, Device, DoButtonActionResult, ForciblyPopScreenResult, GetButtonResult, GetComponentValuesResult, GetCurrentScreenResult, GetDeviceResult, GetStackResult, PopScreenResult, PushScreenResult, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, RemoveComponentResult, RemoveDeviceResult, ReplaceScreenResult, ResetStackResult, SaveDeviceConfigResult, SaveDeviceConfigsResult, SetBrightnessResult, SetButtonResult, SetComponentValueResult};
+use streamduck_daemon::socket::daemon_data::{AddComponentResult, AddDeviceResult, ClearButtonResult, CommitChangesToConfigResult, Device, DoButtonActionResult, ForciblyPopScreenResult, GetButtonResult, GetComponentValuesResult, GetCurrentScreenResult, GetDeviceResult, GetStackResult, NewButtonFromComponentResult, NewButtonResult, PopScreenResult, PushScreenResult, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, RemoveComponentResult, RemoveDeviceResult, ReplaceScreenResult, ResetStackResult, SaveDeviceConfigResult, SaveDeviceConfigsResult, SetBrightnessResult, SetButtonResult, SetComponentValueResult};
 
 pub use streamduck_daemon as daemon;
 use streamduck_core::modules::components::{ComponentDefinition, UIValue};
@@ -11,6 +11,9 @@ use streamduck_daemon::socket::{SocketError, SocketPacket};
 
 #[cfg(target_family = "unix")]
 pub mod unix;
+
+
+pub mod util;
 
 /// Trait that defines a client, implementations of clients must be separate due to conditional compiling
 pub trait SDClient {
@@ -60,12 +63,17 @@ pub trait SDClient {
     /// Clears a button from current screen of a device
     fn clear_button(&self, serial_number: &str, key: u8) -> Result<ClearButtonResult, SDClientError>;
 
+    /// Creates a new empty button on current screen of a device
+    fn new_button(&self, serial_number: &str, key: u8) -> Result<NewButtonResult, SDClientError>;
+    /// Creates a button from component on current screen of a device
+    fn new_button_from_component(&self, serial_number: &str, key: u8, component_name: &str) -> Result<NewButtonFromComponentResult, SDClientError>;
+
     /// Adds component on a button
     fn add_component(&self, serial_number: &str, key: u8, component_name: &str) -> Result<AddComponentResult, SDClientError>;
     /// Gets component values on a button
     fn get_component_values(&self, serial_number: &str, key: u8, component_name: &str) -> Result<GetComponentValuesResult, SDClientError>;
     /// Sets component value on a button
-    fn set_component_values(&self, serial_number: &str, key: u8, component_name: &str, value: UIValue) -> Result<SetComponentValueResult, SDClientError>;
+    fn set_component_values(&self, serial_number: &str, key: u8, component_name: &str, value: Vec<UIValue>) -> Result<SetComponentValueResult, SDClientError>;
     /// Removes component from a button
     fn remove_component(&self, serial_number: &str, key: u8, component_name: &str) -> Result<RemoveComponentResult, SDClientError>;
 

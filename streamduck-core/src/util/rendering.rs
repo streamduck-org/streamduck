@@ -1,4 +1,5 @@
 use serde::{Serialize, Deserialize};
+use strum_macros::{EnumVariantNames, EnumString, Display};
 use std::path::Path;
 use image::{DynamicImage, GenericImage, GenericImageView, Rgba};
 use image::imageops::{FilterType, horizontal_gradient, vertical_gradient};
@@ -156,7 +157,8 @@ pub fn calculate_bounds_for_text(font: &Font, text: &str, scale: Scale) -> (u32,
 }
 
 /// Alignment enumeration
-#[derive(Debug, Clone, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, Serialize, Deserialize, EnumVariantNames, EnumString, Display)]
+#[strum(serialize_all = "title_case")]
 pub enum TextAlignment {
     TopLeft, TopCenter, TopRight,
     MiddleLeft, Center, MiddleRight,

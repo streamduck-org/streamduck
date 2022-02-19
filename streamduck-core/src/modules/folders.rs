@@ -30,7 +30,6 @@ impl SDModule for FolderModule {
         map.insert(FolderComponent::NAME.to_string(), ComponentDefinition {
             display_name: "Folder".to_string(),
             description: "Enables Folder functionality on the button".to_string(),
-            exposed_fields: Default::default(),
             default_looks: RendererComponent {
                 background: ButtonBackground::Solid((0, 50, 200, 255)),
                 text: vec![
@@ -52,7 +51,6 @@ impl SDModule for FolderModule {
         map.insert(FolderUpComponent::NAME.to_string(), ComponentDefinition {
             display_name: "Folder Up".to_string(),
             description: "Back button for folders".to_string(),
-            exposed_fields: Default::default(),
             default_looks: RendererComponent {
                 background: ButtonBackground::Solid((50, 50, 50, 255)),
                 text: vec![
@@ -74,7 +72,7 @@ impl SDModule for FolderModule {
         map
     }
 
-    fn add_component(&self, button: &mut Button, name: &str) {
+    fn add_component(&self, _: CoreHandle, button: &mut Button, name: &str) {
         match name {
             FolderComponent::NAME => {
                 button.insert_component(
@@ -94,13 +92,27 @@ impl SDModule for FolderModule {
         }
     }
 
-    fn component_values(&self, _: &Button, _: &str) -> Vec<UIValue> {
+    fn remove_component(&self, _: CoreHandle, button: &mut Button, name: &str) {
+        match name {
+            FolderComponent::NAME => {
+                button.remove_component::<FolderComponent>();
+            }
+
+            FolderUpComponent::NAME => {
+                button.remove_component::<FolderUpComponent>();
+            }
+
+            _ => {}
+        }
+    }
+
+    fn component_values(&self, _: CoreHandle, _: &Button, _: &str) -> Vec<UIValue> {
         // There's no values on folder components
         vec![]
     }
 
-    fn set_component_value(&self, _: &mut Button, _: &str, _: UIValue) {
-
+    fn set_component_value(&self, _: CoreHandle, _: &mut Button, _: &str, _: Vec<UIValue>) {
+        // There's no values
     }
 
     fn listening_for(&self) -> Vec<String> {
@@ -140,6 +152,8 @@ impl SDModule for FolderModule {
                 if let Ok(_) = parse_unique_button_to_component::<FolderUpComponent>(&pressed_button) {
                     if get_stack(&core).len() > 1 {
                         pop_screen(&core);
+
+                        self.folder_stack.write().unwrap().pop();
                     }
                 } else if let Ok(folder) = parse_unique_button_to_component::<FolderComponent>(&pressed_button) {
                     push_screen(&core, make_panel_unique(folder.buttons));
@@ -147,11 +161,11 @@ impl SDModule for FolderModule {
                 }
             }
 
-            SDEvent::PanelPopped {..} => {
+            SDEvent::PanelPopped { .. } => {
                 self.folder_stack.write().unwrap().pop();
             }
 
-            SDEvent::StackReset {..} => {
+            SDEvent::StackReset { .. } => {
                 self.folder_stack.write().unwrap().clear();
             }
 
@@ -178,10 +192,11 @@ impl SDModule for FolderModule {
 impl FolderModule {
     fn update_folder(&self, mut current_stack: Vec<(u8, UniqueButton)>, current_key: u8, current_button: UniqueButton) {
         if let Some((key, button)) = current_stack.pop() {
+            let current_raw_button = button_to_raw(&current_button);
             let mut button_handle = button.write().unwrap();
 
             if let Ok(mut folder_data) = parse_button_to_component::<FolderComponent>(&button_handle) {
-                folder_data.buttons.insert(current_key, button_to_raw(&current_button));
+                folder_data.buttons.insert(current_key, current_raw_button);
                 button_handle.insert_component(folder_data).ok();
                 drop(button_handle);
 

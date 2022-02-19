@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use streamduck_core::core::button::{Button, parse_unique_button_to_component};
+use streamduck_core::core::button::{Button, Component, parse_unique_button_to_component};
 use streamduck_core::modules::{PluginMetadata, SDModule, SDModulePointer};
 use streamduck_core::versions::{EVENTS, PLUGIN_API, SDMODULE_TRAIT};
 use serde::{Serialize, Deserialize};
@@ -58,7 +58,6 @@ impl SDModule for ExampleModule {
         map.insert("example".to_string(), ComponentDefinition {
             display_name: "Example".to_string(),
             description: "Example component".to_string(),
-            exposed_fields: vec![],
             default_looks: RendererComponent {
                 background: ButtonBackground::Solid((255, 0, 255, 255)),
                 text: vec![],
@@ -70,7 +69,7 @@ impl SDModule for ExampleModule {
     }
 
 
-    fn add_component(&self, button: &mut Button, name: &str) {
+    fn add_component(&self, _: CoreHandle, button: &mut Button, name: &str) {
         match name {
             "example" => {
                 button.insert_component(
@@ -82,11 +81,21 @@ impl SDModule for ExampleModule {
         }
     }
 
-    fn component_values(&self, _: &Button, _: &str) -> Vec<UIValue> {
+    fn remove_component(&self, _: CoreHandle, button: &mut Button, name: &str) {
+        match name {
+            "example" => {
+                button.remove_component::<ExampleComponent>();
+            }
+
+            _ => {}
+        }
+    }
+
+    fn component_values(&self, _: CoreHandle, _: &Button, _: &str) -> Vec<UIValue> {
         vec![]
     }
 
-    fn set_component_value(&self, _: &mut Button, _: &str, _: UIValue) {
+    fn set_component_value(&self, _: CoreHandle, _: &mut Button, _: &str, _: Vec<UIValue>) {
 
     }
 
@@ -115,4 +124,8 @@ impl SDModule for ExampleModule {
 #[derive(Serialize, Deserialize, Default)]
 pub struct ExampleComponent {
 
+}
+
+impl Component for ExampleComponent {
+    const NAME: &'static str = "example";
 }

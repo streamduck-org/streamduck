@@ -53,6 +53,9 @@ impl SocketListener for DaemonListener {
         process_for_type::<SetButton>(self, socket, &packet);
         process_for_type::<ClearButton>(self, socket, &packet);
 
+        process_for_type::<NewButton>(self, socket, &packet);
+        process_for_type::<NewButtonFromComponent>(self, socket, &packet);
+
         process_for_type::<AddComponent>(self, socket, &packet);
         process_for_type::<GetComponentValues>(self, socket, &packet);
         process_for_type::<SetComponentValue>(self, socket, &packet);
@@ -330,6 +333,12 @@ impl DaemonRequest for ReloadDeviceConfigsResult {
         if check_packet_for_data::<ReloadDeviceConfigsResult>(packet) {
             match listener.config.reload_device_configs() {
                 Ok(_) => {
+                    for (_, device) in listener.core_manager.list_added_devices() {
+                        if !device.core.is_closed() {
+                            device.core.mark_for_redraw();
+                        }
+                    }
+
                     send_packet(handle, packet, &ReloadDeviceConfigsResult::Reloaded).ok();
                 },
                 Err(err) => {
@@ -373,6 +382,12 @@ impl DaemonRequest for ReloadDeviceConfig {
         if let Ok(request) = parse_packet_to_data::<ReloadDeviceConfig>(packet) {
             match listener.config.reload_device_config(&request.serial_number) {
                 Ok(_) => {
+                    if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+                        if !device.core.is_closed() {
+                            device.core.mark_for_redraw();
+                        }
+                    }
+
                     send_packet(handle, packet, &ReloadDeviceConfigResult::Reloaded).ok();
                 },
                 Err(err) => {
@@ -564,6 +579,8 @@ impl DaemonRequest for ListComponents {
         }
     }
 }
+
+// TODO: Expose plugin settings to socket
 
 // Panel management
 /// Request for getting current stack on a device
@@ -795,6 +812,121 @@ impl DaemonRequest for ClearButton {
     }
 }
 
+/// Request for adding a new empty button
+#[derive(Serialize, Deserialize)]
+pub struct NewButton {
+    pub serial_number: String,
+    pub key: u8,
+}
+
+/// Response of NewButton request
+#[derive(Serialize, Deserialize)]
+pub enum NewButtonResult {
+    /// Sent if device wasn't found
+    DeviceNotFound,
+
+    /// Sent if button failed to be created on specified spot
+    FailedToCreate,
+
+    /// Sent if button was successfully created
+    Created,
+}
+
+impl SocketData for NewButton {
+    const NAME: &'static str = "new_button";
+}
+
+impl SocketData for NewButtonResult {
+    const NAME: &'static str = "new_button";
+}
+
+impl DaemonRequest for NewButton {
+    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+        if let Ok(request) = parse_packet_to_data::<NewButton>(packet) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+                let wrapped_core = CoreHandle::wrap(device.core);
+
+                if set_button(&wrapped_core, request.key, make_button_unique(Button::new())) {
+                    send_packet(handle, packet, &NewButtonResult::Created).ok();
+                } else {
+                    send_packet(handle, packet, &NewButtonResult::FailedToCreate).ok();
+                }
+            } else {
+                send_packet(handle, packet, &NewButtonResult::DeviceNotFound).ok();
+            }
+        }
+    }
+}
+
+/// Request for adding a new empty button
+#[derive(Serialize, Deserialize)]
+pub struct NewButtonFromComponent {
+    pub serial_number: String,
+    pub key: u8,
+    pub component_name: String,
+}
+
+/// Response of NewButton request
+#[derive(Serialize, Deserialize)]
+pub enum NewButtonFromComponentResult {
+    /// Sent if device wasn't found
+    DeviceNotFound,
+
+    /// Sent if component wasn't found
+    ComponentNotFound,
+
+    /// Sent if button failed to be created on specified spot
+    FailedToCreate,
+
+    /// Sent if button was successfully created
+    Created,
+}
+
+impl SocketData for NewButtonFromComponent {
+    const NAME: &'static str = "new_button_from_component";
+}
+
+impl SocketData for NewButtonFromComponentResult {
+    const NAME: &'static str = "new_button_from_component";
+}
+
+impl DaemonRequest for NewButtonFromComponent {
+    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+        if let Ok(request) = parse_packet_to_data::<NewButtonFromComponent>(packet) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+                let wrapped_core = CoreHandle::wrap(device.core);
+
+                let map = listener.module_manager.get_components_list_by_modules();
+
+                for (module_name, component_list) in map {
+                    for (component_name, definition) in component_list {
+                        if request.component_name == component_name {
+                            let module = listener.module_manager.get_module(&module_name).unwrap();
+
+                            let mut button = Button::new();
+                            button.insert_component(definition.default_looks).ok();
+
+                            module.add_component(wrapped_core.clone_for(&module), &mut button, &component_name);
+
+                            if set_button(&wrapped_core, request.key, make_button_unique(button)) {
+                                send_packet(handle, packet, &NewButtonFromComponentResult::Created).ok();
+                            } else {
+                                send_packet(handle, packet, &NewButtonFromComponentResult::FailedToCreate).ok();
+                            }
+
+                            return;
+                        }
+                    }
+                }
+
+                send_packet(handle, packet, &NewButtonFromComponentResult::ComponentNotFound).ok();
+            } else {
+                send_packet(handle, packet, &NewButtonFromComponentResult::DeviceNotFound).ok();
+            }
+        }
+    }
+}
+
 // Components
 /// Request for adding components onto buttons
 #[derive(Serialize, Deserialize)]
@@ -853,7 +985,7 @@ impl DaemonRequest for AddComponent {
                                 for (component, _) in component_list {
                                     if component == request.component_name {
                                         let module = listener.module_manager.get_module(&module).unwrap();
-                                        module.add_component(button_handle.deref_mut(), &component);
+                                        module.add_component(wrapped_core.clone_for(&module), button_handle.deref_mut(), &component);
                                         send_packet(handle, packet, &AddComponentResult::Added).ok();
                                         return;
                                     }
@@ -927,7 +1059,7 @@ impl DaemonRequest for GetComponentValues {
                                 for (component, _) in component_list {
                                     if component == request.component_name {
                                         let module = listener.module_manager.get_module(&module).unwrap();
-                                        let values = module.component_values(button_handle.deref(), &component);
+                                        let values = module.component_values(wrapped_core.clone_for(&module), button_handle.deref(), &component);
                                         send_packet(handle, packet, &GetComponentValuesResult::Values(values)).ok();
                                         return;
                                     }
@@ -955,7 +1087,7 @@ pub struct SetComponentValue {
     pub serial_number: String,
     pub key: u8,
     pub component_name: String,
-    pub value: UIValue,
+    pub value: Vec<UIValue>,
 }
 
 /// Response of AddComponent request
@@ -1002,7 +1134,7 @@ impl DaemonRequest for SetComponentValue {
                                 for (component, _) in component_list {
                                     if component == request.component_name {
                                         let module = listener.module_manager.get_module(&module).unwrap();
-                                        module.set_component_value(button_handle.deref_mut(), &component, request.value);
+                                        module.set_component_value(wrapped_core.clone_for(&module), button_handle.deref_mut(), &component, request.value);
                                         send_packet(handle, packet, &SetComponentValueResult::Set).ok();
                                         return;
                                     }
@@ -1070,8 +1202,20 @@ impl DaemonRequest for RemoveComponent {
                         let mut button_handle = button.write().unwrap();
 
                         if button_handle.component_names().contains(&request.component_name) {
-                            button_handle.0.remove(&request.component_name);
-                            send_packet(handle, packet, &RemoveComponentResult::Removed).ok();
+                            let components = listener.module_manager.get_components_list_by_modules();
+
+                            for (module, component_list) in components {
+                                for (component, _) in component_list {
+                                    if component == request.component_name {
+                                        let module = listener.module_manager.get_module(&module).unwrap();
+                                        module.remove_component(wrapped_core.clone_for(&module), button_handle.deref_mut(), &component);
+                                        send_packet(handle, packet, &RemoveComponentResult::Removed).ok();
+                                        return;
+                                    }
+                                }
+                            }
+
+                            send_packet(handle, packet, &RemoveComponentResult::ComponentNotFound).ok();
                         } else {
                             send_packet(handle, packet, &RemoveComponentResult::ComponentNotFound).ok();
                         }

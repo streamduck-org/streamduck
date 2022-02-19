@@ -167,6 +167,8 @@ fn redraw(core: Arc<SDCore>, state: &RendererState) {
                     }
 
                     commands.push(StreamDeckCommand::SetButtonImage(i, image));
+                } else {
+                    commands.push(StreamDeckCommand::ClearButtonImage(i));
                 }
             } else {
                 commands.push(StreamDeckCommand::ClearButtonImage(i));
@@ -229,7 +231,7 @@ pub struct ButtonTextShadow {
 }
 
 /// Renderer component that contains button background and array of text structs
-#[derive(Serialize, Deserialize, Clone, Hash)]
+#[derive(Serialize, Deserialize, Clone, Hash, Debug)]
 pub struct RendererComponent {
     #[serde(default)]
     pub background: ButtonBackground,
@@ -244,7 +246,7 @@ fn make_true() -> bool { true }
 impl Default for RendererComponent {
     fn default() -> Self {
         Self {
-            background: ButtonBackground::Solid((0, 0, 0, 0)),
+            background: ButtonBackground::Solid((255, 255, 255, 255)),
             text: vec![],
             to_cache: true
         }

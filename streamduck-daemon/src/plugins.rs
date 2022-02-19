@@ -37,16 +37,20 @@ impl SDModule for PluginProxy {
         self.plugin.components()
     }
 
-    fn add_component(&self, button: &mut Button, name: &str) {
-        self.plugin.add_component(button, name)
+    fn add_component(&self, core: CoreHandle, button: &mut Button, name: &str) {
+        self.plugin.add_component(core, button, name)
     }
 
-    fn component_values(&self, button: &Button, name: &str) -> Vec<UIValue> {
-        self.plugin.component_values(button, name)
+    fn remove_component(&self, core: CoreHandle, button: &mut Button, name: &str) {
+        self.plugin.remove_component(core, button, name)
     }
 
-    fn set_component_value(&self, button: &mut Button, name: &str, value: UIValue) {
-        self.plugin.set_component_value(button, name, value)
+    fn component_values(&self, core: CoreHandle, button: &Button, name: &str) -> Vec<UIValue> {
+        self.plugin.component_values(core, button, name)
+    }
+
+    fn set_component_value(&self, core: CoreHandle, button: &mut Button, name: &str, value: Vec<UIValue>) {
+        self.plugin.set_component_value(core, button, name, value)
     }
 
     fn listening_for(&self) -> Vec<String> {
