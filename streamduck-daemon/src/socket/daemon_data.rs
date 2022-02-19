@@ -336,9 +336,14 @@ impl DaemonRequest for ReloadDeviceConfigsResult {
         if check_packet_for_data::<ReloadDeviceConfigsResult>(packet) {
             match listener.config.reload_device_configs() {
                 Ok(_) => {
-                    for (_, device) in listener.core_manager.list_added_devices() {
+                    for (serial, device) in listener.core_manager.list_added_devices() {
                         if !device.core.is_closed() {
-                            device.core.mark_for_redraw();
+                            if let Some(dvc_cfg) = listener.config.get_device_config(&serial) {
+                                let wrapped_core = CoreHandle::wrap(device.core);
+
+                                load_panels(&wrapped_core, make_panel_unique(dvc_cfg.layout));
+                                wrapped_core.core().mark_for_redraw()
+                            }
                         }
                     }
 
@@ -387,7 +392,12 @@ impl DaemonRequest for ReloadDeviceConfig {
                 Ok(_) => {
                     if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                         if !device.core.is_closed() {
-                            device.core.mark_for_redraw();
+                            if let Some(dvc_cfg) = listener.config.get_device_config(&request.serial_number) {
+                                let wrapped_core = CoreHandle::wrap(device.core);
+
+                                load_panels(&wrapped_core, make_panel_unique(dvc_cfg.layout));
+                                wrapped_core.core().mark_for_redraw();
+                            }
                         }
                     }
 

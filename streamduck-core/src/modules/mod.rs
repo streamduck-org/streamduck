@@ -327,7 +327,7 @@ impl SDModule for CoreModule {
                                     ButtonBackground::Solid(_) => "Solid Color",
                                     ButtonBackground::HorizontalGradient(_, _) => "Horizontal Gradient",
                                     ButtonBackground::VerticalGradient(_, _) => "Vertical Gradient",
-                                    ButtonBackground::Image(_) => "Image"
+                                    ButtonBackground::Image(_, _) => "Image"
                                 }.to_string()
                             )
                         }
@@ -384,13 +384,24 @@ impl SDModule for CoreModule {
                                 }
                             );
                         }
-                        ButtonBackground::Image(path) => {
+                        ButtonBackground::Image(path, disable_caching) => {
                             fields.push(
                                 UIValue {
                                     name: "path".to_string(),
                                     display_name: "Image Path".to_string(),
                                     ty: UIFieldType::InputFieldString,
                                     value: UIFieldValue::InputFieldString(path.to_string_lossy().to_string())
+                                }
+                            );
+
+                            fields.push(
+                                UIValue {
+                                    name: "disable_cache".to_string(),
+                                    display_name: "Disable Image Caching".to_string(),
+                                    ty: UIFieldType::Checkbox {
+                                        disabled: false
+                                    },
+                                    value: UIFieldValue::Checkbox(*disable_caching)
                                 }
                             );
                         }
@@ -639,7 +650,7 @@ impl SDModule for CoreModule {
                                 "Solid Color" => component.background = ButtonBackground::Solid((0, 0, 0, 0)),
                                 "Horizontal Gradient" => component.background = ButtonBackground::HorizontalGradient((0, 0, 0, 0), (0, 0, 0, 0)),
                                 "Vertical Gradient" => component.background = ButtonBackground::HorizontalGradient((0, 0, 0, 0), (0, 0, 0, 0)),
-                                "Image" => component.background = ButtonBackground::Image(PathBuf::default()),
+                                "Image" => component.background = ButtonBackground::Image(PathBuf::default(), false),
 
                                 _ => {}
                             }
@@ -684,9 +695,17 @@ impl SDModule for CoreModule {
                     }
 
                     if let Some(value) = change_map.get("path") {
-                        if let ButtonBackground::Image(_) = component.background {
+                        if let ButtonBackground::Image(_, disable_cache) = &component.background {
                             if let Ok(path) = (&value.value).try_into() {
-                                component.background = ButtonBackground::Image(path);
+                                component.background = ButtonBackground::Image(path, *disable_cache);
+                            }
+                        }
+                    }
+
+                    if let Some(value) = change_map.get("disable_cache") {
+                        if let ButtonBackground::Image(path, _) = &component.background {
+                            if let Ok(cache) = (&value.value).try_into() {
+                                component.background = ButtonBackground::Image(path.clone(), cache);
                             }
                         }
                     }

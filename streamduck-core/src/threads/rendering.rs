@@ -40,6 +40,7 @@ enum RendererCommunication {
 }
 
 pub struct RendererState {
+    render_cache: RwLock<HashMap<u64, DynamicImage>>,
     image_cache: RwLock<HashMap<u64, DynamicImage>>
 }
 
@@ -50,6 +51,7 @@ pub fn spawn_rendering_thread(core: Arc<SDCore>) -> RendererHandle {
     spawn(move || {
         let core = core.clone();
         let state = RendererState {
+            render_cache: Default::default(),
             image_cache: Default::default()
         };
 
@@ -89,7 +91,7 @@ fn redraw(core: Arc<SDCore>, state: &RendererState) {
                 if let Ok(renderer) = parse_unique_button_to_component::<RendererComponent>(button) {
                     let renderer_hash = hash_renderer(&renderer);
 
-                    let mut cache_handle = state.image_cache.write().unwrap();
+                    let mut cache_handle = state.render_cache.write().unwrap();
 
                     let cache_entry = cache_handle.get(&renderer_hash);
                     let mut image = if cache_entry.is_some() && renderer.to_cache {
@@ -108,13 +110,30 @@ fn redraw(core: Arc<SDCore>, state: &RendererState) {
                                 image_from_vert_gradient(core.image_size, Rgba([start.0, start.1, start.2, 255]), Rgba([end.0, end.1, end.2, 255]))
                             }
 
-                            ButtonBackground::Image(path) => {
-                                if let Some(image) = load_image(core.image_size, path.deref()) {
-                                    image
+                            ButtonBackground::Image(path, disable_caching) => {
+                                let image_hash = hash_path(&path);
+
+                                let mut image_cache = state.image_cache.write().unwrap();
+                                let image_cache_entry = image_cache.get(&image_hash);
+
+                                let image = if image_cache_entry.is_some() && (!disable_caching) {
+                                    image_cache_entry.unwrap().clone()
                                 } else {
-                                    log::error!("Failed to load image at '{}'", path.to_string_lossy());
-                                    continue;
+                                    if let Some(image) = load_image(core.image_size, path.deref()) {
+                                        image
+                                    } else {
+                                        log::error!("Failed to load image at '{}'", path.to_string_lossy());
+                                        continue;
+                                    }
+                                };
+
+                                if !disable_caching {
+                                    image_cache.insert(image_hash, image.clone());
                                 }
+
+                                drop(image_cache);
+
+                                image
                             }
                         };
 
@@ -190,7 +209,7 @@ pub enum ButtonBackground {
     Solid(Color),
     HorizontalGradient(Color, Color),
     VerticalGradient(Color, Color),
-    Image(PathBuf),
+    Image(PathBuf, bool),
 }
 
 impl Default for ButtonBackground {
@@ -260,5 +279,11 @@ impl Component for RendererComponent {
 pub(crate) fn hash_renderer(renderer: &RendererComponent) -> u64 {
     let mut hasher = DefaultHasher::new();
     renderer.hash(&mut hasher);
+    hasher.finish()
+}
+
+pub(crate) fn hash_path(path: &PathBuf) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    path.hash(&mut hasher);
     hasher.finish()
 }
