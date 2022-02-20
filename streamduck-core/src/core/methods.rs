@@ -1,12 +1,14 @@
+use std::ops::DerefMut;
 use std::sync::{Arc, LockResult, MutexGuard};
 use serde_json::{Map, Value};
 use crate::core::{ButtonPanel, UniqueButton};
 use crate::{ModuleManager, SDCore};
-use crate::util::{deserialize_panel, serialize_panel};
+use crate::util::{button_to_raw, deserialize_panel, make_button_unique, serialize_panel};
 use serde::de::Error as DeError;
 use serde_json::Error as JSONError;
 use crate::modules::events::SDEvent;
 use crate::modules::{features_to_vec, UniqueSDModule};
+use crate::modules::components::UIValue;
 use crate::threads::streamdeck::StreamDeckCommand;
 use crate::versions::SUPPORTED_FEATURES;
 
@@ -41,7 +43,7 @@ impl CoreHandle {
     pub fn wrap(core: Arc<SDCore>) -> CoreHandle {
         CoreHandle {
             core,
-            module_name: "core".to_string(),
+            module_name: "-system-".to_string(),
             module_features: features_to_vec(SUPPORTED_FEATURES)
         }
     }
@@ -164,6 +166,161 @@ pub fn clear_button(core: &CoreHandle, key: u8) -> bool {
     } else {
         false
     }
+}
+
+pub fn add_component(core: &CoreHandle, key: u8, component_name: &str) -> bool {
+    core.required_feature("core_methods");
+    if let Some(screen) = get_current_screen(&core) {
+        if let Some(button) = screen.get(&key) {
+            let previous = make_button_unique(button_to_raw(button));
+
+            let mut button_handle = button.write().unwrap();
+
+            if !button_handle.component_names().contains(&component_name.to_string()) {
+                let components = core.module_manager().get_components_list_by_modules();
+
+                for (module, component_list) in components {
+                    for (component, _) in component_list {
+                        if component == component_name {
+                            let module = core.module_manager().get_module(&module).unwrap();
+
+                            module.add_component(core.clone_for(&module), button_handle.deref_mut(), &component);
+
+                            drop(button_handle);
+
+                            for module in core.module_manager().get_module_list() {
+                                if module.name() == core.module_name {
+                                    continue;
+                                }
+
+                                module.event(core.clone_for(&module), SDEvent::ButtonUpdated {
+                                    key,
+                                    panel: screen.clone(),
+                                    new_button: button.clone(),
+                                    old_button: previous.clone()
+                                });
+                            }
+
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    false
+}
+
+pub fn get_component_values(core: &CoreHandle, key: u8, component_name: &str) -> Option<Vec<UIValue>> {
+    core.required_feature("core_methods");
+    if let Some(screen) = get_current_screen(&core) {
+        if let Some(button) = screen.get(&key) {
+            let mut button_handle = button.write().unwrap();
+
+            if button_handle.component_names().contains(&component_name.to_string()) {
+                let components = core.module_manager().get_components_list_by_modules();
+
+                for (module, component_list) in components {
+                    for (component, _) in component_list {
+                        if component == component_name {
+                            let module = core.module_manager().get_module(&module).unwrap();
+
+                            return Some(module.component_values(core.clone_for(&module), button_handle.deref_mut(), &component));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    None
+}
+
+pub fn set_component_value(core: &CoreHandle, key: u8, component_name: &str, value: Vec<UIValue>) -> bool {
+    core.required_feature("core_methods");
+    if let Some(screen) = get_current_screen(&core) {
+        if let Some(button) = screen.get(&key) {
+            let previous = make_button_unique(button_to_raw(button));
+
+            let mut button_handle = button.write().unwrap();
+
+            if button_handle.component_names().contains(&component_name.to_string()) {
+                let components = core.module_manager().get_components_list_by_modules();
+
+                for (module, component_list) in components {
+                    for (component, _) in component_list {
+                        if component == component_name {
+                            let module = core.module_manager().get_module(&module).unwrap();
+                            module.set_component_value(core.clone_for(&module), button_handle.deref_mut(), &component, value);
+                            drop(button_handle);
+
+                            for module in core.module_manager().get_module_list() {
+                                if module.name() == core.module_name {
+                                    continue;
+                                }
+
+                                module.event(core.clone_for(&module), SDEvent::ButtonUpdated {
+                                    key,
+                                    panel: screen.clone(),
+                                    new_button: button.clone(),
+                                    old_button: previous.clone()
+                                });
+                            }
+
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    false
+}
+
+pub fn remove_component(core: &CoreHandle, key: u8, component_name: &str) -> bool {
+    core.required_feature("core_methods");
+    if let Some(screen) = get_current_screen(&core) {
+        if let Some(button) = screen.get(&key) {
+            let previous = make_button_unique(button_to_raw(button));
+
+            let mut button_handle = button.write().unwrap();
+
+            if button_handle.component_names().contains(&component_name.to_string()) {
+                let components = core.module_manager().get_components_list_by_modules();
+
+                for (module, component_list) in components {
+                    for (component, _) in component_list {
+                        if component == component_name {
+                            let module = core.module_manager().get_module(&module).unwrap();
+
+                            module.remove_component(core.clone_for(&module), button_handle.deref_mut(), &component);
+
+                            drop(button_handle);
+
+                            for module in core.module_manager().get_module_list() {
+                                if module.name() == core.module_name {
+                                    continue;
+                                }
+
+                                module.event(core.clone_for(&module), SDEvent::ButtonUpdated {
+                                    key,
+                                    panel: screen.clone(),
+                                    new_button: button.clone(),
+                                    old_button: previous.clone()
+                                });
+                            }
+
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    false
 }
 
 /// Pushes new panel into the stack

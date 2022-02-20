@@ -1,6 +1,5 @@
 //! Data types that daemon uses for core functions
 use std::collections::HashMap;
-use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use serde::{Serialize, Deserialize};
 use streamduck_core::versions::SOCKET_API;
@@ -8,12 +7,12 @@ use crate::core_manager::CoreManager;
 use crate::socket::{check_packet_for_data, parse_packet_to_data, send_packet, SocketData, SocketHandle, SocketListener, SocketPacket};
 use strum_macros::Display;
 use streamduck_core::core::button::Button;
-use streamduck_core::core::methods::{button_action, clear_button, CoreHandle, get_button, get_current_screen, get_stack, load_panels, pop_screen, push_screen, replace_screen, save_panels, set_brightness, set_button};
+use streamduck_core::core::methods::{add_component, button_action, clear_button, CoreHandle, get_button, get_component_values, get_current_screen, get_stack, load_panels, pop_screen, push_screen, remove_component, replace_screen, save_panels, set_brightness, set_button, set_component_value};
 use streamduck_core::core::RawButtonPanel;
 use streamduck_core::modules::{ModuleManager, PluginMetadata};
 use streamduck_core::modules::components::{ComponentDefinition, UIValue};
 use streamduck_core::util::{button_to_raw, make_button_unique, make_panel_unique, panel_to_raw};
-use crate::config::{Config, ConfigError};
+use crate::config::{Config, ConfigError, DeviceConfig};
 
 /// Listener for daemon types
 pub struct DaemonListener {
@@ -38,6 +37,9 @@ impl SocketListener for DaemonListener {
         process_for_type::<ReloadDeviceConfig>(self, socket, &packet);
         process_for_type::<SaveDeviceConfigsResult>(self, socket, &packet);
         process_for_type::<SaveDeviceConfig>(self, socket, &packet);
+
+        process_for_type::<ImportDeviceConfig>(self, socket, &packet);
+        process_for_type::<ExportDeviceConfig>(self, socket, &packet);
 
         process_for_type::<SetBrightness>(self, socket, &packet);
 
@@ -488,6 +490,111 @@ impl DaemonRequest for SaveDeviceConfig {
                         send_packet(handle, packet, &SaveDeviceConfigResult::ConfigError).ok();
                     }
                 }
+            }
+        }
+    }
+}
+
+/// Request for exporting device config for specific device
+#[derive(Serialize, Deserialize)]
+pub struct ExportDeviceConfig {
+    pub serial_number: String,
+}
+
+/// Response of SaveDeviceConfig request
+#[derive(Serialize, Deserialize)]
+pub enum ExportDeviceConfigResult {
+    /// Sent if device wasn't found
+    DeviceNotFound,
+
+    /// Sent if successfully exported
+    Exported(String),
+}
+
+impl SocketData for ExportDeviceConfig {
+    const NAME: &'static str = "export_device_config";
+}
+
+impl SocketData for ExportDeviceConfigResult {
+    const NAME: &'static str = "export_device_config";
+}
+
+impl DaemonRequest for ExportDeviceConfig {
+    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+        if let Ok(request) = parse_packet_to_data::<ExportDeviceConfig>(packet) {
+            if let Some(config) = listener.config.get_device_config(&request.serial_number) {
+                send_packet(handle, packet, &ExportDeviceConfigResult::Exported(serde_json::to_string(&config).unwrap())).ok();
+            } else {
+                send_packet(handle, packet, &ExportDeviceConfigResult::DeviceNotFound).ok();
+            }
+        }
+    }
+}
+
+/// Request for saving device config for specific device
+#[derive(Serialize, Deserialize)]
+pub struct ImportDeviceConfig {
+    pub serial_number: String,
+    pub config: String,
+}
+
+/// Response of SaveDeviceConfig request
+#[derive(Serialize, Deserialize)]
+pub enum ImportDeviceConfigResult {
+    /// Sent if device wasn't found
+    DeviceNotFound,
+
+    /// Sent if config was invalid
+    Invalid,
+
+    /// Sent if config failed to save
+    FailedToSave,
+
+    /// Sent if successfully imported
+    Imported,
+}
+
+impl SocketData for ImportDeviceConfig {
+    const NAME: &'static str = "import_device_config";
+}
+
+impl SocketData for ImportDeviceConfigResult {
+    const NAME: &'static str = "import_device_config";
+}
+
+impl DaemonRequest for ImportDeviceConfig {
+    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+        if let Ok(request) = parse_packet_to_data::<ImportDeviceConfig>(packet) {
+            if let Ok(config) = serde_json::from_str::<DeviceConfig>(&request.config) {
+                if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+                    listener.config.set_device_config(&request.serial_number, config.clone());
+
+                    match listener.config.save_device_config(&request.serial_number) {
+                        Ok(_) => {
+                            let wrapped_core = CoreHandle::wrap(device.core);
+
+                            load_panels(&wrapped_core, make_panel_unique(config.layout));
+
+                            send_packet(handle, packet, &ImportDeviceConfigResult::Imported).ok();
+                        }
+
+                        Err(err) => {
+                            match err {
+                                ConfigError::IoError(_) | ConfigError::ParseError(_) => {
+                                    send_packet(handle, packet, &ImportDeviceConfigResult::FailedToSave).ok();
+                                }
+
+                                ConfigError::DeviceNotFound => {
+                                    send_packet(handle, packet, &ImportDeviceConfigResult::DeviceNotFound).ok();
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    send_packet(handle, packet, &ImportDeviceConfigResult::DeviceNotFound).ok();
+                }
+            } else {
+                send_packet(handle, packet, &ImportDeviceConfigResult::Invalid).ok();
             }
         }
     }
@@ -1034,17 +1141,8 @@ pub enum AddComponentResult {
     /// Sent if device wasn't found
     DeviceNotFound,
 
-    /// Sent if there's no screen
-    NoScreen,
-
-    /// Sent if button wasn't found
-    NoButton,
-
-    /// Sent if component wasn't found
-    ComponentNotFound,
-
-    /// Sent if component already exists on a button
-    AlreadyExists,
+    /// Sent if failed to add component
+    FailedToAdd,
 
     /// Sent if component was successfully added
     Added,
@@ -1064,33 +1162,10 @@ impl DaemonRequest for AddComponent {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if let Some(screen) = get_current_screen(&wrapped_core) {
-                    if let Some(button) = screen.get(&request.key) {
-                        let mut button_handle = button.write().unwrap();
-
-                        if button_handle.component_names().contains(&request.component_name) {
-                            send_packet(handle, packet, &AddComponentResult::AlreadyExists).ok();
-                        } else {
-                            let components = listener.module_manager.get_components_list_by_modules();
-
-                            for (module, component_list) in components {
-                                for (component, _) in component_list {
-                                    if component == request.component_name {
-                                        let module = listener.module_manager.get_module(&module).unwrap();
-                                        module.add_component(wrapped_core.clone_for(&module), button_handle.deref_mut(), &component);
-                                        send_packet(handle, packet, &AddComponentResult::Added).ok();
-                                        return;
-                                    }
-                                }
-                            }
-
-                            send_packet(handle, packet, &AddComponentResult::ComponentNotFound).ok();
-                        }
-                    } else {
-                        send_packet(handle, packet, &AddComponentResult::NoButton).ok();
-                    }
+                if add_component(&wrapped_core, request.key, &request.component_name) {
+                    send_packet(handle, packet, &AddComponentResult::Added).ok();
                 } else {
-                    send_packet(handle, packet, &AddComponentResult::NoScreen).ok();
+                    send_packet(handle, packet, &AddComponentResult::FailedToAdd).ok();
                 }
             } else {
                 send_packet(handle, packet, &AddComponentResult::DeviceNotFound).ok();
@@ -1113,14 +1188,8 @@ pub enum GetComponentValuesResult {
     /// Sent if device wasn't found
     DeviceNotFound,
 
-    /// Sent if there's no screen
-    NoScreen,
-
-    /// Sent if button wasn't found
-    NoButton,
-
-    /// Sent if component wasn't found
-    ComponentNotFound,
+    /// Sent if failed to get component values
+    FailedToGet,
 
     /// Sent if component values were successfully retrieved
     Values(Vec<UIValue>),
@@ -1140,31 +1209,12 @@ impl DaemonRequest for GetComponentValues {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if let Some(screen) = get_current_screen(&wrapped_core) {
-                    if let Some(button) = screen.get(&request.key) {
-                        let button_handle = button.read().unwrap();
+                let values = get_component_values(&wrapped_core, request.key, &request.component_name);
 
-                        if button_handle.component_names().contains(&request.component_name) {
-                            let components = listener.module_manager.get_components_list_by_modules();
-
-                            for (module, component_list) in components {
-                                for (component, _) in component_list {
-                                    if component == request.component_name {
-                                        let module = listener.module_manager.get_module(&module).unwrap();
-                                        let values = module.component_values(wrapped_core.clone_for(&module), button_handle.deref(), &component);
-                                        send_packet(handle, packet, &GetComponentValuesResult::Values(values)).ok();
-                                        return;
-                                    }
-                                }
-                            }
-                        }
-
-                        send_packet(handle, packet, &GetComponentValuesResult::ComponentNotFound).ok();
-                    } else {
-                        send_packet(handle, packet, &GetComponentValuesResult::NoButton).ok();
-                    }
+                if let Some(values) = values {
+                    send_packet(handle, packet, &GetComponentValuesResult::Values(values)).ok();
                 } else {
-                    send_packet(handle, packet, &GetComponentValuesResult::NoScreen).ok();
+                    send_packet(handle, packet, &GetComponentValuesResult::FailedToGet).ok();
                 }
             } else {
                 send_packet(handle, packet, &GetComponentValuesResult::DeviceNotFound).ok();
@@ -1188,14 +1238,8 @@ pub enum SetComponentValueResult {
     /// Sent if device wasn't found
     DeviceNotFound,
 
-    /// Sent if there's no screen
-    NoScreen,
-
-    /// Sent if button wasn't found
-    NoButton,
-
-    /// Sent if component wasn't found
-    ComponentNotFound,
+    /// Sent if failed to set component parameter
+    FailedToSet,
 
     /// Sent if component value was successfully set
     Set,
@@ -1215,31 +1259,10 @@ impl DaemonRequest for SetComponentValue {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if let Some(screen) = get_current_screen(&wrapped_core) {
-                    if let Some(button) = screen.get(&request.key) {
-                        let mut button_handle = button.write().unwrap();
-
-                        if button_handle.component_names().contains(&request.component_name) {
-                            let components = listener.module_manager.get_components_list_by_modules();
-
-                            for (module, component_list) in components {
-                                for (component, _) in component_list {
-                                    if component == request.component_name {
-                                        let module = listener.module_manager.get_module(&module).unwrap();
-                                        module.set_component_value(wrapped_core.clone_for(&module), button_handle.deref_mut(), &component, request.value);
-                                        send_packet(handle, packet, &SetComponentValueResult::Set).ok();
-                                        return;
-                                    }
-                                }
-                            }
-                        }
-
-                        send_packet(handle, packet, &SetComponentValueResult::ComponentNotFound).ok();
-                    } else {
-                        send_packet(handle, packet, &SetComponentValueResult::NoButton).ok();
-                    }
+                if set_component_value(&wrapped_core, request.key, &request.component_name, request.value) {
+                    send_packet(handle, packet, &SetComponentValueResult::Set).ok();
                 } else {
-                    send_packet(handle, packet, &SetComponentValueResult::NoScreen).ok();
+                    send_packet(handle, packet, &SetComponentValueResult::FailedToSet).ok();
                 }
             } else {
                 send_packet(handle, packet, &SetComponentValueResult::DeviceNotFound).ok();
@@ -1262,14 +1285,8 @@ pub enum RemoveComponentResult {
     /// Sent if device wasn't found
     DeviceNotFound,
 
-    /// Sent if there's no screen
-    NoScreen,
-
-    /// Sent if button wasn't found
-    NoButton,
-
-    /// Sent if component wasn't found
-    ComponentNotFound,
+    /// Sent if failed to remove component
+    FailedToRemove,
 
     /// Sent if component value was successfully set
     Removed,
@@ -1289,33 +1306,10 @@ impl DaemonRequest for RemoveComponent {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if let Some(screen) = get_current_screen(&wrapped_core) {
-                    if let Some(button) = screen.get(&request.key) {
-                        let mut button_handle = button.write().unwrap();
-
-                        if button_handle.component_names().contains(&request.component_name) {
-                            let components = listener.module_manager.get_components_list_by_modules();
-
-                            for (module, component_list) in components {
-                                for (component, _) in component_list {
-                                    if component == request.component_name {
-                                        let module = listener.module_manager.get_module(&module).unwrap();
-                                        module.remove_component(wrapped_core.clone_for(&module), button_handle.deref_mut(), &component);
-                                        send_packet(handle, packet, &RemoveComponentResult::Removed).ok();
-                                        return;
-                                    }
-                                }
-                            }
-
-                            send_packet(handle, packet, &RemoveComponentResult::ComponentNotFound).ok();
-                        } else {
-                            send_packet(handle, packet, &RemoveComponentResult::ComponentNotFound).ok();
-                        }
-                    } else {
-                        send_packet(handle, packet, &RemoveComponentResult::NoButton).ok();
-                    }
+                if remove_component(&wrapped_core, request.key, &request.component_name) {
+                    send_packet(handle, packet, &RemoveComponentResult::Removed).ok();
                 } else {
-                    send_packet(handle, packet, &RemoveComponentResult::NoScreen).ok();
+                    send_packet(handle, packet, &RemoveComponentResult::FailedToRemove).ok();
                 }
             } else {
                 send_packet(handle, packet, &RemoveComponentResult::DeviceNotFound).ok();

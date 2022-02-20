@@ -111,10 +111,7 @@ pub fn button_add_component(client: ClientRef, current_sn: &str, mut args: Split
 
                 match result {
                     AddComponentResult::DeviceNotFound => println!("button component add: Device not found"),
-                    AddComponentResult::NoScreen => println!("button component add: No screen"),
-                    AddComponentResult::NoButton => println!("button component add: No button"),
-                    AddComponentResult::ComponentNotFound => println!("button component add: Component not found"),
-                    AddComponentResult::AlreadyExists => println!("button component add: Already exists"),
+                    AddComponentResult::FailedToAdd => println!("button component add: Failed to add"),
                     AddComponentResult::Added => {
                         client.commit_changes(current_sn).expect("Failed to commit changes");
                         println!("button component add: Added");
@@ -139,9 +136,7 @@ pub fn button_remove_component(client: ClientRef, current_sn: &str, mut args: Sp
 
                 match result {
                     RemoveComponentResult::DeviceNotFound => println!("button component remove: Device not found"),
-                    RemoveComponentResult::NoScreen => println!("button component remove: No screen"),
-                    RemoveComponentResult::NoButton => println!("button component remove: No button"),
-                    RemoveComponentResult::ComponentNotFound => println!("button component remove: Component not found"),
+                    RemoveComponentResult::FailedToRemove => println!("button component remove: Failed to remove"),
                     RemoveComponentResult::Removed => {
                         client.commit_changes(current_sn).expect("Failed to commit changes");
                         println!("button component remove: Removed");
@@ -247,9 +242,7 @@ pub fn button_component_params_add(client: ClientRef, current_sn: &str, mut args
 
                     match result {
                         GetComponentValuesResult::DeviceNotFound => println!("button component params add: Device not found"),
-                        GetComponentValuesResult::NoScreen => println!("button component params add: No screen"),
-                        GetComponentValuesResult::NoButton => println!("button component params add: No button"),
-                        GetComponentValuesResult::ComponentNotFound => println!("button component params add: Component not found"),
+                        GetComponentValuesResult::FailedToGet => println!("button component params add: Failed to get values"),
                         GetComponentValuesResult::Values(values) => {
                             let (changes, success) = change_from_path(path, values, &|x| {
                                 if let UIFieldType::Array(template_fields) = &x.ty {
@@ -319,9 +312,7 @@ pub fn button_component_params_remove(client: ClientRef, current_sn: &str, mut a
 
                             match result {
                                 GetComponentValuesResult::DeviceNotFound => println!("button component params remove: Device not found"),
-                                GetComponentValuesResult::NoScreen => println!("button component params remove: No screen"),
-                                GetComponentValuesResult::NoButton => println!("button component params remove: No button"),
-                                GetComponentValuesResult::ComponentNotFound => println!("button component params remove: Component not found"),
+                                GetComponentValuesResult::FailedToGet => println!("button component params remove: Failed to get values"),
                                 GetComponentValuesResult::Values(values) => {
                                     let (changes, success) = change_from_path(path, values, &|x| {
                                         if let UIFieldValue::Array(array) = &mut x.value {
@@ -380,9 +371,7 @@ pub fn button_component_params_set(client: ClientRef, current_sn: &str, mut args
 
                     match result {
                         GetComponentValuesResult::DeviceNotFound => println!("button component params set: Device not found"),
-                        GetComponentValuesResult::NoScreen => println!("button component params set: No screen"),
-                        GetComponentValuesResult::NoButton => println!("button component params set: No button"),
-                        GetComponentValuesResult::ComponentNotFound => println!("button component set remove: Component not found"),
+                        GetComponentValuesResult::FailedToGet => println!("button component params set: Failed to get values"),
                         GetComponentValuesResult::Values(values) => {
                             let value = args.collect::<Vec<&str>>().join(" ");
 
@@ -570,13 +559,12 @@ pub fn button_component_list_params(client: ClientRef, current_sn: &str, mut arg
 
                 match result {
                     GetComponentValuesResult::DeviceNotFound => println!("button component params list: Device not found"),
-                    GetComponentValuesResult::NoScreen => println!("button component params list: No screen"),
-                    GetComponentValuesResult::NoButton => println!("button component params list: No button"),
-                    GetComponentValuesResult::ComponentNotFound => println!("button component params list: Component not found"),
+                    GetComponentValuesResult::FailedToGet => println!("button component params list: Failed to get values"),
                     GetComponentValuesResult::Values(values) => {
                         let mut table = vec![
                             vec!["Name".to_string()],
                             vec!["Path".to_string()],
+                            vec!["Type".to_string()],
                             vec!["Value".to_string()],
                             vec!["Options".to_string()],
                         ];
@@ -600,62 +588,73 @@ pub fn button_component_list_params(client: ClientRef, current_sn: &str, mut arg
                                     UIFieldValue::Header => {
                                         table[2].push("Header".to_string());
                                         table[3].push("".to_string());
+                                        table[4].push("".to_string());
                                     }
 
                                     UIFieldValue::InputFieldFloat(f) | UIFieldValue::ValueSliderFloat(f) => {
-                                        table[2].push(f.to_string());
-                                        table[3].push("".to_string());
+                                        table[2].push("Float".to_string());
+                                        table[3].push(f.to_string());
+                                        table[4].push("".to_string());
                                     }
 
                                     UIFieldValue::InputFieldInteger(i) | UIFieldValue::ValueSliderInteger(i) => {
-                                        table[2].push(i.to_string());
-                                        table[3].push("".to_string());
+                                        table[2].push("Integer".to_string());
+                                        table[3].push(i.to_string());
+                                        table[4].push("".to_string());
                                     }
 
                                     UIFieldValue::InputFieldString(s) => {
-                                        table[2].push(s);
-                                        table[3].push("".to_string());
+                                        table[2].push("String".to_string());
+                                        table[3].push(s);
+                                        table[4].push("".to_string());
                                     }
 
                                     UIFieldValue::InputFieldFloat2(f1, f2) => {
-                                        table[2].push(format!("{},{}", f1, f2));
-                                        table[3].push("".to_string());
+                                        table[2].push("Float2".to_string());
+                                        table[3].push(format!("{},{}", f1, f2));
+                                        table[4].push("".to_string());
                                     }
 
                                     UIFieldValue::InputFieldInteger2(i1, i2) => {
-                                        table[2].push(format!("{},{}", i1, i2));
-                                        table[3].push("".to_string());
+                                        table[2].push("Integer2".to_string());
+                                        table[3].push(format!("{},{}", i1, i2));
+                                        table[4].push("".to_string());
                                     }
 
                                     UIFieldValue::InputFieldUnsignedInteger(u) => {
-                                        table[2].push(u.to_string());
-                                        table[3].push("".to_string());
+                                        table[2].push("Positive Integer".to_string());
+                                        table[3].push(u.to_string());
+                                        table[4].push("".to_string());
                                     }
 
                                     UIFieldValue::Choice(s) => {
-                                        table[2].push(s);
+                                        table[2].push("Choice".to_string());
+                                        table[3].push(s);
 
                                         if let UIFieldType::Choice(variants) = &item.ty {
-                                            table[3].push(variants.join(","));
+                                            table[4].push(variants.join(","));
                                         } else {
-                                            table[3].push("".to_string());
+                                            table[4].push("".to_string());
                                         }
                                     }
 
                                     UIFieldValue::Checkbox(b) => {
-                                        table[2].push(b.to_string());
-                                        table[3].push("".to_string());
+                                        table[2].push("Boolean".to_string());
+                                        table[3].push(b.to_string());
+                                        table[4].push("".to_string());
                                     }
 
                                     UIFieldValue::Color(c1, c2, c3, c4) => {
-                                        table[2].push(format!("{},{},{},{}", c1, c2, c3, c4));
-                                        table[3].push("".to_string());
+                                        table[2].push("Color".to_string());
+                                        table[3].push(format!("{},{},{},{}", c1, c2, c3, c4));
+                                        table[4].push("".to_string());
                                     }
 
 
                                     UIFieldValue::Collapsable(submenu) => {
                                         table[2].push("Submenu".to_string());
                                         table[3].push("".to_string());
+                                        table[4].push("".to_string());
 
                                         list_fields(table, submenu, &item_path);
                                     }
@@ -663,6 +662,7 @@ pub fn button_component_list_params(client: ClientRef, current_sn: &str, mut arg
                                     UIFieldValue::Array(array) => {
                                         table[2].push("Array".to_string());
                                         table[3].push("".to_string());
+                                        table[4].push("".to_string());
 
                                         for (index, array_item) in array.into_iter().enumerate() {
                                             list_fields(table, array_item, &format!("{}.{}", item_path, index));

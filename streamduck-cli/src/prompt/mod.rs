@@ -7,8 +7,9 @@ mod module;
 
 use std::io::Write;
 use std::sync::Arc;
-use streamduck_client::daemon::socket::daemon_data::{DoButtonActionResult, GetDeviceResult, PopScreenResult, SetBrightnessResult};
+use streamduck_client::daemon::socket::daemon_data::{DoButtonActionResult, GetButtonResult, GetDeviceResult, PopScreenResult, SetBrightnessResult, SetButtonResult};
 use streamduck_client::SDClient;
+use streamduck_core::core::button::Button;
 use crate::prompt::buttons::{button_component, button_from, button_new, button_remove};
 use crate::prompt::config::{reload_config, save_config};
 use crate::prompt::device::{add_device, device_list, remove_device};
@@ -20,6 +21,7 @@ type ClientRef<'a> = &'a Arc<Box<dyn SDClient>>;
 pub fn prompt(client: Arc<Box<dyn SDClient>>) {
     println!("Streamduck CLI Prompt\n\nTo enter interactive UI mode, enter 'ui' command.\nTo view commands, enter 'help' command.\nTo exit, enter 'exit'.\n");
     let mut current_sn = String::new();
+    let mut button_clipboard: Option<Button> = None;
 
     loop {
         let mut line = String::new();
@@ -172,6 +174,59 @@ pub fn prompt(client: Arc<Box<dyn SDClient>>) {
                             "from" | "f" => button_from(&client, &current_sn, args),
                             "remove" | "r" => button_remove(&client, &current_sn, args),
                             "component" | "c" => button_component(&client, &current_sn, args),
+
+                            "copy" | "cp" => {
+                                if !current_sn.is_empty() {
+                                    if let Some(key) = args.next() {
+                                        if let Ok(key) = key.parse::<u8>() {
+                                            let result = client.get_button(&current_sn, key).expect("Failed to get button");
+
+                                            match result {
+                                                GetButtonResult::DeviceNotFound => println!("button copy: Device not found"),
+                                                GetButtonResult::NoButton => println!("button copy: No button"),
+                                                GetButtonResult::Button(b) => {
+                                                    button_clipboard = Some(b);
+                                                    println!("button copy: Saved button to internal clipboard")
+                                                }
+                                            }
+                                        } else {
+                                            println!("button copy: Input valid key index (0-255)")
+                                        }
+                                    } else {
+                                        println!("button copy: Input valid key index (0-255)")
+                                    }
+                                } else {
+                                    println!("button copy: No device is selected")
+                                }
+                            }
+
+                            "paste" | "p" => {
+                                if !current_sn.is_empty() {
+                                    if let Some(key) = args.next() {
+                                        if let Ok(key) = key.parse::<u8>() {
+                                            if let Some(button) = button_clipboard.clone() {
+                                                let result = client.set_button(&current_sn, key, button).expect("Failed to set button");
+
+                                                match result {
+                                                    SetButtonResult::DeviceNotFound => println!("button paste: Device not found"),
+                                                    SetButtonResult::NoScreen => println!("button paste: No screen"),
+                                                    SetButtonResult::Set => {
+                                                        println!("button paste: Pasted button")
+                                                    }
+                                                }
+                                            } else {
+                                                println!("button paste: Nothing in internal clipboard")
+                                            }
+                                        } else {
+                                            println!("button paste: Input valid key index (0-255)")
+                                        }
+                                    } else {
+                                        println!("button paste: Input valid key index (0-255)")
+                                    }
+                                } else {
+                                    println!("button paste: No device is selected")
+                                }
+                            }
 
                             _ => println!("button: Unknown command"),
                         }

@@ -1,4 +1,6 @@
 mod folders;
+mod actions;
+
 /// Definitions for UI controls for components
 pub mod components;
 /// Definition for event enumeration
@@ -21,6 +23,7 @@ use crate::versions::CORE;
 
 use strum::VariantNames;
 use std::str::FromStr;
+use crate::modules::actions::ActionsModule;
 
 /// Manages modules
 pub struct ModuleManager(RwLock<Vec<UniqueSDModule>>, RwLock<HashMap<String, Vec<String>>>);
@@ -160,6 +163,7 @@ impl ModuleManager {
 pub fn load_base_modules(module_manager: Arc<ModuleManager>) {
     module_manager.add_module(Arc::new(Box::new(CoreModule)));
     module_manager.add_module(Arc::new(Box::new(FolderModule::default())));
+    module_manager.add_module(Arc::new(Box::new(ActionsModule)));
 }
 
 /// Reference counted module object

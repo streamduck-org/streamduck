@@ -22,6 +22,8 @@ pub const COMMANDS: &'static [(&'static str, &'static str)] = &[
     ("(b)utton (i)nfo", "[<serial>] <key index> - provides more detailed information about a button"),
     ("(b)utton (n)ew", "[<serial>] <key index> - creates an empty button on current screen"),
     ("(b)utton (f)rom", "[<serial>] <key index> <component name> - creates a button based on component's template"),
+    ("(b)utton (c)o(p)y", "[<serial>] <key index> - saves button to internal clipboard"),
+    ("(b)utton (p)aste", "[<serial>] <key index> - creates a new button from internal clipboard"),
     ("(b)utton (r)emove", "[<serial>] <key index> - removes a button on current screen"),
     ("(b)utton (c)omponent (a)dd", "[<serial>] <key index> <component name> - adds component on a button"),
     ("(b)utton (c)omponent (r)emove", "[<serial>] <key index> <component name> - removes component from a button"),
