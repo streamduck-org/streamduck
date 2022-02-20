@@ -11,7 +11,7 @@ use streamduck_client::daemon::socket::daemon_data::{DoButtonActionResult, GetBu
 use streamduck_client::SDClient;
 use streamduck_core::core::button::Button;
 use crate::prompt::buttons::{button_component, button_from, button_new, button_remove};
-use crate::prompt::config::{reload_config, save_config};
+use crate::prompt::config::{export_config, import_config, reload_config, save_config};
 use crate::prompt::device::{add_device, device_list, remove_device};
 use crate::prompt::info::{button_info, component_info, list_buttons, list_components, prompt_help};
 use crate::prompt::module::{list_modules, module_info, module_list_params, module_params_add, module_params_remove, module_params_set};
@@ -68,6 +68,8 @@ pub fn prompt(client: Arc<Box<dyn SDClient>>) {
                         match command {
                             "reload" | "r" => reload_config(&client, args, &current_sn),
                             "save" | "s" => save_config(&client, args, &current_sn),
+                            "import" | "i" => import_config(&client, args, &current_sn),
+                            "export" | "e" => export_config(&client, args, &current_sn),
                             _ => println!("config: Unknown command"),
                         }
                     } else {

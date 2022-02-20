@@ -7,6 +7,8 @@ pub const COMMANDS: &'static [(&'static str, &'static str)] = &[
     ("(con)fig (r)eload", "[<serial>] - reloads device config for specific/selected device, all unsaved changes will lost"),
     ("(con)fig (s)ave (a)ll", "- saves all device configs"),
     ("(con)fig save", "[<serial>] - saves device config for specific/selected device"),
+    ("(con)fig import", "[<serial>] <path> - imports device config from a file for specific/selected device"),
+    ("(con)fig export", "[<serial>] <path> - exports device config into a file for specific/selected device"),
     ("(br)ightness", "[<serial>] <0-255> - sets brightness for device, different for each device, but usually 0-100"),
     ("(ba)ck", "[<serial>] - navigates back, even if there's no button for that"),
     ("(p)ress", "[<serial>] <key index> - simulates a press on a button"),

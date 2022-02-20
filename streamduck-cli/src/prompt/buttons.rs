@@ -67,7 +67,7 @@ pub fn button_remove(client: ClientRef, current_sn: &str, mut args: Split<&str>)
 
                 match result {
                     ClearButtonResult::DeviceNotFound => println!("button remove: Device not found"),
-                    ClearButtonResult::FailedToClear => println!("button remove: Failed to create button"),
+                    ClearButtonResult::FailedToClear => println!("button remove: Failed to remove button"),
                     ClearButtonResult::Cleared => {
                         client.commit_changes(current_sn).expect("Failed to commit changes");
                         println!("button remove: Cleared the button");

@@ -565,8 +565,12 @@ impl SocketData for ImportDeviceConfigResult {
 impl DaemonRequest for ImportDeviceConfig {
     fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<ImportDeviceConfig>(packet) {
-            if let Ok(config) = serde_json::from_str::<DeviceConfig>(&request.config) {
+            if let Ok(mut config) = serde_json::from_str::<DeviceConfig>(&request.config) {
                 if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+                    config.serial = device.serial.clone();
+                    config.vid = device.vid;
+                    config.pid = device.pid;
+
                     listener.config.set_device_config(&request.serial_number, config.clone());
 
                     match listener.config.save_device_config(&request.serial_number) {
@@ -574,6 +578,7 @@ impl DaemonRequest for ImportDeviceConfig {
                             let wrapped_core = CoreHandle::wrap(device.core);
 
                             load_panels(&wrapped_core, make_panel_unique(config.layout));
+                            wrapped_core.core().mark_for_redraw();
 
                             send_packet(handle, packet, &ImportDeviceConfigResult::Imported).ok();
                         }
