@@ -38,6 +38,8 @@ impl SocketListener for DaemonListener {
         process_for_type::<SaveDeviceConfigsResult>(self, socket, &packet);
         process_for_type::<SaveDeviceConfig>(self, socket, &packet);
 
+        process_for_type::<GetDeviceConfig>(self, socket, &packet);
+
         process_for_type::<ImportDeviceConfig>(self, socket, &packet);
         process_for_type::<ExportDeviceConfig>(self, socket, &packet);
 
@@ -497,11 +499,47 @@ impl DaemonRequest for SaveDeviceConfig {
 
 /// Request for exporting device config for specific device
 #[derive(Serialize, Deserialize)]
+pub struct GetDeviceConfig {
+    pub serial_number: String,
+}
+
+/// Response of GetDeviceConfig request
+#[derive(Serialize, Deserialize)]
+pub enum GetDeviceConfigResult {
+    /// Sent if device wasn't found
+    DeviceNotFound,
+
+    /// Sent if successfully exported
+    Config(DeviceConfig),
+}
+
+impl SocketData for GetDeviceConfig {
+    const NAME: &'static str = "get_device_config";
+}
+
+impl SocketData for GetDeviceConfigResult {
+    const NAME: &'static str = "get_device_config";
+}
+
+impl DaemonRequest for GetDeviceConfig {
+    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+        if let Ok(request) = parse_packet_to_data::<GetDeviceConfig>(packet) {
+            if let Some(config) = listener.config.get_device_config(&request.serial_number) {
+                send_packet(handle, packet, &GetDeviceConfigResult::Config(config)).ok();
+            } else {
+                send_packet(handle, packet, &GetDeviceConfigResult::DeviceNotFound).ok();
+            }
+        }
+    }
+}
+
+/// Request for exporting device config for specific device
+#[derive(Serialize, Deserialize)]
 pub struct ExportDeviceConfig {
     pub serial_number: String,
 }
 
-/// Response of SaveDeviceConfig request
+/// Response of ExportDeviceConfig request
 #[derive(Serialize, Deserialize)]
 pub enum ExportDeviceConfigResult {
     /// Sent if device wasn't found
@@ -538,7 +576,7 @@ pub struct ImportDeviceConfig {
     pub config: String,
 }
 
-/// Response of SaveDeviceConfig request
+/// Response of ImportDeviceConfig request
 #[derive(Serialize, Deserialize)]
 pub enum ImportDeviceConfigResult {
     /// Sent if device wasn't found

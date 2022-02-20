@@ -2,7 +2,7 @@
 name = "streamduck-actions"
 authors = ["TheJebForge"]
 version = "0.0.3"
-description = "Actions module for streamduck project"
+description = "Actions module for Streamduck project"
 edition = "2021"
 readme = "../Readme.md"
 license-file = "../LICENSE"

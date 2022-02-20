@@ -12,6 +12,6 @@ repository = "https://github.com/TheJebForge/streamduck"
 
 [dependencies]
 streamduck-core = {path = "../streamduck-core", version = "0.0.3"}
-streamduck-daemon = { path = "../streamduck-daemon", version = "0.0.3" }
+streamduck-daemon = { path = "../streamduck-daemon", version = "0.0.4" }
 serde = { version = "1.0.130", features = ["derive"] }
 serde_json = "1.0.69"

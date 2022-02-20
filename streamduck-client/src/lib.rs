@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::io::Error;
 use streamduck_core::core::button::Button;
 use streamduck_core::core::RawButtonPanel;
-use streamduck_daemon::socket::daemon_data::{AddComponentResult, AddDeviceResult, ClearButtonResult, CommitChangesToConfigResult, Device, DoButtonActionResult, ExportDeviceConfigResult, ForciblyPopScreenResult, GetButtonResult, GetComponentValuesResult, GetCurrentScreenResult, GetDeviceResult, GetModuleValuesResult, GetStackResult, ImportDeviceConfigResult, NewButtonFromComponentResult, NewButtonResult, PopScreenResult, PushScreenResult, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, RemoveComponentResult, RemoveDeviceResult, ReplaceScreenResult, ResetStackResult, SaveDeviceConfigResult, SaveDeviceConfigsResult, SetBrightnessResult, SetButtonResult, SetComponentValueResult, SetModuleValueResult};
+use streamduck_daemon::socket::daemon_data::{AddComponentResult, AddDeviceResult, ClearButtonResult, CommitChangesToConfigResult, Device, DoButtonActionResult, ExportDeviceConfigResult, ForciblyPopScreenResult, GetButtonResult, GetComponentValuesResult, GetCurrentScreenResult, GetDeviceConfigResult, GetDeviceResult, GetModuleValuesResult, GetStackResult, ImportDeviceConfigResult, NewButtonFromComponentResult, NewButtonResult, PopScreenResult, PushScreenResult, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, RemoveComponentResult, RemoveDeviceResult, ReplaceScreenResult, ResetStackResult, SaveDeviceConfigResult, SaveDeviceConfigsResult, SetBrightnessResult, SetButtonResult, SetComponentValueResult, SetModuleValueResult};
 
 pub use streamduck_daemon as daemon;
 use streamduck_core::modules::components::{ComponentDefinition, UIValue};
@@ -40,6 +40,9 @@ pub trait SDClient {
     fn save_device_configs(&self) -> Result<SaveDeviceConfigsResult, SDClientError>;
     /// Saves device config for specific device
     fn save_device_config(&self, serial_number: &str) -> Result<SaveDeviceConfigResult, SDClientError>;
+
+    /// Gets device config for a device
+    fn get_device_config(&self, serial_number: &str) -> Result<GetDeviceConfigResult, SDClientError>;
 
     /// Imports device config from string
     fn import_device_config(&self, serial_number: &str, config: String) -> Result<ImportDeviceConfigResult, SDClientError>;

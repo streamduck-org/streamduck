@@ -9,7 +9,7 @@ use streamduck_core::core::RawButtonPanel;
 use streamduck_core::modules::components::{ComponentDefinition, UIValue};
 use streamduck_core::modules::PluginMetadata;
 use streamduck_core::versions::SOCKET_API;
-use streamduck_daemon::socket::daemon_data::{AddDevice, AddDeviceResult, Device, ListDevices, GetDevice, GetDeviceResult, RemoveDevice, RemoveDeviceResult, SocketAPIVersion, ReloadDeviceConfigsResult, ReloadDeviceConfigResult, SaveDeviceConfigsResult, SaveDeviceConfigResult, SetBrightnessResult, ReloadDeviceConfig, SaveDeviceConfig, SetBrightness, ListModules, ListComponents, GetButtonResult, SetButtonResult, ClearButtonResult, PushScreenResult, PopScreenResult, ReplaceScreenResult, ResetStackResult, CommitChangesToConfigResult, GetStackResult, GetCurrentScreenResult, GetStack, GetCurrentScreen, GetButton, SetButton, ClearButton, PushScreen, PopScreen, ReplaceScreen, ResetStack, CommitChangesToConfig, DoButtonActionResult, DoButtonAction, ForciblyPopScreenResult, ForciblyPopScreen, AddComponentResult, GetComponentValuesResult, SetComponentValueResult, RemoveComponentResult, AddComponent, GetComponentValues, SetComponentValue, RemoveComponent, NewButtonResult, NewButtonFromComponentResult, NewButton, NewButtonFromComponent, GetModuleValuesResult, SetModuleValueResult, GetModuleValues, SetModuleValue, ImportDeviceConfigResult, ExportDeviceConfigResult, ImportDeviceConfig, ExportDeviceConfig};
+use streamduck_daemon::socket::daemon_data::{AddDevice, AddDeviceResult, Device, ListDevices, GetDevice, GetDeviceResult, RemoveDevice, RemoveDeviceResult, SocketAPIVersion, ReloadDeviceConfigsResult, ReloadDeviceConfigResult, SaveDeviceConfigsResult, SaveDeviceConfigResult, SetBrightnessResult, ReloadDeviceConfig, SaveDeviceConfig, SetBrightness, ListModules, ListComponents, GetButtonResult, SetButtonResult, ClearButtonResult, PushScreenResult, PopScreenResult, ReplaceScreenResult, ResetStackResult, CommitChangesToConfigResult, GetStackResult, GetCurrentScreenResult, GetStack, GetCurrentScreen, GetButton, SetButton, ClearButton, PushScreen, PopScreen, ReplaceScreen, ResetStack, CommitChangesToConfig, DoButtonActionResult, DoButtonAction, ForciblyPopScreenResult, ForciblyPopScreen, AddComponentResult, GetComponentValuesResult, SetComponentValueResult, RemoveComponentResult, AddComponent, GetComponentValues, SetComponentValue, RemoveComponent, NewButtonResult, NewButtonFromComponentResult, NewButton, NewButtonFromComponent, GetModuleValuesResult, SetModuleValueResult, GetModuleValues, SetModuleValue, ImportDeviceConfigResult, ExportDeviceConfigResult, ImportDeviceConfig, ExportDeviceConfig, GetDeviceConfigResult, GetDeviceConfig};
 use streamduck_daemon::socket::{parse_packet_to_data, send_no_data_packet_with_requester, send_packet_with_requester, SocketData, SocketPacket};
 use crate::{SDClient, SDClientError};
 use std::io::Write;
@@ -122,6 +122,14 @@ impl SDClient for UnixClient {
 
     fn save_device_config(&self, serial_number: &str) -> Result<SaveDeviceConfigResult, SDClientError> {
         let response: SaveDeviceConfigResult = self.process_request(&SaveDeviceConfig {
+            serial_number: serial_number.to_string()
+        })?;
+
+        Ok(response)
+    }
+
+    fn get_device_config(&self, serial_number: &str) -> Result<GetDeviceConfigResult, SDClientError> {
+        let response: GetDeviceConfigResult = self.process_request(&GetDeviceConfig {
             serial_number: serial_number.to_string()
         })?;
 

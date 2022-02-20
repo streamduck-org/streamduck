@@ -23,8 +23,10 @@ Software for managing Stream Deck devices with folders and actions
 * **Windows support** for those who would prefer using open source software on Windows
 * **Button animation system** with flexibility of having plugins define custom animations
 * **Built-in OBS Websocket integration**
-* **NodeJS native module**
 * **Electron-based GUI** (will have equal functionality with cli version) (alternative GUI applications can be made)
+## NodeJS module
+Client for interacting with Streamduck daemon on NodeJS<br>
+[Repository](https://github.com/TheJebForge/streamduck-node-client)
 
 # Structure of the Project
 ## streamduck-core
