@@ -52,6 +52,9 @@ fn main() {
     load_base_modules(module_manager.clone());
     load_fonts_from_resources();
 
+    // Initializing built-in modules
+    streamduck_actions::init_module(&module_manager);
+
     // Socket listener manager
     let socket_manager = SocketManager::new();
 

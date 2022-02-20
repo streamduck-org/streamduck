@@ -19,7 +19,7 @@ use crate::prompt::module::{list_modules, module_info, module_list_params, modul
 type ClientRef<'a> = &'a Arc<Box<dyn SDClient>>;
 
 pub fn prompt(client: Arc<Box<dyn SDClient>>) {
-    println!("Streamduck CLI Prompt\n\nTo enter interactive UI mode, enter 'ui' command.\nTo view commands, enter 'help' command.\nTo exit, enter 'exit'.\n");
+    println!("Streamduck CLI Prompt\n\nTo view commands, enter 'help' command.\nTo exit, enter 'exit'.\n");
     let mut current_sn = String::new();
     let mut button_clipboard: Option<Button> = None;
 
