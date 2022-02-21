@@ -9,7 +9,7 @@ edition = "2021"
 crate-type = ["dylib"]
 
 [dependencies]
-streamduck-core = {path = "../streamduck-core", version = "0.0.3"}
+streamduck-core = {path = "../streamduck-core", version = "0.0.4"}
 streamduck-core-derive = {path = "../streamduck-core-derive", version = "0.0.1"}
 streamduck-daemon = {path = "../streamduck-daemon", version = "0.0.4"}
 

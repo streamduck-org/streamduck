@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::io::Error;
+use std::string::FromUtf8Error;
 use streamduck_core::core::button::Button;
 use streamduck_core::core::RawButtonPanel;
 use streamduck_daemon::socket::daemon_data::{AddComponentResult, AddDeviceResult, ClearButtonResult, CommitChangesToConfigResult, Device, DoButtonActionResult, ExportDeviceConfigResult, ForciblyPopScreenResult, GetButtonResult, GetComponentValuesResult, GetCurrentScreenResult, GetDeviceConfigResult, GetDeviceResult, GetModuleValuesResult, GetStackResult, ImportDeviceConfigResult, NewButtonFromComponentResult, NewButtonResult, PopScreenResult, PushScreenResult, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, RemoveComponentResult, RemoveDeviceResult, ReplaceScreenResult, ResetStackResult, SaveDeviceConfigResult, SaveDeviceConfigsResult, SetBrightnessResult, SetButtonResult, SetComponentValueResult, SetModuleValueResult};
@@ -120,6 +121,7 @@ pub enum SDClientError {
     WriteError(std::io::Error),
     SerializeError(serde_json::Error),
     SocketError(streamduck_daemon::socket::SocketError),
+    UTF8Error(std::string::FromUtf8Error),
     Custom(String)
 }
 
@@ -138,5 +140,11 @@ impl From<serde_json::Error> for SDClientError {
 impl From<streamduck_daemon::socket::SocketError> for SDClientError {
     fn from(err: SocketError) -> Self {
         SDClientError::SocketError(err)
+    }
+}
+
+impl From<std::string::FromUtf8Error> for SDClientError {
+    fn from(err: FromUtf8Error) -> Self {
+        SDClientError::UTF8Error(err)
     }
 }

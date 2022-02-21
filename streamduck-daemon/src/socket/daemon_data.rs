@@ -583,7 +583,7 @@ pub enum ImportDeviceConfigResult {
     DeviceNotFound,
 
     /// Sent if config was invalid
-    Invalid,
+    InvalidConfig,
 
     /// Sent if config failed to save
     FailedToSave,
@@ -637,7 +637,7 @@ impl DaemonRequest for ImportDeviceConfig {
                     send_packet(handle, packet, &ImportDeviceConfigResult::DeviceNotFound).ok();
                 }
             } else {
-                send_packet(handle, packet, &ImportDeviceConfigResult::Invalid).ok();
+                send_packet(handle, packet, &ImportDeviceConfigResult::InvalidConfig).ok();
             }
         }
     }

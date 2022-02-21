@@ -53,6 +53,14 @@ pub fn check_packet_for_data<T: SocketData>(packet: &SocketPacket) -> bool {
     packet.ty == T::NAME
 }
 
+pub fn write_in_chunks(handle: SocketHandle, data: String) -> Result<(), SocketError> {
+    for chunk in data.into_bytes().chunks(50) {
+        handle.write(chunk)?;
+    }
+
+    Ok(())
+}
+
 /// Sends a packet with included requester ID from previous package
 pub fn send_packet<T: SocketData + Serialize>(handle: SocketHandle, previous_packet: &SocketPacket, data: &T) -> Result<(), SocketError> {
     let packet = SocketPacket {
@@ -61,7 +69,7 @@ pub fn send_packet<T: SocketData + Serialize>(handle: SocketHandle, previous_pac
         data: Some(serde_json::to_value(data)?)
     };
 
-    writeln!(handle, "{}", serde_json::to_string(&packet)?)?;
+    write_in_chunks(handle, format!("{}\u{0004}", serde_json::to_string(&packet)?))?;
 
     Ok(())
 }
@@ -74,7 +82,7 @@ pub fn send_packet_with_requester<T: SocketData + Serialize>(handle: SocketHandl
         data: Some(serde_json::to_value(data)?)
     };
 
-    writeln!(handle, "{}", serde_json::to_string(&packet)?)?;
+    write_in_chunks(handle, format!("{}\u{0004}", serde_json::to_string(&packet)?))?;
 
     Ok(())
 }
@@ -87,7 +95,7 @@ pub fn send_no_data_packet_with_requester<T: SocketData>(handle: SocketHandle, r
         data: None
     };
 
-    writeln!(handle, "{}", serde_json::to_string(&packet)?)?;
+    write_in_chunks(handle, format!("{}\u{0004}", serde_json::to_string(&packet)?))?;
 
     Ok(())
 }

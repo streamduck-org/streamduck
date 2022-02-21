@@ -59,7 +59,7 @@ pub fn import_config(client: ClientRef, mut args: Split<&str>, current_sn: &Stri
 
                     match result {
                         ImportDeviceConfigResult::DeviceNotFound => println!("config import: Device not found"),
-                        ImportDeviceConfigResult::Invalid => println!("config import: Invalid device config"),
+                        ImportDeviceConfigResult::InvalidConfig => println!("config import: Invalid device config"),
                         ImportDeviceConfigResult::FailedToSave => println!("config import: Failed to save config"),
                         ImportDeviceConfigResult::Imported => println!("config import: Imported"),
                     }

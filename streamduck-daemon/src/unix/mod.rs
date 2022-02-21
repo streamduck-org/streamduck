@@ -32,15 +32,17 @@ fn handle_client(stream: UnixStream, socket_manager: Arc<SocketManager>) {
     println!("Unix Socket client connected");
     let mut stream = BufReader::new(stream);
 
-    let mut message = String::new();
-    while let Ok(size) = stream.read_line(&mut message) {
+    let mut message = vec![];
+    while let Ok(size) = stream.read_until(0x4, &mut message) {
         if size <= 0 {
             break;
         }
 
-        match serde_json::from_str(&message) {
-            Ok(packet) => socket_manager.message(stream.get_mut(), packet),
-            Err(e) => log::warn!("Invalid message in sockets: {}", e)
+        if let Ok(message) = String::from_utf8(message.clone()) {
+            match serde_json::from_str(&message.replace("\u{0004}", "")) {
+                Ok(packet) => socket_manager.message(stream.get_mut(), packet),
+                Err(e) => log::warn!("Invalid message in sockets: {}", e)
+            }
         }
 
         message.clear();

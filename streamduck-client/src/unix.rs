@@ -41,10 +41,12 @@ impl UnixClient {
 
         send_packet_with_requester(handle.get_mut(), "", request)?;
 
-        let mut line = String::new();
-        handle.read_line(&mut line)?;
+        let mut byte_array = vec![];
+        handle.read_until(0x4, &mut byte_array)?;
 
-        let packet: SocketPacket = serde_json::from_str(line.trim())?;
+        let line = String::from_utf8(byte_array)?;
+
+        let packet: SocketPacket = serde_json::from_str(line.replace("\u{0004}", "").trim())?;
 
         Ok(parse_packet_to_data(&packet)?)
     }
@@ -54,10 +56,12 @@ impl UnixClient {
 
         send_no_data_packet_with_requester::<Res>(handle.get_mut(), "")?;
 
-        let mut line = String::new();
-        handle.read_line(&mut line)?;
+        let mut byte_array = vec![];
+        handle.read_until(0x4, &mut byte_array)?;
 
-        let packet: SocketPacket = serde_json::from_str(&line)?;
+        let line = String::from_utf8(byte_array)?;
+
+        let packet: SocketPacket = serde_json::from_str(line.replace("\u{0004}", "").trim())?;
 
         Ok(parse_packet_to_data(&packet)?)
     }
