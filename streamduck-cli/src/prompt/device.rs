@@ -35,6 +35,8 @@ pub fn add_device(client: ClientRef, mut args: Split<&str>) {
             AddDeviceResult::NotFound => println!("device add: Device not found"),
             AddDeviceResult::Added => println!("device add: Added to managed list"),
         }
+    } else {
+        println!("device add: Specify serial number")
     }
 }
 
@@ -44,5 +46,7 @@ pub fn remove_device(client: ClientRef, mut args: Split<&str>) {
             RemoveDeviceResult::NotRegistered => println!("device remove: Device already wasn't managed"),
             RemoveDeviceResult::Removed => println!("device remove: Removed from managed list"),
         }
+    } else {
+        println!("device remove: Specify serial number")
     }
 }

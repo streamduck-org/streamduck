@@ -11,7 +11,8 @@ use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 use std::sync::mpsc::{channel, Sender};
 use std::thread::{spawn};
-use image::{DynamicImage, Rgba};
+use image::{DynamicImage, Rgba, RgbaImage};
+use image::imageops::{tile};
 use rusttype::Scale;
 use crate::core::{SDCore};
 use crate::core::button::{Component, parse_unique_button_to_component};
@@ -48,12 +49,73 @@ pub struct RendererState {
 pub fn spawn_rendering_thread(core: Arc<SDCore>) -> RendererHandle {
     let (tx, rx) = channel::<RendererCommunication>();
 
+
+
     spawn(move || {
         let core = core.clone();
         let state = RendererState {
             render_cache: Default::default(),
             image_cache: Default::default()
         };
+
+        let mut pattern = RgbaImage::new(16, 16);
+
+        for x in 0..16 {
+            for y in 0..16 {
+                let color = if y < 8 {
+                    if x < 8 {
+                        Rgba([255, 0, 255, 255])
+                    } else {
+                        Rgba([0, 0, 0, 255])
+                    }
+                } else {
+                    if x >= 8 {
+                        Rgba([255, 0, 255, 255])
+                    } else {
+                        Rgba([0, 0, 0, 255])
+                    }
+                };
+
+                pattern.put_pixel(x, y, color);
+            }
+        }
+
+        let (iw, ih) = core.image_size;
+        let mut frame = RgbaImage::new(iw as u32, ih as u32);
+
+        tile(&mut frame, &pattern);
+
+        let mut missing = DynamicImage::ImageRgba8(frame);
+
+        if let Some(font) = get_font_from_collection("SourceHanSans-Bold.ttf") {
+            render_aligned_shadowed_text_on_image(
+                (iw, ih),
+                &mut missing,
+                &font,
+                "ГДЕ",
+                Scale { x: 30.0, y: 30.0 },
+                TextAlignment::Center,
+                0,
+                (0.0, -13.0),
+                (255, 0, 255, 255),
+                (2, 2),
+                (0, 0, 0, 255)
+            );
+
+            render_aligned_shadowed_text_on_image(
+                (iw, ih),
+                &mut missing,
+                &font,
+                "Where",
+                Scale { x: 25.0, y: 25.0 },
+                TextAlignment::Center,
+                0,
+                (0.0, 8.0),
+                (255, 0, 255, 255),
+                (1, 1),
+                (0, 0, 0, 255)
+            );
+        }
 
         loop {
             if core.is_closed() {
@@ -62,7 +124,7 @@ pub fn spawn_rendering_thread(core: Arc<SDCore>) -> RendererHandle {
 
             if let Ok(com) = rx.recv() {
                 match com {
-                    RendererCommunication::Redraw => redraw(core.clone(), &state),
+                    RendererCommunication::Redraw => redraw(core.clone(), &state, &missing),
                     _ => {}
                 }
             } else {
@@ -80,7 +142,7 @@ pub fn spawn_rendering_thread(core: Arc<SDCore>) -> RendererHandle {
     }
 }
 
-fn redraw(core: Arc<SDCore>, state: &RendererState) {
+fn redraw(core: Arc<SDCore>, state: &RendererState, missing: &DynamicImage) {
     let core_handle = CoreHandle::wrap(core.clone());
     let current_screen = get_current_screen(&core_handle);
     let mut commands = vec![];
@@ -94,10 +156,12 @@ fn redraw(core: Arc<SDCore>, state: &RendererState) {
                     let mut cache_handle = state.render_cache.write().unwrap();
 
                     let cache_entry = cache_handle.get(&renderer_hash);
-                    let mut image = if cache_entry.is_some() && renderer.to_cache {
+                    let image = if cache_entry.is_some() && renderer.to_cache {
                         cache_entry.unwrap().clone()
                     } else {
-                        let image = match renderer.background {
+                        let mut no_image = false;
+
+                        let mut image = match renderer.background {
                             ButtonBackground::Solid(color) => {
                                 image_from_solid(core.image_size, Rgba([color.0, color.1, color.2, 255]))
                             }
@@ -119,17 +183,19 @@ fn redraw(core: Arc<SDCore>, state: &RendererState) {
                                 let image = if image_cache_entry.is_some() && (!disable_caching) {
                                     image_cache_entry.unwrap().clone()
                                 } else {
-                                    if let Some(image) = load_image(core.image_size, path.deref()) {
+                                    let image = if let Some(image) = load_image(core.image_size, path.deref()) {
                                         image
                                     } else {
-                                        log::error!("Failed to load image at '{}'", path.to_string_lossy());
-                                        continue;
-                                    }
-                                };
+                                        no_image = true;
+                                        missing.clone()
+                                    };
 
-                                if !disable_caching {
-                                    image_cache.insert(image_hash, image.clone());
-                                }
+                                    if (!disable_caching) && (!no_image) {
+                                        image_cache.insert(image_hash, image.clone());
+                                    }
+
+                                    image
+                                };
 
                                 drop(image_cache);
 
@@ -137,7 +203,46 @@ fn redraw(core: Arc<SDCore>, state: &RendererState) {
                             }
                         };
 
-                        if renderer.to_cache {
+                        for button_text in renderer.text {
+                            let text = button_text.text.as_str();
+                            let scale = Scale { x: button_text.scale.0, y: button_text.scale.1 };
+                            let align = button_text.alignment.clone();
+                            let padding = button_text.padding;
+                            let offset = button_text.offset.clone();
+                            let color = button_text.color.clone();
+
+                            if let Some(font) = get_font_from_collection(&button_text.font) {
+                                if let Some(shadow) = &button_text.shadow {
+                                    render_aligned_shadowed_text_on_image(
+                                        core.image_size,
+                                        &mut image,
+                                        font.as_ref(),
+                                        text,
+                                        scale,
+                                        align,
+                                        padding,
+                                        offset,
+                                        color,
+                                        shadow.offset.clone(),
+                                        shadow.color.clone()
+                                    )
+                                } else {
+                                    render_aligned_text_on_image(
+                                        core.image_size,
+                                        &mut image,
+                                        font.as_ref(),
+                                        text,
+                                        scale,
+                                        align,
+                                        padding,
+                                        offset,
+                                        color
+                                    )
+                                }
+                            }
+                        }
+
+                        if renderer.to_cache && (!no_image) {
                             cache_handle.insert(renderer_hash, image.clone());
                         }
 
@@ -146,44 +251,7 @@ fn redraw(core: Arc<SDCore>, state: &RendererState) {
 
                     drop(cache_handle);
 
-                    for button_text in renderer.text {
-                        let text = button_text.text.as_str();
-                        let scale = Scale { x: button_text.scale.0, y: button_text.scale.1 };
-                        let align = button_text.alignment.clone();
-                        let padding = button_text.padding;
-                        let offset = button_text.offset.clone();
-                        let color = button_text.color.clone();
 
-                        if let Some(font) = get_font_from_collection(&button_text.font) {
-                            if let Some(shadow) = &button_text.shadow {
-                                render_aligned_shadowed_text_on_image(
-                                    core.image_size,
-                                    &mut image,
-                                    font.as_ref(),
-                                    text,
-                                    scale,
-                                    align,
-                                    padding,
-                                    offset,
-                                    color,
-                                    shadow.offset.clone(),
-                                    shadow.color.clone()
-                                )
-                            } else {
-                                render_aligned_text_on_image(
-                                    core.image_size,
-                                    &mut image,
-                                    font.as_ref(),
-                                    text,
-                                    scale,
-                                    align,
-                                    padding,
-                                    offset,
-                                    color
-                                )
-                            }
-                        }
-                    }
 
                     commands.push(StreamDeckCommand::SetButtonImage(i, image));
                 } else {
