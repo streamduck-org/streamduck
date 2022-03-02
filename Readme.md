@@ -16,6 +16,7 @@ Software for managing Stream Deck devices with folders and actions
 * **Folders**: Buttons can be structured in any desirable folder structure
 * **Plugin support**: The software can be extended with any amount of plugins, with plugins having access to all core features of the project. In fact, folder support was made with same API as plugins use.
 * **Auto-(re)connect**: Will automatically attempt to establish connection with previously added devices
+* **Import/Export Configuration**: Allows you to import and export device configurations, which include images that were uploaded into the software. Making backups of configs as easy as keeping the exported file, and just importing it later when needed.
 ## Planned features:
 * **Lua support for plugins** - for simple plugins to be made that utilize streamduck API
 * **Support for animated images**

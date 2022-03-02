@@ -647,6 +647,7 @@ impl DaemonRequest for ImportDeviceConfig {
                                     let wrapped_core = CoreHandle::wrap(device.core);
 
                                     load_panels(&wrapped_core, make_panel_unique(config.layout));
+                                    set_brightness(&wrapped_core, config.brightness);
                                     wrapped_core.core().mark_for_redraw();
 
                                     send_packet(handle, packet, &ImportDeviceConfigResult::Imported).ok();

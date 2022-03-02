@@ -110,5 +110,5 @@ fn clean_socket() {
 }
 
 fn get_version() -> String {
-    "0.0.5".to_string()
+    "0.0.6".to_string()
 }
