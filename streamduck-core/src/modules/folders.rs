@@ -160,17 +160,6 @@ impl SDModule for FolderModule {
                     push_screen(&core, make_panel_unique(folder.buttons));
                     self.folder_stack.write().unwrap().push((key, pressed_button));
                 }
-
-                let core = core.core();
-                let mut handle = core.device_config.write().unwrap();
-
-                if let Some(value) = handle.plugin_data.get_mut("count") {
-                    if let Some(count) = value.as_i64() {
-                        *value = Value::Number(Number::from(count + 1));
-                    }
-                } else {
-                    handle.plugin_data.insert("count".to_string(), Value::Number(Number::from(1)));
-                }
             }
 
             SDEvent::PanelPopped { .. } => {
