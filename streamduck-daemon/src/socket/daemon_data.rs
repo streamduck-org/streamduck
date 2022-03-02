@@ -1,6 +1,10 @@
 //! Data types that daemon uses for core functions
 use std::collections::HashMap;
+use std::io::{Cursor, Read};
 use std::sync::Arc;
+use flate2::Compression;
+use flate2::read::GzDecoder;
+use flate2::write::GzEncoder;
 use serde::{Serialize, Deserialize};
 use streamduck_core::versions::SOCKET_API;
 use crate::core_manager::CoreManager;
@@ -9,10 +13,14 @@ use strum_macros::Display;
 use streamduck_core::core::button::Button;
 use streamduck_core::core::methods::{add_component, button_action, clear_button, CoreHandle, get_button, get_component_values, get_current_screen, get_stack, load_panels, pop_screen, push_screen, remove_component, replace_screen, save_panels, set_brightness, set_button, set_component_value};
 use streamduck_core::core::RawButtonPanel;
+use streamduck_core::image::ImageOutputFormat;
+use streamduck_core::image::io::Reader;
 use streamduck_core::modules::{ModuleManager, PluginMetadata};
 use streamduck_core::modules::components::{ComponentDefinition, UIValue};
 use streamduck_core::util::{button_to_raw, make_button_unique, make_panel_unique, panel_to_raw};
 use crate::config::{Config, ConfigError, DeviceConfig};
+use std::io::Write;
+use streamduck_core::util::rendering::resize_for_streamdeck;
 
 /// Listener for daemon types
 pub struct DaemonListener {
@@ -45,6 +53,10 @@ impl SocketListener for DaemonListener {
 
         process_for_type::<SetBrightness>(self, socket, &packet);
 
+        process_for_type::<ListImages>(self, socket, &packet);
+        process_for_type::<AddImage>(self, socket, &packet);
+        process_for_type::<RemoveImage>(self, socket, &packet);
+
         // Module management
         process_for_type::<ListModules>(self,socket, &packet);
         process_for_type::<ListComponents>(self,socket, &packet);
@@ -55,6 +67,7 @@ impl SocketListener for DaemonListener {
         // Panel management
         process_for_type::<GetStack>(self, socket, &packet);
         process_for_type::<GetCurrentScreen>(self, socket, &packet);
+        process_for_type::<GetButtonImages>(self, socket, &packet);
 
         process_for_type::<GetButton>(self, socket, &packet);
         process_for_type::<SetButton>(self, socket, &packet);
@@ -545,6 +558,9 @@ pub enum ExportDeviceConfigResult {
     /// Sent if device wasn't found
     DeviceNotFound,
 
+    /// Sent if error happened during compression
+    FailedToCompress,
+
     /// Sent if successfully exported
     Exported(String),
 }
@@ -561,7 +577,17 @@ impl DaemonRequest for ExportDeviceConfig {
     fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<ExportDeviceConfig>(packet) {
             if let Some(config) = listener.config.get_device_config(&request.serial_number) {
-                send_packet(handle, packet, &ExportDeviceConfigResult::Exported(serde_json::to_string(&config).unwrap())).ok();
+                let config = serde_json::to_string(&config).unwrap();
+
+                // Compressing data
+                let mut encoder = GzEncoder::new(vec![], Compression::default());
+                write!(encoder, "{}", config).ok();
+
+                if let Ok(byte_array) = encoder.finish() {
+                    send_packet(handle, packet, &ExportDeviceConfigResult::Exported(base64::encode(byte_array))).ok();
+                } else {
+                    send_packet(handle, packet, &ExportDeviceConfigResult::FailedToCompress).ok();
+                }
             } else {
                 send_packet(handle, packet, &ExportDeviceConfigResult::DeviceNotFound).ok();
             }
@@ -603,38 +629,49 @@ impl SocketData for ImportDeviceConfigResult {
 impl DaemonRequest for ImportDeviceConfig {
     fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<ImportDeviceConfig>(packet) {
-            if let Ok(mut config) = serde_json::from_str::<DeviceConfig>(&request.config) {
-                if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
-                    config.serial = device.serial.clone();
-                    config.vid = device.vid;
-                    config.pid = device.pid;
+            if let Ok(byte_array) = base64::decode(&request.config) {
+                let mut decoder = GzDecoder::new(&byte_array[..]);
+                let mut config = String::new();
 
-                    listener.config.set_device_config(&request.serial_number, config.clone());
+                if let Ok(_) = decoder.read_to_string(&mut config) {
+                    if let Ok(mut config) = serde_json::from_str::<DeviceConfig>(&config) {
+                        if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+                            config.serial = device.serial.clone();
+                            config.vid = device.vid;
+                            config.pid = device.pid;
 
-                    match listener.config.save_device_config(&request.serial_number) {
-                        Ok(_) => {
-                            let wrapped_core = CoreHandle::wrap(device.core);
+                            listener.config.set_device_config(&request.serial_number, config.clone());
 
-                            load_panels(&wrapped_core, make_panel_unique(config.layout));
-                            wrapped_core.core().mark_for_redraw();
+                            match listener.config.save_device_config(&request.serial_number) {
+                                Ok(_) => {
+                                    let wrapped_core = CoreHandle::wrap(device.core);
 
-                            send_packet(handle, packet, &ImportDeviceConfigResult::Imported).ok();
-                        }
+                                    load_panels(&wrapped_core, make_panel_unique(config.layout));
+                                    wrapped_core.core().mark_for_redraw();
 
-                        Err(err) => {
-                            match err {
-                                ConfigError::IoError(_) | ConfigError::ParseError(_) => {
-                                    send_packet(handle, packet, &ImportDeviceConfigResult::FailedToSave).ok();
+                                    send_packet(handle, packet, &ImportDeviceConfigResult::Imported).ok();
                                 }
 
-                                ConfigError::DeviceNotFound => {
-                                    send_packet(handle, packet, &ImportDeviceConfigResult::DeviceNotFound).ok();
+                                Err(err) => {
+                                    match err {
+                                        ConfigError::IoError(_) | ConfigError::ParseError(_) => {
+                                            send_packet(handle, packet, &ImportDeviceConfigResult::FailedToSave).ok();
+                                        }
+
+                                        ConfigError::DeviceNotFound => {
+                                            send_packet(handle, packet, &ImportDeviceConfigResult::DeviceNotFound).ok();
+                                        }
+                                    }
                                 }
                             }
+                        } else {
+                            send_packet(handle, packet, &ImportDeviceConfigResult::DeviceNotFound).ok();
                         }
+                    } else {
+                        send_packet(handle, packet, &ImportDeviceConfigResult::InvalidConfig).ok();
                     }
                 } else {
-                    send_packet(handle, packet, &ImportDeviceConfigResult::DeviceNotFound).ok();
+                    send_packet(handle, packet, &ImportDeviceConfigResult::InvalidConfig).ok();
                 }
             } else {
                 send_packet(handle, packet, &ImportDeviceConfigResult::InvalidConfig).ok();
@@ -686,6 +723,137 @@ impl DaemonRequest for SetBrightness {
                 send_packet(handle, packet, &SetBrightnessResult::Set).ok();
             } else {
                 send_packet(handle, packet, &SetBrightnessResult::DeviceNotFound).ok();
+            }
+        }
+    }
+}
+
+/// Request for getting all images currently saved on device
+#[derive(Serialize, Deserialize)]
+pub struct ListImages {
+    pub serial_number: String
+}
+
+/// Response for ListImages request
+#[derive(Serialize, Deserialize)]
+pub enum ListImagesResult {
+    /// Sent if device wasn't found
+    DeviceNotFound,
+
+    /// Sent if successfully retrieved image list from device config
+    Images(HashMap<String, String>)
+}
+
+impl SocketData for ListImages {
+    const NAME: &'static str = "list_images";
+}
+
+impl SocketData for ListImagesResult {
+    const NAME: &'static str = "list_images";
+}
+
+impl DaemonRequest for ListImages {
+    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+        if let Ok(request) = parse_packet_to_data::<ListImages>(packet) {
+            if let Some(images) = listener.config.get_images(&request.serial_number) {
+                send_packet(handle, packet, &ListImagesResult::Images(images)).ok();
+            } else {
+                send_packet(handle, packet, &ListImagesResult::DeviceNotFound).ok();
+            }
+        }
+    }
+}
+
+/// Request for adding a new image into image collection
+#[derive(Serialize, Deserialize)]
+pub struct AddImage {
+    pub serial_number: String,
+    pub image_data: String,
+}
+
+/// Response for AddImage request
+#[derive(Serialize, Deserialize)]
+pub enum AddImageResult {
+    /// Sent if device wasn't found
+    DeviceNotFound,
+
+    /// Sent if image data is invalid
+    InvalidData,
+
+    /// Sent if successfully added image, contains identifier for the image
+    Added(String)
+}
+
+impl SocketData for AddImage {
+    const NAME: &'static str = "add_image";
+}
+
+impl SocketData for AddImageResult {
+    const NAME: &'static str = "add_image";
+}
+
+impl DaemonRequest for AddImage {
+    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+        if let Ok(request) = parse_packet_to_data::<AddImage>(packet) {
+            // Decoding image to make sure the data is correct
+            if let Ok(byte_array) = base64::decode(request.image_data) {
+                if let Ok(recognized_image) = Reader::new(Cursor::new(byte_array)).with_guessed_format() {
+                    if let Ok(decoded_image) = recognized_image.decode() {
+                        if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+                            let decoded_image = resize_for_streamdeck(device.core.image_size, decoded_image);
+
+                            if let Some(identifier) = listener.config.add_image_encode(&request.serial_number, decoded_image) {
+                                send_packet(handle, packet, &AddImageResult::Added(identifier)).ok();
+                            } else {
+                                send_packet(handle, packet, &AddImageResult::DeviceNotFound).ok();
+                            }
+                        } else {
+                            send_packet(handle, packet, &AddImageResult::DeviceNotFound).ok();
+                        }
+
+                        return;
+                    }
+                }
+            }
+
+            send_packet(handle, packet, &AddImageResult::InvalidData).ok();
+        }
+    }
+}
+
+/// Request for removing an image from image collection
+#[derive(Serialize, Deserialize)]
+pub struct RemoveImage {
+    pub serial_number: String,
+    pub image_identifier: String,
+}
+
+/// Response for RemoveImage request
+#[derive(Serialize, Deserialize)]
+pub enum RemoveImageResult {
+    /// Sent if image wasn't found
+    NotFound,
+
+    /// Sent if successfully removed image
+    Removed
+}
+
+impl SocketData for RemoveImage {
+    const NAME: &'static str = "remove_image";
+}
+
+impl SocketData for RemoveImageResult {
+    const NAME: &'static str = "remove_image";
+}
+
+impl DaemonRequest for RemoveImage {
+    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+        if let Ok(request) = parse_packet_to_data::<RemoveImage>(packet) {
+            // Decoding image to make sure the data is correct
+            if listener.config.remove_image(&request.serial_number, &request.image_identifier) {
+                send_packet(handle, packet, &RemoveImageResult::Removed).ok();
+            } else {
+                send_packet(handle, packet, &RemoveImageResult::NotFound).ok();
             }
         }
     }
@@ -914,6 +1082,54 @@ impl DaemonRequest for GetCurrentScreen {
         }
     }
 }
+
+
+
+/// Request for getting current button images on a device
+#[derive(Serialize, Deserialize)]
+pub struct GetButtonImages {
+    pub serial_number: String
+}
+
+/// Response of GetButtonImages request
+#[derive(Serialize, Deserialize)]
+pub enum GetButtonImagesResult {
+    /// Sent if device wasn't found
+    DeviceNotFound,
+
+    /// Sent if successfully generated images
+    Images(HashMap<u8, String>)
+}
+
+impl SocketData for GetButtonImages {
+    const NAME: &'static str = "get_button_images";
+}
+
+impl SocketData for GetButtonImagesResult {
+    const NAME: &'static str = "get_button_images";
+}
+
+impl DaemonRequest for GetButtonImages {
+    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+        if let Ok(request) = parse_packet_to_data::<GetButtonImages>(packet) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+                let images = device.core.get_button_images().into_iter()
+                    .map(|(key, image)| {
+                        let mut buffer: Vec<u8> = vec![];
+                        image.write_to(&mut buffer, ImageOutputFormat::Png).ok();
+                        (key, base64::encode(buffer))
+                    })
+                    .collect();
+
+                send_packet(handle, packet, &GetButtonImagesResult::Images(images)).unwrap();
+            } else {
+                send_packet(handle, packet, &GetButtonImagesResult::DeviceNotFound).ok();
+            }
+        }
+    }
+}
+
+
 
 /// Request for getting a button from current screen on a device
 #[derive(Serialize, Deserialize)]
@@ -1303,6 +1519,7 @@ impl DaemonRequest for SetComponentValue {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
                 if set_component_value(&wrapped_core, request.key, &request.component_name, request.value) {
+                    listener.config.sync_images(&request.serial_number);
                     send_packet(handle, packet, &SetComponentValueResult::Set).ok();
                 } else {
                     send_packet(handle, packet, &SetComponentValueResult::FailedToSet).ok();

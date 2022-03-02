@@ -79,7 +79,13 @@ pub enum UIFieldType {
     },
 
     /// Color picker
-    Color
+    Color,
+
+    /// Image data encoded in base64
+    ImageData,
+
+    /// Image from image collection
+    ExistingImage,
 }
 
 /// UI Field value, current state of the settings
@@ -123,6 +129,12 @@ pub enum UIFieldValue {
 
     /// Color picker
     Color(u8, u8, u8, u8),
+
+    /// Image data encoded in base64
+    ImageData(String),
+
+    /// Image from image collection
+    ExistingImage(String),
 }
 
 impl UIFieldValue {
@@ -345,7 +357,7 @@ impl TryInto<String> for UIFieldValue {
     type Error = String;
 
     fn try_into(self) -> Result<String, Self::Error> {
-        if let UIFieldValue::InputFieldString(str) | UIFieldValue::Choice(str) = self {
+        if let UIFieldValue::InputFieldString(str) | UIFieldValue::Choice(str) | UIFieldValue::ImageData(str) | UIFieldValue::ExistingImage(str) = self {
             Ok(str)
         } else {
             Err("Incorrect enum value".to_string())
@@ -357,7 +369,7 @@ impl TryInto<String> for &UIFieldValue {
     type Error = String;
 
     fn try_into(self) -> Result<String, Self::Error> {
-        if let UIFieldValue::InputFieldString(str) | UIFieldValue::Choice(str) = self {
+        if let UIFieldValue::InputFieldString(str) | UIFieldValue::Choice(str) | UIFieldValue::ImageData(str) | UIFieldValue::ExistingImage(str) = self {
             Ok(str.clone())
         } else {
             Err("Incorrect enum value".to_string())

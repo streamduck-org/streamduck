@@ -7,11 +7,12 @@ pub mod methods;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 use std::sync::mpsc::{channel, Receiver};
+use image::DynamicImage;
 use streamdeck::StreamDeck;
 use crate::core::button::Button;
 use crate::core::methods::{button_down, button_up, CoreHandle};
 use crate::modules::ModuleManager;
-use crate::threads::rendering::{RendererHandle, spawn_rendering_thread};
+use crate::threads::rendering::{ImageCollection, RendererHandle, spawn_rendering_thread};
 use crate::threads::streamdeck::{spawn_streamdeck_thread, StreamDeckCommand, StreamDeckHandle};
 
 /// Reference counted RwLock of a button, prevents data duplication and lets you edit buttons if they're in many stacks at once
@@ -35,6 +36,9 @@ pub struct SDCore {
     /// Image size supported by streamdeck
     pub image_size: (usize, usize),
 
+    /// Image collection to use for rendering
+    pub image_collection: ImageCollection,
+
     /// Key count of the streamdeck device
     pub key_count: u8,
 
@@ -49,12 +53,13 @@ pub struct SDCore {
 
 impl SDCore {
     /// Creates an instance of core that is already dead
-    pub fn blank(module_manager: Arc<ModuleManager>) -> Arc<SDCore> {
+    pub fn blank(module_manager: Arc<ModuleManager>, image_collection: ImageCollection) -> Arc<SDCore> {
         Arc::new(SDCore {
             module_manager,
             current_stack: Mutex::new(vec![]),
             handles: Mutex::new(None),
             image_size: (0, 0),
+            image_collection,
             key_count: 0,
             pool_rate: 0,
             should_close: RwLock::new(true)
@@ -62,7 +67,7 @@ impl SDCore {
     }
 
     /// Creates an instance of the core over existing streamdeck connection
-    pub fn new(module_manager: Arc<ModuleManager>, connection: StreamDeck, pool_rate: u32) -> (Arc<SDCore>, KeyHandler) {
+    pub fn new(module_manager: Arc<ModuleManager>, image_collection: ImageCollection, connection: StreamDeck, pool_rate: u32) -> (Arc<SDCore>, KeyHandler) {
         let (key_tx, key_rx) = channel();
 
         let core = Arc::new(SDCore {
@@ -70,6 +75,7 @@ impl SDCore {
             current_stack: Mutex::new(vec![]),
             handles: Mutex::new(None),
             image_size: connection.image_size(),
+            image_collection,
             key_count: connection.kind().keys(),
             pool_rate,
             should_close: RwLock::new(false)
@@ -98,6 +104,16 @@ impl SDCore {
         let handles = self.handles.lock().unwrap();
 
         handles.as_ref().unwrap().renderer.redraw();
+    }
+
+    /// Gets current images rendered on streamdeck
+    pub fn get_button_images(&self) -> HashMap<u8, DynamicImage> {
+        let handles = self.handles.lock().unwrap();
+
+        let handle_ref = handles.as_ref().unwrap();
+        let images_lock = handle_ref.renderer.state.current_images.read().unwrap();
+
+        images_lock.clone()
     }
 
     /// Sends commands to streamdeck thread

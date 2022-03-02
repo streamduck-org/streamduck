@@ -1,4 +1,6 @@
+use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 use serde_json::{Error, Value};
@@ -53,4 +55,13 @@ pub fn panel_to_raw(panel: &ButtonPanel) -> RawButtonPanel {
 /// Converts unique button to raw button
 pub fn button_to_raw(button: &UniqueButton) -> Button {
     button.read().unwrap().deref().clone()
+}
+
+/// Hashes image blob
+pub fn hash_image(data: &String) -> String {
+    let mut hasher = DefaultHasher::new();
+
+    data.hash(&mut hasher);
+
+    hasher.finish().to_string()
 }

@@ -85,6 +85,7 @@ pub fn export_config(client: ClientRef, mut args: Split<&str>, current_sn: &Stri
 
                 match data {
                     ExportDeviceConfigResult::DeviceNotFound => println!("config export: Device not found"),
+                    ExportDeviceConfigResult::FailedToCompress => println!("config export: Failed to compress data"),
                     ExportDeviceConfigResult::Exported(config) => {
                         if let Ok(_) = fs::write(path, config) {
                             println!("config export: Exported");

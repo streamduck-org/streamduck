@@ -3,7 +3,7 @@ use streamduck_client::daemon::socket::daemon_data::{GetModuleValuesResult, SetM
 use streamduck_core::modules::components::{UIFieldType, UIFieldValue, UIValue};
 use crate::prompt::buttons::change_from_path;
 use crate::prompt::ClientRef;
-use crate::prompt::utils::{print_table, print_table_with_strings};
+use crate::prompt::utils::{print_table};
 
 pub fn list_modules(client: ClientRef) {
     let mut table = vec![
@@ -316,6 +316,16 @@ pub fn module_params_set(client: ClientRef, mut args: Split<&str>) {
 
                                 false
                             }
+
+                            UIFieldType::ImageData => {
+                                x.value = UIFieldValue::ImageData(value.clone());
+                                true
+                            }
+
+                            UIFieldType::ExistingImage => {
+                                x.value = UIFieldValue::ExistingImage(value.clone());
+                                true
+                            }
                         }
                     }, false);
 
@@ -353,107 +363,107 @@ pub fn module_list_params(client: ClientRef, mut args: Split<&str>) {
         match result {
             GetModuleValuesResult::ModuleNotFound => println!("module params list: Module not found"),
             GetModuleValuesResult::Values(values) => {
-                let mut table = vec![
-                    vec!["Name".to_string()],
-                    vec!["Path".to_string()],
-                    vec!["Value".to_string()],
-                    vec!["Options".to_string()],
-                ];
+                fn list_fields(items: Vec<UIValue>, path: &str, tabs_count: usize) {
+                    let tabs = format!("{: <w$}", "", w = tabs_count);
 
-                fn list_fields(table: &mut Vec<Vec<String>>, items: Vec<UIValue>, path: &str) {
                     for item in items {
                         // Name
-                        table[0].push(item.display_name);
+                        println!("{}{}", tabs, item.display_name);
 
                         // Path
                         let item_path = format!("{}{}", if path.is_empty() { "".to_string() } else { format!("{}.", path) }, item.name);
 
-                        if let UIFieldValue::Header | UIFieldValue::Collapsable(_) = &item.value {
-                            table[1].push("".to_string())
-                        } else {
-                            table[1].push(item_path.clone())
+                        if let UIFieldValue::Header | UIFieldValue::Collapsable(_) = &item.value {} else {
+                            println!("{}Path: {}", tabs, item_path)
                         }
 
                         // Value
                         match item.value {
                             UIFieldValue::Header => {
-                                table[2].push("Header".to_string());
-                                table[3].push("".to_string());
+                                println!("{}Type: Header", tabs);
                             }
 
                             UIFieldValue::InputFieldFloat(f) | UIFieldValue::ValueSliderFloat(f) => {
-                                table[2].push(f.to_string());
-                                table[3].push("".to_string());
+                                println!("{}Type: Float", tabs);
+                                println!("{}Value: {}", tabs, f);
                             }
 
                             UIFieldValue::InputFieldInteger(i) | UIFieldValue::ValueSliderInteger(i) => {
-                                table[2].push(i.to_string());
-                                table[3].push("".to_string());
+                                println!("{}Type: Integer", tabs);
+                                println!("{}Value: {}", tabs, i);
                             }
 
                             UIFieldValue::InputFieldString(s) => {
-                                table[2].push(s);
-                                table[3].push("".to_string());
+                                println!("{}Type: String", tabs);
+                                println!("{}Value: {}", tabs, s);
                             }
 
                             UIFieldValue::InputFieldFloat2(f1, f2) => {
-                                table[2].push(format!("{},{}", f1, f2));
-                                table[3].push("".to_string());
+                                println!("{}Type: Float2", tabs);
+                                println!("{}Value: {},{}", tabs, f1, f2);
                             }
 
                             UIFieldValue::InputFieldInteger2(i1, i2) => {
-                                table[2].push(format!("{},{}", i1, i2));
-                                table[3].push("".to_string());
+                                println!("{}Type: Integer2", tabs);
+                                println!("{}Value: {},{}", tabs, i1, i2);
                             }
 
                             UIFieldValue::InputFieldUnsignedInteger(u) => {
-                                table[2].push(u.to_string());
-                                table[3].push("".to_string());
+                                println!("{}Type: Positive Integer", tabs);
+                                println!("{}Value: {}", tabs, u);
                             }
 
                             UIFieldValue::Choice(s) => {
-                                table[2].push(s);
+                                println!("{}Type: Choice", tabs);
+                                println!("{}Value: {}", tabs, s);
 
                                 if let UIFieldType::Choice(variants) = &item.ty {
-                                    table[3].push(variants.join(","));
-                                } else {
-                                    table[3].push("".to_string());
+                                    println!("{}Options: {}", tabs, variants.join(","));
                                 }
                             }
 
                             UIFieldValue::Checkbox(b) => {
-                                table[2].push(b.to_string());
-                                table[3].push("".to_string());
+                                println!("{}Type: Boolean", tabs);
+                                println!("{}Value: {}", tabs, b);
                             }
 
                             UIFieldValue::Color(c1, c2, c3, c4) => {
-                                table[2].push(format!("{},{},{},{}", c1, c2, c3, c4));
-                                table[3].push("".to_string());
+                                println!("{}Type: Color", tabs);
+                                println!("{}Value: {},{},{},{}", tabs, c1, c2, c3, c4);
                             }
 
 
                             UIFieldValue::Collapsable(submenu) => {
-                                table[2].push("Submenu".to_string());
-                                table[3].push("".to_string());
+                                println!("{}Type: Submenu", tabs);
+                                println!("{}Items:", tabs);
 
-                                list_fields(table, submenu, &item_path);
+                                list_fields(submenu, &item_path, tabs_count + 2);
                             }
 
                             UIFieldValue::Array(array) => {
-                                table[2].push("Array".to_string());
-                                table[3].push("".to_string());
+                                println!("{}Type: Submenu", tabs);
+                                println!("{}Items:", tabs);
 
                                 for (index, array_item) in array.into_iter().enumerate() {
-                                    list_fields(table, array_item, &format!("{}.{}", item_path, index));
+                                    list_fields(array_item, &format!("{}.{}", item_path, index), tabs_count + 2);
+                                    println!();
                                 }
                             }
+                            UIFieldValue::ImageData(data) => {
+                                println!("{}Type: ImageData", tabs);
+                                println!("{}Data: {}", tabs, data);
+                            }
+                            UIFieldValue::ExistingImage(identifier) => {
+                                println!("{}Type: ExistingImage", tabs);
+                                println!("{}Identifier: {}", tabs, identifier);
+                            }
                         }
+
+                        println!();
                     }
                 }
 
-                list_fields(&mut table, values, "");
-
-                print_table_with_strings(table, "-", "|");
+                list_fields(values, "", 0);
             }
         }
     } else {

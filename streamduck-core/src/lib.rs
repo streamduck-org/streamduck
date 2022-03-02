@@ -25,10 +25,11 @@ use streamdeck::pids;
 use streamdeck::StreamDeck;
 use crate::core::{KeyHandler, SDCore};
 use crate::modules::ModuleManager;
+use crate::threads::rendering::ImageCollection;
 
 /// Attempts to connect to any detected streamdeck
-pub fn connect_any(module_manager: Arc<ModuleManager>, hid: &HidApi, pool_rate: u32) -> Result<(Arc<SDCore>, KeyHandler), Error> {
-    Ok(SDCore::new(module_manager, attempt_connection_to_any(hid)?, pool_rate))
+pub fn connect_any(module_manager: Arc<ModuleManager>, image_collection: ImageCollection, hid: &HidApi, pool_rate: u32) -> Result<(Arc<SDCore>, KeyHandler), Error> {
+    Ok(SDCore::new(module_manager, image_collection, attempt_connection_to_any(hid)?, pool_rate))
 }
 
 fn attempt_connection_to_any(hid: &HidApi) -> Result<StreamDeck, Error> {
@@ -45,8 +46,8 @@ fn attempt_connection_to_any(hid: &HidApi) -> Result<StreamDeck, Error> {
 }
 
 /// Attempts to connect to specified device as a streamdeck
-pub fn connect(module_manager: Arc<ModuleManager>, hid: &HidApi, vid: u16, pid: u16, serial: &str, pool_rate: u32) -> Result<(Arc<SDCore>, KeyHandler), Error> {
-    Ok(SDCore::new(module_manager, attempt_connection(hid, vid, pid, serial)?, pool_rate))
+pub fn connect(module_manager: Arc<ModuleManager>, image_collection: ImageCollection, hid: &HidApi, vid: u16, pid: u16, serial: &str, pool_rate: u32) -> Result<(Arc<SDCore>, KeyHandler), Error> {
+    Ok(SDCore::new(module_manager, image_collection, attempt_connection(hid, vid, pid, serial)?, pool_rate))
 }
 
 fn attempt_connection(hid: &HidApi, vid: u16, pid: u16, serial: &str) -> Result<StreamDeck, Error> {

@@ -1,7 +1,7 @@
 [package]
 name = "streamduck-client"
 authors = ["TheJebForge"]
-version = "0.0.5"
+version = "0.0.6"
 description = "Client library of the Streamduck project"
 edition = "2021"
 readme = "../Readme.md"
@@ -11,7 +11,7 @@ repository = "https://github.com/TheJebForge/streamduck"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-streamduck-core = {path = "../streamduck-core", version = "0.0.5"}
-streamduck-daemon = { path = "../streamduck-daemon", version = "0.0.5" }
+streamduck-core = {path = "../streamduck-core", version = "0.0.6"}
+streamduck-daemon = { path = "../streamduck-daemon", version = "0.0.6" }
 serde = { version = "1.0.130", features = ["derive"] }
 serde_json = "1.0.69"

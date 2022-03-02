@@ -1,18 +1,21 @@
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
+use std::io::Write;
 use std::os::unix::net::UnixStream;
 use std::sync::{Arc, RwLock};
-use serde::{Serialize};
+
+use serde::Serialize;
 use serde::de::DeserializeOwned;
+
 use streamduck_core::core::button::Button;
 use streamduck_core::core::RawButtonPanel;
 use streamduck_core::modules::components::{ComponentDefinition, UIValue};
 use streamduck_core::modules::PluginMetadata;
 use streamduck_core::versions::SOCKET_API;
-use streamduck_daemon::socket::daemon_data::{AddDevice, AddDeviceResult, Device, ListDevices, GetDevice, GetDeviceResult, RemoveDevice, RemoveDeviceResult, SocketAPIVersion, ReloadDeviceConfigsResult, ReloadDeviceConfigResult, SaveDeviceConfigsResult, SaveDeviceConfigResult, SetBrightnessResult, ReloadDeviceConfig, SaveDeviceConfig, SetBrightness, ListModules, ListComponents, GetButtonResult, SetButtonResult, ClearButtonResult, PushScreenResult, PopScreenResult, ReplaceScreenResult, ResetStackResult, CommitChangesToConfigResult, GetStackResult, GetCurrentScreenResult, GetStack, GetCurrentScreen, GetButton, SetButton, ClearButton, PushScreen, PopScreen, ReplaceScreen, ResetStack, CommitChangesToConfig, DoButtonActionResult, DoButtonAction, ForciblyPopScreenResult, ForciblyPopScreen, AddComponentResult, GetComponentValuesResult, SetComponentValueResult, RemoveComponentResult, AddComponent, GetComponentValues, SetComponentValue, RemoveComponent, NewButtonResult, NewButtonFromComponentResult, NewButton, NewButtonFromComponent, GetModuleValuesResult, SetModuleValueResult, GetModuleValues, SetModuleValue, ImportDeviceConfigResult, ExportDeviceConfigResult, ImportDeviceConfig, ExportDeviceConfig, GetDeviceConfigResult, GetDeviceConfig};
 use streamduck_daemon::socket::{parse_packet_to_data, send_no_data_packet_with_requester, send_packet_with_requester, SocketData, SocketPacket};
+use streamduck_daemon::socket::daemon_data::{AddComponent, AddComponentResult, AddDevice, AddDeviceResult, AddImage, AddImageResult, ClearButton, ClearButtonResult, CommitChangesToConfig, CommitChangesToConfigResult, Device, DoButtonAction, DoButtonActionResult, ExportDeviceConfig, ExportDeviceConfigResult, ForciblyPopScreen, ForciblyPopScreenResult, GetButton, GetButtonImages, GetButtonImagesResult, GetButtonResult, GetComponentValues, GetComponentValuesResult, GetCurrentScreen, GetCurrentScreenResult, GetDevice, GetDeviceConfig, GetDeviceConfigResult, GetDeviceResult, GetModuleValues, GetModuleValuesResult, GetStack, GetStackResult, ImportDeviceConfig, ImportDeviceConfigResult, ListComponents, ListDevices, ListImages, ListImagesResult, ListModules, NewButton, NewButtonFromComponent, NewButtonFromComponentResult, NewButtonResult, PopScreen, PopScreenResult, PushScreen, PushScreenResult, ReloadDeviceConfig, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, RemoveComponent, RemoveComponentResult, RemoveDevice, RemoveDeviceResult, RemoveImage, RemoveImageResult, ReplaceScreen, ReplaceScreenResult, ResetStack, ResetStackResult, SaveDeviceConfig, SaveDeviceConfigResult, SaveDeviceConfigsResult, SetBrightness, SetBrightnessResult, SetButton, SetButtonResult, SetComponentValue, SetComponentValueResult, SetModuleValue, SetModuleValueResult, SocketAPIVersion};
+
 use crate::{SDClient, SDClientError};
-use std::io::Write;
 
 /// Definition of Unix Socket based client
 pub struct UnixClient {
@@ -166,6 +169,32 @@ impl SDClient for UnixClient {
         Ok(response)
     }
 
+    fn list_images(&self, serial_number: &str) -> Result<ListImagesResult, SDClientError> {
+        let response: ListImagesResult = self.process_request(&ListImages {
+            serial_number: serial_number.to_string()
+        })?;
+
+        Ok(response)
+    }
+
+    fn add_image(&self, serial_number: &str, image_data: &str) -> Result<AddImageResult, SDClientError> {
+        let response: AddImageResult = self.process_request(&AddImage {
+            serial_number: serial_number.to_string(),
+            image_data: image_data.to_string()
+        })?;
+
+        Ok(response)
+    }
+
+    fn remove_image(&self, serial_number: &str, identifier: &str) -> Result<RemoveImageResult, SDClientError> {
+        let response: RemoveImageResult = self.process_request(&RemoveImage {
+            serial_number: serial_number.to_string(),
+            image_identifier: identifier.to_string()
+        })?;
+
+        Ok(response)
+    }
+
     fn list_modules(&self) -> Result<Vec<PluginMetadata>, SDClientError> {
         let response: ListModules = self.process_request_without_data()?;
 
@@ -205,6 +234,14 @@ impl SDClient for UnixClient {
 
     fn get_current_screen(&self, serial_number: &str) -> Result<GetCurrentScreenResult, SDClientError> {
         let response: GetCurrentScreenResult = self.process_request(&GetCurrentScreen {
+            serial_number: serial_number.to_string()
+        })?;
+
+        Ok(response)
+    }
+
+    fn get_button_images(&self, serial_number: &str) -> Result<GetButtonImagesResult, SDClientError> {
+        let response: GetButtonImagesResult = self.process_request(&GetButtonImages {
             serial_number: serial_number.to_string()
         })?;
 

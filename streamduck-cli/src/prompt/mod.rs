@@ -4,6 +4,7 @@ mod info;
 mod utils;
 mod buttons;
 mod module;
+mod images;
 
 use std::io::Write;
 use std::sync::Arc;
@@ -13,6 +14,7 @@ use streamduck_core::core::button::Button;
 use crate::prompt::buttons::{button_component, button_from, button_new, button_remove};
 use crate::prompt::config::{export_config, import_config, reload_config, save_config};
 use crate::prompt::device::{add_device, device_list, remove_device};
+use crate::prompt::images::{add_image, list_images, remove_image};
 use crate::prompt::info::{button_info, component_info, list_buttons, list_components, prompt_help};
 use crate::prompt::module::{list_modules, module_info, module_list_params, module_params_add, module_params_remove, module_params_set};
 
@@ -151,6 +153,19 @@ pub fn prompt(client: Arc<Box<dyn SDClient>>) {
                         }
                     } else {
                         println!("module: Unknown command");
+                    }
+                }
+
+                "image" | "i" => {
+                    if let Some(command) = args.next() {
+                        match command {
+                            "list" | "l" => list_images(&client, &current_sn, args),
+                            "add" | "a" => add_image(&client, &current_sn, args),
+                            "remove" | "r" => remove_image(&client, &current_sn, args),
+                            _ => println!("image: Unknown command"),
+                        }
+                    } else {
+                        println!("image: Unknown command");
                     }
                 }
 

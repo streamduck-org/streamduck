@@ -14,7 +14,7 @@ use crate::config::{Config, DeviceConfig};
 
 /// Core manager struct
 pub struct CoreManager {
-    hid: HidApi,
+    hid: RwLock<HidApi>,
     config: Arc<Config>,
     devices: RwLock<HashMap<String, DeviceData>>,
     module_manager: Arc<ModuleManager>,
@@ -27,7 +27,7 @@ impl CoreManager {
         let hid = HidApi::new().expect("could not connect to hidapi");
 
         Arc::new(CoreManager {
-            hid,
+            hid: RwLock::new(hid),
             config,
             devices: Default::default(),
             module_manager
@@ -43,7 +43,11 @@ impl CoreManager {
 
     /// Lists detected unmanaged devices
     pub fn list_available_devices(&self) -> Vec<(u16, u16, String)> {
-        find_decks(&self.hid).iter()
+        let mut handle = self.hid.write().unwrap();
+
+        handle.refresh_devices().ok();
+
+        find_decks(&handle).iter()
             .filter(|(.., str)| str.is_some())
             .filter(|(.., str)| self.get_device(str.clone().unwrap().as_str()).is_none())
             .map(|(vid, pid, serial)| (*vid, *pid, serial.clone().unwrap()))
@@ -56,7 +60,7 @@ impl CoreManager {
 
         if !handle.contains_key(serial) {
             let data = DeviceData {
-                core: SDCore::blank(self.module_manager.clone()),
+                core: SDCore::blank(self.module_manager.clone(), Default::default()),
                 vid,
                 pid,
                 serial: serial.to_string()
@@ -70,7 +74,10 @@ impl CoreManager {
 
     /// Connects to a device
     pub fn connect_device(&self, vid: u16, pid: u16, serial: &str) -> Result<DeviceData, String> {
-        if let Ok((core, handler)) = connect(self.module_manager.clone(), &self.hid, vid, pid, serial, self.config.pool_rate()) {
+        let hid_handle = self.hid.read().unwrap();
+        let collection = self.config.get_image_collection(serial);
+
+        if let Ok((core, handler)) = connect(self.module_manager.clone(), collection,&hid_handle, vid, pid, serial, self.config.pool_rate()) {
             spawn(move || {
                 handler.run_loop();
                 log::trace!("key handler closed");
@@ -94,7 +101,8 @@ impl CoreManager {
                     pid,
                     serial: serial.to_string(),
                     brightness: 50,
-                    layout: RawButtonPanel::new()
+                    layout: RawButtonPanel::new(),
+                    images: Default::default()
                 });
 
                 self.config.save_device_config(serial).ok();

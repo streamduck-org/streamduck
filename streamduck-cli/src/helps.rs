@@ -20,6 +20,9 @@ pub const COMMANDS: &'static [(&'static str, &'static str)] = &[
     ("(m)odule (p)arams (l)ist", "<name> - lists parameters of the module along with values and paths"),
     ("(com)ponent (l)ist", "- lists available components from modules"),
     ("(com)ponent (i)nfo", "<name> - prints information about component"),
+    ("(i)mage (l)ist", "[<serial>] - lists all images used by a device"),
+    ("(i)mage (a)dd", "[<serial>] <file path> - adds image to device config"),
+    ("(i)mage (r)emove", "[<serial>] <identifier> - removes image from device config"),
     ("(b)utton (l)ist", "[<serial>] - lists all buttons defined on current screen"),
     ("(b)utton (i)nfo", "[<serial>] <key index> - provides more detailed information about a button"),
     ("(b)utton (n)ew", "[<serial>] <key index> - creates an empty button on current screen"),
@@ -32,5 +35,6 @@ pub const COMMANDS: &'static [(&'static str, &'static str)] = &[
     ("(b)utton (c)omponent (p)arams (a)dd", "[<serial>] <key index> <component name> <parameter path> - adds a new element into parameter array"),
     ("(b)utton (c)omponent (p)arams (r)emove", "[<serial>] <key index> <component name> <parameter path> <element index> - removes element from parameter array"),
     ("(b)utton (c)omponent (p)arams (s)et", "[<serial>] <key index> <component name> <parameter path> <value> - sets value to component's parameter"),
+    ("(b)utton (c)omponent (p)arams (u)pload", "[<serial>] <key index> <component name> <parameter path> <file path> - reads binary file and sets that as value to component's parameter"),
     ("(b)utton (c)omponent (p)arams (l)ist", "[<serial>] <key index> <component name> - lists parameters of the component along with values and paths"),
 ];

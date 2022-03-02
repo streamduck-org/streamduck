@@ -5,26 +5,29 @@
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
-use std::ops::Deref;
+use std::io::Cursor;
 use serde::{Serialize, Deserialize};
-use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 use std::sync::mpsc::{channel, Sender};
 use std::thread::{spawn};
 use image::{DynamicImage, Rgba, RgbaImage};
-use image::imageops::{tile};
+use image::imageops::{FilterType, tile};
+use image::io::Reader;
 use rusttype::Scale;
 use crate::core::{SDCore};
 use crate::core::button::{Component, parse_unique_button_to_component};
 use crate::core::methods::{CoreHandle, get_current_screen};
 use crate::font::get_font_from_collection;
 use crate::threads::streamdeck::StreamDeckCommand;
-use crate::util::rendering::{image_from_horiz_gradient, image_from_solid, image_from_vert_gradient, load_image, render_aligned_shadowed_text_on_image, render_aligned_text_on_image, TextAlignment};
+use crate::util::rendering::{image_from_horiz_gradient, image_from_solid, image_from_vert_gradient, render_aligned_shadowed_text_on_image, render_aligned_text_on_image, TextAlignment};
+
+pub type ImageCollection = Arc<RwLock<HashMap<String, DynamicImage>>>;
 
 /// Handle for contacting renderer thread
 #[derive(Debug)]
 pub struct RendererHandle {
     tx: Sender<RendererCommunication>,
+    pub state: Arc<RendererState>,
 }
 
 impl RendererHandle {
@@ -40,23 +43,24 @@ enum RendererCommunication {
     Redraw,
 }
 
+#[derive(Debug)]
 pub struct RendererState {
-    render_cache: RwLock<HashMap<u64, DynamicImage>>,
-    image_cache: RwLock<HashMap<u64, DynamicImage>>
+    pub render_cache: RwLock<HashMap<u64, DynamicImage>>,
+    pub current_images: RwLock<HashMap<u8, DynamicImage>>,
 }
 
 /// Spawns rendering thread from a core reference
 pub fn spawn_rendering_thread(core: Arc<SDCore>) -> RendererHandle {
     let (tx, rx) = channel::<RendererCommunication>();
 
+    let state = Arc::new(RendererState {
+        render_cache: Default::default(),
+        current_images: Default::default()
+    });
 
-
+    let renderer_state = state.clone();
     spawn(move || {
         let core = core.clone();
-        let state = RendererState {
-            render_cache: Default::default(),
-            image_cache: Default::default()
-        };
 
         let mut pattern = RgbaImage::new(16, 16);
 
@@ -124,7 +128,7 @@ pub fn spawn_rendering_thread(core: Arc<SDCore>) -> RendererHandle {
 
             if let Ok(com) = rx.recv() {
                 match com {
-                    RendererCommunication::Redraw => redraw(core.clone(), &state, &missing),
+                    RendererCommunication::Redraw => redraw(core.clone(), &renderer_state, &missing),
                     _ => {}
                 }
             } else {
@@ -139,6 +143,7 @@ pub fn spawn_rendering_thread(core: Arc<SDCore>) -> RendererHandle {
 
     RendererHandle {
         tx,
+        state
     }
 }
 
@@ -146,6 +151,8 @@ fn redraw(core: Arc<SDCore>, state: &RendererState, missing: &DynamicImage) {
     let core_handle = CoreHandle::wrap(core.clone());
     let current_screen = get_current_screen(&core_handle);
     let mut commands = vec![];
+
+    let mut current_images = HashMap::new();
 
     for i in 0..core.key_count {
         if let Some(current_screen) = &current_screen {
@@ -174,32 +181,34 @@ fn redraw(core: Arc<SDCore>, state: &RendererState, missing: &DynamicImage) {
                                 image_from_vert_gradient(core.image_size, Rgba([start.0, start.1, start.2, 255]), Rgba([end.0, end.1, end.2, 255]))
                             }
 
-                            ButtonBackground::Image(path, disable_caching) => {
-                                let image_hash = hash_path(&path);
-
-                                let mut image_cache = state.image_cache.write().unwrap();
-                                let image_cache_entry = image_cache.get(&image_hash);
-
-                                let image = if image_cache_entry.is_some() && (!disable_caching) {
-                                    image_cache_entry.unwrap().clone()
+                            ButtonBackground::ExistingImage(identifier) => {
+                                if let Some(image) = core.image_collection.read().unwrap().get(&identifier) {
+                                    image.resize_to_fill(core.image_size.0 as u32, core.image_size.1 as u32, FilterType::Triangle)
                                 } else {
-                                    let image = if let Some(image) = load_image(core.image_size, path.deref()) {
-                                        image
-                                    } else {
-                                        no_image = true;
-                                        missing.clone()
-                                    };
+                                    no_image = true;
+                                    missing.clone()
+                                }
+                            }
 
-                                    if (!disable_caching) && (!no_image) {
-                                        image_cache.insert(image_hash, image.clone());
+                            ButtonBackground::NewImage(blob) => {
+                                fn get_image(blob: String) -> Option<DynamicImage> {
+                                    if let Ok(byte_array) = base64::decode(blob) {
+                                        if let Ok(recognized_image) = Reader::new(Cursor::new(byte_array)).with_guessed_format() {
+                                            if let Ok(decoded_image) = recognized_image.decode() {
+                                                return Some(decoded_image);
+                                            }
+                                        }
                                     }
 
-                                    image
-                                };
+                                    None
+                                }
 
-                                drop(image_cache);
-
-                                image
+                                if let Some(image) = get_image(blob) {
+                                    image.resize_to_fill(core.image_size.0 as u32, core.image_size.1 as u32, FilterType::Triangle)
+                                } else {
+                                    no_image = true;
+                                    missing.clone()
+                                }
                             }
                         };
 
@@ -251,7 +260,7 @@ fn redraw(core: Arc<SDCore>, state: &RendererState, missing: &DynamicImage) {
 
                     drop(cache_handle);
 
-
+                    current_images.insert(i, image.clone());
 
                     commands.push(StreamDeckCommand::SetButtonImage(i, image));
                 } else {
@@ -263,6 +272,10 @@ fn redraw(core: Arc<SDCore>, state: &RendererState, missing: &DynamicImage) {
         } else {
             commands.push(StreamDeckCommand::ClearButtonImage(i));
         }
+    }
+
+    {
+        *state.current_images.write().unwrap() = current_images;
     }
 
     core.send_commands(commands);
@@ -277,7 +290,8 @@ pub enum ButtonBackground {
     Solid(Color),
     HorizontalGradient(Color, Color),
     VerticalGradient(Color, Color),
-    Image(PathBuf, bool),
+    ExistingImage(String),
+    NewImage(String),
 }
 
 impl Default for ButtonBackground {
@@ -347,11 +361,5 @@ impl Component for RendererComponent {
 pub(crate) fn hash_renderer(renderer: &RendererComponent) -> u64 {
     let mut hasher = DefaultHasher::new();
     renderer.hash(&mut hasher);
-    hasher.finish()
-}
-
-pub(crate) fn hash_path(path: &PathBuf) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    path.hash(&mut hasher);
     hasher.finish()
 }

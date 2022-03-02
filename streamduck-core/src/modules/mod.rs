@@ -6,7 +6,7 @@ pub mod components;
 pub mod events;
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::io::Cursor;
 use std::sync::{Arc, RwLock};
 
 use crate::core::button::{Button, parse_button_to_component};
@@ -17,11 +17,14 @@ use crate::modules::folders::FolderModule;
 
 use serde::{Serialize, Deserialize};
 use crate::threads::rendering::{ButtonBackground, ButtonText, ButtonTextShadow, RendererComponent};
-use crate::util::rendering::TextAlignment;
+use crate::util::rendering::{resize_for_streamdeck, TextAlignment};
 use crate::versions::CORE;
 
 use strum::VariantNames;
 use std::str::FromStr;
+use image::DynamicImage;
+use image::io::Reader;
+use crate::util::hash_image;
 
 /// Manages modules
 pub struct ModuleManager(RwLock<Vec<UniqueSDModule>>, RwLock<HashMap<String, Vec<String>>>);
@@ -322,13 +325,14 @@ impl SDModule for CoreModule {
                         UIValue {
                             name: "background".to_string(),
                             display_name: "Background Type".to_string(),
-                            ty: UIFieldType::Choice(vec!["Solid Color".to_string(), "Horizontal Gradient".to_string(), "Vertical Gradient".to_string(), "Image".to_string()]),
+                            ty: UIFieldType::Choice(vec!["Solid Color".to_string(), "Horizontal Gradient".to_string(), "Vertical Gradient".to_string(), "Existing Image".to_string(), "New Image".to_string()]),
                             value: UIFieldValue::Choice(
                                 match &component.background {
                                     ButtonBackground::Solid(_) => "Solid Color",
                                     ButtonBackground::HorizontalGradient(_, _) => "Horizontal Gradient",
                                     ButtonBackground::VerticalGradient(_, _) => "Vertical Gradient",
-                                    ButtonBackground::Image(_, _) => "Image"
+                                    ButtonBackground::ExistingImage(_) => "Existing Image",
+                                    ButtonBackground::NewImage(_) => "New Image",
                                 }.to_string()
                             )
                         }
@@ -385,24 +389,23 @@ impl SDModule for CoreModule {
                                 }
                             );
                         }
-                        ButtonBackground::Image(path, disable_caching) => {
+                        ButtonBackground::ExistingImage(identifier) => {
                             fields.push(
                                 UIValue {
-                                    name: "path".to_string(),
-                                    display_name: "Image Path".to_string(),
-                                    ty: UIFieldType::InputFieldString,
-                                    value: UIFieldValue::InputFieldString(path.to_string_lossy().to_string())
+                                    name: "image".to_string(),
+                                    display_name: "Image".to_string(),
+                                    ty: UIFieldType::ExistingImage,
+                                    value: UIFieldValue::ExistingImage(identifier.to_string())
                                 }
                             );
-
+                        }
+                        ButtonBackground::NewImage(blob) => {
                             fields.push(
                                 UIValue {
-                                    name: "disable_cache".to_string(),
-                                    display_name: "Disable Image Caching".to_string(),
-                                    ty: UIFieldType::Checkbox {
-                                        disabled: false
-                                    },
-                                    value: UIFieldValue::Checkbox(*disable_caching)
+                                    name: "image".to_string(),
+                                    display_name: "Image".to_string(),
+                                    ty: UIFieldType::ImageData,
+                                    value: UIFieldValue::ImageData(blob.to_string())
                                 }
                             );
                         }
@@ -651,7 +654,8 @@ impl SDModule for CoreModule {
                                 "Solid Color" => component.background = ButtonBackground::Solid((0, 0, 0, 0)),
                                 "Horizontal Gradient" => component.background = ButtonBackground::HorizontalGradient((0, 0, 0, 0), (0, 0, 0, 0)),
                                 "Vertical Gradient" => component.background = ButtonBackground::HorizontalGradient((0, 0, 0, 0), (0, 0, 0, 0)),
-                                "Image" => component.background = ButtonBackground::Image(PathBuf::default(), false),
+                                "Existing Image" => component.background = ButtonBackground::ExistingImage("".to_string()),
+                                "New Image" => component.background = ButtonBackground::NewImage("".to_string()),
 
                                 _ => {}
                             }
@@ -695,19 +699,41 @@ impl SDModule for CoreModule {
                         }
                     }
 
-                    if let Some(value) = change_map.get("path") {
-                        if let ButtonBackground::Image(_, disable_cache) = &component.background {
-                            if let Ok(path) = (&value.value).try_into() {
-                                component.background = ButtonBackground::Image(path, *disable_cache);
+                    if let Some(value) = change_map.get("image") {
+                        match &component.background {
+                            ButtonBackground::ExistingImage(_) => {
+                                if let Ok(identifier) = (&value.value).try_into() {
+                                    component.background = ButtonBackground::ExistingImage(identifier);
+                                }
                             }
-                        }
-                    }
 
-                    if let Some(value) = change_map.get("disable_cache") {
-                        if let ButtonBackground::Image(path, _) = &component.background {
-                            if let Ok(cache) = (&value.value).try_into() {
-                                component.background = ButtonBackground::Image(path.clone(), cache);
+                            ButtonBackground::NewImage(_) => {
+                                if let Ok(blob) = (&value.value).try_into_string() {
+                                    fn decode_blob(blob: &String) -> Option<(String, DynamicImage)> {
+                                        let identifier = hash_image(blob);
+                                        if let Ok(decoded_bytes) = base64::decode(blob) {
+                                            if let Ok(recognized_image) = Reader::new(Cursor::new(decoded_bytes)).with_guessed_format() {
+                                                if let Ok(decoded_image) = recognized_image.decode() {
+                                                    return Some((identifier, decoded_image));
+                                                }
+                                            }
+                                        }
+
+                                        None
+                                    }
+
+                                    if let Some((identifier, image)) = decode_blob(&blob) {
+                                        component.background = ButtonBackground::ExistingImage(identifier.clone());
+
+                                        let mut handle = core.core.image_collection.write().unwrap();
+                                        handle.insert(identifier, resize_for_streamdeck(core.core.image_size, image));
+                                    } else {
+                                        component.background = ButtonBackground::NewImage(blob);
+                                    }
+                                }
                             }
+
+                            _ => {}
                         }
                     }
 

@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 use std::io::Error;
 use std::string::FromUtf8Error;
+
 use streamduck_core::core::button::Button;
 use streamduck_core::core::RawButtonPanel;
-use streamduck_daemon::socket::daemon_data::{AddComponentResult, AddDeviceResult, ClearButtonResult, CommitChangesToConfigResult, Device, DoButtonActionResult, ExportDeviceConfigResult, ForciblyPopScreenResult, GetButtonResult, GetComponentValuesResult, GetCurrentScreenResult, GetDeviceConfigResult, GetDeviceResult, GetModuleValuesResult, GetStackResult, ImportDeviceConfigResult, NewButtonFromComponentResult, NewButtonResult, PopScreenResult, PushScreenResult, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, RemoveComponentResult, RemoveDeviceResult, ReplaceScreenResult, ResetStackResult, SaveDeviceConfigResult, SaveDeviceConfigsResult, SetBrightnessResult, SetButtonResult, SetComponentValueResult, SetModuleValueResult};
-
-pub use streamduck_daemon as daemon;
 use streamduck_core::modules::components::{ComponentDefinition, UIValue};
 use streamduck_core::modules::PluginMetadata;
+pub use streamduck_daemon as daemon;
 use streamduck_daemon::socket::{SocketError, SocketPacket};
+use streamduck_daemon::socket::daemon_data::{AddComponentResult, AddDeviceResult, AddImageResult, ClearButtonResult, CommitChangesToConfigResult, Device, DoButtonActionResult, ExportDeviceConfigResult, ForciblyPopScreenResult, GetButtonImagesResult, GetButtonResult, GetComponentValuesResult, GetCurrentScreenResult, GetDeviceConfigResult, GetDeviceResult, GetModuleValuesResult, GetStackResult, ImportDeviceConfigResult, ListImagesResult, NewButtonFromComponentResult, NewButtonResult, PopScreenResult, PushScreenResult, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, RemoveComponentResult, RemoveDeviceResult, RemoveImageResult, ReplaceScreenResult, ResetStackResult, SaveDeviceConfigResult, SaveDeviceConfigsResult, SetBrightnessResult, SetButtonResult, SetComponentValueResult, SetModuleValueResult};
 
 #[cfg(target_family = "unix")]
 pub mod unix;
@@ -54,6 +54,13 @@ pub trait SDClient {
     /// Sets device brightness, usually 0-100, but different for each device
     fn set_brightness(&self, serial_number: &str, brightness: u8) -> Result<SetBrightnessResult, SDClientError>;
 
+    /// Lists saved images on device
+    fn list_images(&self, serial_number: &str) -> Result<ListImagesResult, SDClientError>;
+    /// Adds new image to device config
+    fn add_image(&self, serial_number: &str, image_data: &str) -> Result<AddImageResult, SDClientError>;
+    /// Removes image from device config
+    fn remove_image(&self, serial_number: &str, identifier: &str) -> Result<RemoveImageResult, SDClientError>;
+
     // Module management
     /// Lists all modules loaded by daemon
     fn list_modules(&self) -> Result<Vec<PluginMetadata>, SDClientError>;
@@ -70,6 +77,8 @@ pub trait SDClient {
     fn get_stack(&self, serial_number: &str) -> Result<GetStackResult, SDClientError>;
     /// Gets current screen of a device
     fn get_current_screen(&self, serial_number: &str) -> Result<GetCurrentScreenResult, SDClientError>;
+    /// Gets current images rendered on a device
+    fn get_button_images(&self, serial_number: &str) -> Result<GetButtonImagesResult, SDClientError>;
 
     /// Gets a button from current screen of a device
     fn get_button(&self, serial_number: &str, key: u8) -> Result<GetButtonResult, SDClientError>;

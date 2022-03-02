@@ -9,7 +9,7 @@ use rusttype::{Font, Point, point, Scale};
 /// Resizes image to specified size
 pub fn resize_for_streamdeck(size: (usize, usize), image: DynamicImage) -> DynamicImage {
     let (sx, sy) = size;
-    image.resize_to_fill(sx as u32, sy as u32, FilterType::Triangle)
+    image.resize_to_fill(sx as u32, sy as u32, FilterType::Lanczos3)
 }
 
 /// Generates solid color image of specified size

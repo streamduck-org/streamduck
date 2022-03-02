@@ -159,6 +159,7 @@ pub fn button_component_params(client: ClientRef, current_sn: &str, mut args: Sp
             "remove" | "r" => button_component_params_remove(client, current_sn, args),
             "set" | "s" => button_component_params_set(client, current_sn, args),
             "list" | "l" => button_component_list_params(client, current_sn, args),
+            "upload" | "u" => button_component_params_upload(client, current_sn, args),
             _ => println!("button component params: Unknown command"),
         }
     } else {
@@ -514,6 +515,16 @@ pub fn button_component_params_set(client: ClientRef, current_sn: &str, mut args
 
                                         false
                                     }
+
+                                    UIFieldType::ImageData => {
+                                        x.value = UIFieldValue::ImageData(value.clone());
+                                        true
+                                    }
+
+                                    UIFieldType::ExistingImage => {
+                                        x.value = UIFieldValue::ExistingImage(value.clone());
+                                        true
+                                    }
                                 }
                             }, false);
 
@@ -547,6 +558,65 @@ pub fn button_component_params_set(client: ClientRef, current_sn: &str, mut args
         }
     } else {
         println!("button component params set: Input valid key index (0-255)");
+    }
+}
+
+pub fn button_component_params_upload(client: ClientRef, current_sn: &str, mut args: Split<&str>) {
+    if let Some(key) = args.next() {
+        if let Ok(key) = key.parse::<u8>() {
+            if let Some(component) = args.next() {
+                if let Some(path) = args.next() {
+                    let result = client.get_component_values(current_sn, key, component).expect("Failed to get component values");
+
+                    match result {
+                        GetComponentValuesResult::DeviceNotFound => println!("button component params upload: Device not found"),
+                        GetComponentValuesResult::FailedToGet => println!("button component params upload: Failed to get values"),
+                        GetComponentValuesResult::Values(values) => {
+                            let file_path = args.collect::<Vec<&str>>().join(" ");
+
+                            if let Ok(data) = std::fs::read(&file_path) {
+                                let (changes, success) = change_from_path(path, values, &|x| {
+                                    if let UIFieldType::ImageData = &x.ty {
+                                        x.value = UIFieldValue::ImageData(base64::encode(&data));
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                }, false);
+
+                                if success {
+                                    if !changes.is_empty() {
+                                        let result = client.set_component_values(current_sn, key, component, changes).expect("Failed to set component values");
+
+                                        match result {
+                                            SetComponentValueResult::Set => {
+                                                client.commit_changes(current_sn).expect("Failed to commit changes");
+                                                println!("button component params upload: Uploaded file to parameter");
+                                            },
+                                            _ => {}
+                                        }
+                                    } else {
+                                        println!("button component params upload: Invalid path");
+                                    }
+                                } else {
+                                    println!("button component params upload: No image data at path");
+                                }
+                            } else {
+                                println!("button component params upload: Failed to read file");
+                            }
+                        }
+                    }
+                } else {
+                    println!("button component params upload: Specify parameter path");
+                }
+            } else {
+                println!("button component params upload: Specify component");
+            }
+        } else {
+            println!("button component params upload: Input valid key index (0-255)");
+        }
+    } else {
+        println!("button component params upload: Input valid key index (0-255)");
     }
 }
 
@@ -645,6 +715,14 @@ pub fn button_component_list_params(client: ClientRef, current_sn: &str, mut arg
                                             list_fields(array_item, &format!("{}.{}", item_path, index), tabs_count + 2);
                                             println!();
                                         }
+                                    }
+                                    UIFieldValue::ImageData(data) => {
+                                        println!("{}Type: ImageData", tabs);
+                                        println!("{}Data: {}", tabs, data);
+                                    }
+                                    UIFieldValue::ExistingImage(identifier) => {
+                                        println!("{}Type: ExistingImage", tabs);
+                                        println!("{}Identifier: {}", tabs, identifier);
                                     }
                                 }
 
