@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 use std::str::{FromStr, Split};
-use streamduck_client::daemon::socket::daemon_data::{ExportDeviceConfigResult, ImportDeviceConfigResult, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, SaveDeviceConfigResult, SaveDeviceConfigsResult};
+use streamduck_client::daemon::daemon_data::{ExportDeviceConfigResult, ImportDeviceConfigResult, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, SaveDeviceConfigResult, SaveDeviceConfigsResult};
 use crate::prompt::ClientRef;
 
 pub fn reload_config(client: ClientRef, mut args: Split<&str>, current_sn: &String) {

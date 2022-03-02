@@ -1,10 +1,9 @@
 //! Socket related definitions
-pub mod daemon_data;
 
 use std::io::Write;
 use std::ops::Deref;
 use std::sync::{Arc, RwLock};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde::de::{DeserializeOwned, Error};
 use serde_json::Value;
 

@@ -20,7 +20,7 @@ pub const COMMANDS: &'static [(&'static str, &'static str)] = &[
     ("(m)odule (p)arams (l)ist", "<name> - lists parameters of the module along with values and paths"),
     ("(com)ponent (l)ist", "- lists available components from modules"),
     ("(com)ponent (i)nfo", "<name> - prints information about component"),
-    ("(i)mage (l)ist", "[<serial>] - lists all images used by a device"),
+    ("(i)mage (l)ist", "[<serial>] [preview size] - lists all images used by a device, optionally sizes images according to provided size"),
     ("(i)mage (a)dd", "[<serial>] <file path> - adds image to device config"),
     ("(i)mage (r)emove", "[<serial>] <identifier> - removes image from device config"),
     ("(b)utton (l)ist", "[<serial>] - lists all buttons defined on current screen"),

@@ -3,12 +3,14 @@ pub mod button;
 
 /// Methods for interacting with the core
 pub mod methods;
+pub mod manager;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 use std::sync::mpsc::{channel, Receiver};
 use image::DynamicImage;
 use streamdeck::StreamDeck;
+use crate::config::{UniqueDeviceConfig};
 use crate::core::button::Button;
 use crate::core::methods::{button_down, button_up, CoreHandle};
 use crate::modules::ModuleManager;
@@ -29,6 +31,9 @@ pub type RawButtonPanel = HashMap<u8, Button>;
 pub struct SDCore {
     /// Module manager
     pub module_manager: Arc<ModuleManager>,
+
+    /// Device config associated with the device
+    pub device_config: UniqueDeviceConfig,
 
     /// Current panel stack
     pub current_stack: Mutex<Vec<ButtonPanel>>,
@@ -53,9 +58,10 @@ pub struct SDCore {
 
 impl SDCore {
     /// Creates an instance of core that is already dead
-    pub fn blank(module_manager: Arc<ModuleManager>, image_collection: ImageCollection) -> Arc<SDCore> {
+    pub fn blank(module_manager: Arc<ModuleManager>, device_config: UniqueDeviceConfig, image_collection: ImageCollection) -> Arc<SDCore> {
         Arc::new(SDCore {
             module_manager,
+            device_config,
             current_stack: Mutex::new(vec![]),
             handles: Mutex::new(None),
             image_size: (0, 0),
@@ -67,11 +73,12 @@ impl SDCore {
     }
 
     /// Creates an instance of the core over existing streamdeck connection
-    pub fn new(module_manager: Arc<ModuleManager>, image_collection: ImageCollection, connection: StreamDeck, pool_rate: u32) -> (Arc<SDCore>, KeyHandler) {
+    pub fn new(module_manager: Arc<ModuleManager>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, connection: StreamDeck, pool_rate: u32) -> (Arc<SDCore>, KeyHandler) {
         let (key_tx, key_rx) = channel();
 
         let core = Arc::new(SDCore {
             module_manager,
+            device_config,
             current_stack: Mutex::new(vec![]),
             handles: Mutex::new(None),
             image_size: connection.image_size(),

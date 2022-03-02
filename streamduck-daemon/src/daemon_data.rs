@@ -7,20 +7,23 @@ use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
 use serde::{Serialize, Deserialize};
 use streamduck_core::versions::SOCKET_API;
-use crate::core_manager::CoreManager;
-use crate::socket::{check_packet_for_data, parse_packet_to_data, send_packet, SocketData, SocketHandle, SocketListener, SocketPacket};
-use strum_macros::Display;
+use streamduck_core::core::manager::CoreManager;
+use streamduck_core::socket::{check_packet_for_data, parse_packet_to_data, send_packet, SocketData, SocketHandle, SocketListener, SocketPacket};
 use streamduck_core::core::button::Button;
-use streamduck_core::core::methods::{add_component, button_action, clear_button, CoreHandle, get_button, get_component_values, get_current_screen, get_stack, load_panels, pop_screen, push_screen, remove_component, replace_screen, save_panels, set_brightness, set_button, set_component_value};
+use streamduck_core::core::methods::{add_component, button_action, clear_button, commit_changes, CoreHandle, get_button, get_component_values, get_current_screen, get_stack, load_panels, pop_screen, push_screen, remove_component, replace_screen, set_brightness, set_button, set_component_value};
 use streamduck_core::core::RawButtonPanel;
-use streamduck_core::image::ImageOutputFormat;
-use streamduck_core::image::io::Reader;
 use streamduck_core::modules::{ModuleManager, PluginMetadata};
 use streamduck_core::modules::components::{ComponentDefinition, UIValue};
 use streamduck_core::util::{button_to_raw, make_button_unique, make_panel_unique, panel_to_raw};
-use crate::config::{Config, ConfigError, DeviceConfig};
+use streamduck_core::config::{Config, ConfigError, DeviceConfig};
 use std::io::Write;
+use std::ops::Deref;
+use streamduck_core::image::ImageOutputFormat;
+use streamduck_core::image::io::Reader;
+use streamduck_core::streamdeck;
 use streamduck_core::util::rendering::resize_for_streamdeck;
+use strum_macros::Display;
+
 
 /// Listener for daemon types
 pub struct DaemonListener {
@@ -196,10 +199,10 @@ impl DeviceType {
     /// Gets device type from PID of the device
     pub fn from_pid(pid: u16) -> DeviceType {
         match pid {
-            streamduck_core::streamdeck::pids::ORIGINAL => DeviceType::Original,
-            streamduck_core::streamdeck::pids::ORIGINAL_V2 => DeviceType::OriginalV2,
-            streamduck_core::streamdeck::pids::MINI => DeviceType::Mini,
-            streamduck_core::streamdeck::pids::XL => DeviceType::XL,
+            streamdeck::pids::ORIGINAL => DeviceType::Original,
+            streamdeck::pids::ORIGINAL_V2 => DeviceType::OriginalV2,
+            streamdeck::pids::MINI => DeviceType::Mini,
+            streamdeck::pids::XL => DeviceType::XL,
             _ => DeviceType::Unknown,
         }
     }
@@ -356,9 +359,10 @@ impl DaemonRequest for ReloadDeviceConfigsResult {
                     for (serial, device) in listener.core_manager.list_added_devices() {
                         if !device.core.is_closed() {
                             if let Some(dvc_cfg) = listener.config.get_device_config(&serial) {
+                                let handle = dvc_cfg.read().unwrap();
                                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                                load_panels(&wrapped_core, make_panel_unique(dvc_cfg.layout));
+                                load_panels(&wrapped_core, make_panel_unique(handle.layout.clone()));
                                 wrapped_core.core().mark_for_redraw()
                             }
                         }
@@ -410,9 +414,10 @@ impl DaemonRequest for ReloadDeviceConfig {
                     if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                         if !device.core.is_closed() {
                             if let Some(dvc_cfg) = listener.config.get_device_config(&request.serial_number) {
+                                let handle = dvc_cfg.read().unwrap();
                                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                                load_panels(&wrapped_core, make_panel_unique(dvc_cfg.layout));
+                                load_panels(&wrapped_core, make_panel_unique(handle.layout.clone()));
                                 wrapped_core.core().mark_for_redraw();
                             }
                         }
@@ -538,7 +543,8 @@ impl DaemonRequest for GetDeviceConfig {
     fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<GetDeviceConfig>(packet) {
             if let Some(config) = listener.config.get_device_config(&request.serial_number) {
-                send_packet(handle, packet, &GetDeviceConfigResult::Config(config)).ok();
+                let config_handle = config.read().unwrap();
+                send_packet(handle, packet, &GetDeviceConfigResult::Config(config_handle.clone())).ok();
             } else {
                 send_packet(handle, packet, &GetDeviceConfigResult::DeviceNotFound).ok();
             }
@@ -577,7 +583,8 @@ impl DaemonRequest for ExportDeviceConfig {
     fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<ExportDeviceConfig>(packet) {
             if let Some(config) = listener.config.get_device_config(&request.serial_number) {
-                let config = serde_json::to_string(&config).unwrap();
+                let config_handle = config.read().unwrap();
+                let config = serde_json::to_string(config_handle.deref()).unwrap();
 
                 // Compressing data
                 let mut encoder = GzEncoder::new(vec![], Compression::default());
@@ -713,13 +720,6 @@ impl DaemonRequest for SetBrightness {
                 // Setting brightness
                 let wrapped_core = CoreHandle::wrap(device.core);
                 set_brightness(&wrapped_core, request.brightness);
-
-                // Updating current device config
-                if let Some(mut config) = listener.config.get_device_config(&request.serial_number) {
-                    config.brightness = request.brightness;
-
-                    listener.config.set_device_config(&request.serial_number, config);
-                }
 
                 send_packet(handle, packet, &SetBrightnessResult::Set).ok();
             } else {
@@ -1819,16 +1819,8 @@ impl DaemonRequest for CommitChangesToConfig {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                let stack = save_panels(&wrapped_core);
-
-                if let Some(mut config) = listener.config.get_device_config(&request.serial_number) {
-                    config.layout = panel_to_raw(&stack);
-                    listener.config.set_device_config(&request.serial_number, config);
-
-                    send_packet(handle, packet, &CommitChangesToConfigResult::Committed).ok();
-                } else {
-                    send_packet(handle, packet, &CommitChangesToConfigResult::DeviceNotFound).ok();
-                }
+                commit_changes(&wrapped_core);
+                send_packet(handle, packet, &CommitChangesToConfigResult::Committed).ok();
             } else {
                 send_packet(handle, packet, &CommitChangesToConfigResult::DeviceNotFound).ok();
             }

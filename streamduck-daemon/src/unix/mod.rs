@@ -2,7 +2,7 @@ use std::io::{BufRead, BufReader};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::{fs, thread};
 use std::sync::Arc;
-use streamduck_daemon::socket::SocketManager;
+use streamduck_core::socket::SocketManager;
 
 const SOCKET_PATH: &'static str = "/tmp/streamduck.sock";
 

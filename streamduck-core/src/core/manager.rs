@@ -4,13 +4,12 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::thread::{sleep, spawn};
 use std::time::Duration;
-use streamduck_core::core::{RawButtonPanel, SDCore};
-use streamduck_core::{connect, find_decks};
-use streamduck_core::core::methods::{CoreHandle, load_panels, push_screen, set_brightness};
-use streamduck_core::hidapi::HidApi;
-use streamduck_core::modules::ModuleManager;
-use streamduck_core::util::{make_panel_unique};
+use crate::core::{RawButtonPanel, SDCore};
+use crate::core::methods::{CoreHandle, load_panels, set_brightness};
+use hidapi::HidApi;
 use crate::config::{Config, DeviceConfig};
+use crate::{connect, find_decks, ModuleManager};
+use crate::util::{make_panel_unique};
 
 /// Core manager struct
 pub struct CoreManager {
@@ -37,7 +36,8 @@ impl CoreManager {
     /// Adds all devices from config to managed devices, used at start of the software
     pub fn add_devices_from_config(&self) {
         for config in self.config.get_all_device_configs() {
-            self.add_device(config.vid, config.pid, &config.serial);
+            let config_handle = config.read().unwrap();
+            self.add_device(config_handle.vid, config_handle.pid, &config_handle.serial);
         }
     }
 
@@ -60,7 +60,7 @@ impl CoreManager {
 
         if !handle.contains_key(serial) {
             let data = DeviceData {
-                core: SDCore::blank(self.module_manager.clone(), Default::default()),
+                core: SDCore::blank(self.module_manager.clone(), Default::default(), Default::default()),
                 vid,
                 pid,
                 serial: serial.to_string()
@@ -77,7 +77,23 @@ impl CoreManager {
         let hid_handle = self.hid.read().unwrap();
         let collection = self.config.get_image_collection(serial);
 
-        if let Ok((core, handler)) = connect(self.module_manager.clone(), collection,&hid_handle, vid, pid, serial, self.config.pool_rate()) {
+        let config = if let Some(config) = self.config.get_device_config(serial) {
+            config
+        } else {
+            self.config.set_device_config(serial, DeviceConfig {
+                vid,
+                pid,
+                serial: serial.to_string(),
+                brightness: 50,
+                layout: RawButtonPanel::new(),
+                images: Default::default(),
+                plugin_data: Default::default()
+            });
+            self.config.save_device_config(serial).ok();
+            self.config.get_device_config(serial).unwrap()
+        };
+
+        if let Ok((core, handler)) = connect(self.module_manager.clone(), config.clone(), collection,&hid_handle, vid, pid, serial, self.config.pool_rate()) {
             spawn(move || {
                 handler.run_loop();
                 log::trace!("key handler closed");
@@ -92,24 +108,16 @@ impl CoreManager {
 
             let core_handle = CoreHandle::wrap(core.clone());
 
-            if let Some(config) = self.config.get_device_config(serial) {
-                set_brightness(&core_handle, config.brightness);
-                load_panels(&core_handle, make_panel_unique(config.layout))
-            } else {
-                self.config.set_device_config(serial, DeviceConfig {
-                    vid,
-                    pid,
-                    serial: serial.to_string(),
-                    brightness: 50,
-                    layout: RawButtonPanel::new(),
-                    images: Default::default()
-                });
+            let config_handle = config.read().unwrap();
 
-                self.config.save_device_config(serial).ok();
+            let brightness = config_handle.brightness;
+            let layout = config_handle.layout.clone();
 
-                push_screen(&core_handle, make_panel_unique(HashMap::new()));
-                set_brightness(&core_handle, 50);
-            }
+            drop(config_handle);
+
+            set_brightness(&core_handle, brightness);
+            load_panels(&core_handle, make_panel_unique(layout));
+
 
             let mut handle = self.devices.write().unwrap();
 

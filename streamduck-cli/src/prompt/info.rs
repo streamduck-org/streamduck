@@ -1,5 +1,5 @@
 use std::str::Split;
-use streamduck_client::daemon::socket::daemon_data::{GetButtonResult, GetComponentValuesResult, GetCurrentScreenResult};
+use streamduck_client::daemon::daemon_data::{GetButtonResult, GetComponentValuesResult, GetCurrentScreenResult};
 use streamduck_client::util::module_component_map_to_component_map;
 use streamduck_core::core::button::Button;
 use streamduck_core::modules::components::{ComponentDefinition, UIFieldValue, UIValue};

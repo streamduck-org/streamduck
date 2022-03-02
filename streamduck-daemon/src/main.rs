@@ -1,19 +1,17 @@
 #[cfg(target_family = "unix")]
 mod unix;
 
-mod plugins;
-
 use std::sync::Arc;
 use std::thread::spawn;
 use flexi_logger::{DeferredNow, Logger, LogSpecification, style, TS_DASHES_BLANK_COLONS_DOT_BLANK};
 use log::{LevelFilter, Record};
 use streamduck_core::font::load_fonts_from_resources;
 use streamduck_core::modules::{load_base_modules, ModuleManager};
-use streamduck_daemon::config::Config;
-use streamduck_daemon::core_manager::CoreManager;
-use streamduck_daemon::socket::daemon_data::DaemonListener;
-use streamduck_daemon::socket::SocketManager;
-use crate::plugins::load_plugins_from_folder;
+use streamduck_core::config::Config;
+use streamduck_core::core::manager::CoreManager;
+use streamduck_core::socket::SocketManager;
+use streamduck_core::modules::plugins::load_plugins_from_folder;
+use streamduck_daemon::daemon_data::DaemonListener;
 
 fn logging_format(
     w: &mut dyn std::io::Write,
@@ -110,5 +108,5 @@ fn clean_socket() {
 }
 
 fn get_version() -> String {
-    "0.0.6".to_string()
+    "0.0.7".to_string()
 }

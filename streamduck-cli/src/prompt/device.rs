@@ -1,5 +1,5 @@
 use std::str::Split;
-use streamduck_client::daemon::socket::daemon_data::{AddDeviceResult, RemoveDeviceResult};
+use streamduck_client::daemon::daemon_data::{AddDeviceResult, RemoveDeviceResult};
 use crate::prompt::ClientRef;
 use crate::prompt::utils::print_table;
 

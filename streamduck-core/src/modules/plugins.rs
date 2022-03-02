@@ -4,15 +4,15 @@ use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 use dlopen::Error;
-use streamduck_core::modules::{BoxedSDModule, ModuleManager, PluginMetadata, SDModule, SDModulePointer, UniqueSDModule};
+use crate::modules::{BoxedSDModule, ModuleManager, PluginMetadata, SDModule, SDModulePointer, UniqueSDModule};
 use dlopen::wrapper::{Container, WrapperApi};
 use dlopen_derive::WrapperApi;
-use streamduck_core::core::button::Button;
-use streamduck_core::core::methods::{CoreHandle, warn_for_feature};
-use streamduck_core::modules::components::{ComponentDefinition, UIValue};
-use streamduck_core::modules::events::SDEvent;
-use streamduck_core::versions::SUPPORTED_FEATURES;
-use streamduck_daemon::socket::SocketManager;
+use crate::core::button::Button;
+use crate::core::methods::{CoreHandle, warn_for_feature};
+use crate::modules::components::{ComponentDefinition, UIValue};
+use crate::modules::events::SDEvent;
+use crate::socket::SocketManager;
+use crate::versions::SUPPORTED_FEATURES;
 
 #[derive(WrapperApi)]
 struct PluginApi {

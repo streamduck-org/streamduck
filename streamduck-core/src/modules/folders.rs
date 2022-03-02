@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::RwLock;
 use serde::{Serialize, Deserialize};
+use serde_json::{Number, Value};
 use crate::core::button::{Button, Component, parse_button_to_component, parse_unique_button_to_component};
 use crate::core::{RawButtonPanel, UniqueButton};
 use crate::core::methods::{CoreHandle, get_stack, pop_screen, push_screen};
@@ -158,6 +159,17 @@ impl SDModule for FolderModule {
                 } else if let Ok(folder) = parse_unique_button_to_component::<FolderComponent>(&pressed_button) {
                     push_screen(&core, make_panel_unique(folder.buttons));
                     self.folder_stack.write().unwrap().push((key, pressed_button));
+                }
+
+                let core = core.core();
+                let mut handle = core.device_config.write().unwrap();
+
+                if let Some(value) = handle.plugin_data.get_mut("count") {
+                    if let Some(count) = value.as_i64() {
+                        *value = Value::Number(Number::from(count + 1));
+                    }
+                } else {
+                    handle.plugin_data.insert("count".to_string(), Value::Number(Number::from(1)));
                 }
             }
 

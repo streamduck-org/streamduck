@@ -1,5 +1,5 @@
 use std::str::Split;
-use streamduck_client::daemon::socket::daemon_data::{AddComponentResult, ClearButtonResult, GetComponentValuesResult, NewButtonFromComponentResult, NewButtonResult, RemoveComponentResult, SetComponentValueResult};
+use streamduck_client::daemon::daemon_data::{AddComponentResult, ClearButtonResult, GetComponentValuesResult, NewButtonFromComponentResult, NewButtonResult, RemoveComponentResult, SetComponentValueResult};
 use streamduck_core::modules::components::{UIFieldType, UIFieldValue, UIValue};
 use crate::prompt::ClientRef;
 

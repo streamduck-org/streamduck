@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use streamduck_core::core::button::{Button, Component, parse_unique_button_to_component};
+use streamduck_core::core::button::{Button, parse_unique_button_to_component};
 use streamduck_core::modules::{PluginMetadata, SDModule, SDModulePointer};
 use streamduck_core::versions::{EVENTS, PLUGIN_API, SDMODULE_TRAIT};
 use serde::{Serialize, Deserialize};
@@ -9,7 +9,7 @@ use streamduck_core::modules::components::{ComponentDefinition, UIValue};
 use streamduck_core::modules::events::SDEvent;
 use streamduck_core::threads::rendering::{ButtonBackground, RendererComponent};
 use streamduck_core_derive::component;
-use streamduck_daemon::socket::{SocketHandle, SocketListener, SocketManager, SocketPacket};
+use streamduck_core::socket::{SocketHandle, SocketListener, SocketManager, SocketPacket};
 
 #[no_mangle]
 pub fn get_metadata() -> PluginMetadata {
@@ -124,8 +124,4 @@ impl SDModule for ExampleModule {
 #[derive(Serialize, Deserialize, Default)]
 pub struct ExampleComponent {
 
-}
-
-impl Component for ExampleComponent {
-    const NAME: &'static str = "example";
 }

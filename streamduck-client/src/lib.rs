@@ -7,8 +7,8 @@ use streamduck_core::core::RawButtonPanel;
 use streamduck_core::modules::components::{ComponentDefinition, UIValue};
 use streamduck_core::modules::PluginMetadata;
 pub use streamduck_daemon as daemon;
-use streamduck_daemon::socket::{SocketError, SocketPacket};
-use streamduck_daemon::socket::daemon_data::{AddComponentResult, AddDeviceResult, AddImageResult, ClearButtonResult, CommitChangesToConfigResult, Device, DoButtonActionResult, ExportDeviceConfigResult, ForciblyPopScreenResult, GetButtonImagesResult, GetButtonResult, GetComponentValuesResult, GetCurrentScreenResult, GetDeviceConfigResult, GetDeviceResult, GetModuleValuesResult, GetStackResult, ImportDeviceConfigResult, ListImagesResult, NewButtonFromComponentResult, NewButtonResult, PopScreenResult, PushScreenResult, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, RemoveComponentResult, RemoveDeviceResult, RemoveImageResult, ReplaceScreenResult, ResetStackResult, SaveDeviceConfigResult, SaveDeviceConfigsResult, SetBrightnessResult, SetButtonResult, SetComponentValueResult, SetModuleValueResult};
+use streamduck_core::socket::{SocketError, SocketPacket};
+use streamduck_daemon::daemon_data::{AddComponentResult, AddDeviceResult, AddImageResult, ClearButtonResult, CommitChangesToConfigResult, Device, DoButtonActionResult, ExportDeviceConfigResult, ForciblyPopScreenResult, GetButtonImagesResult, GetButtonResult, GetComponentValuesResult, GetCurrentScreenResult, GetDeviceConfigResult, GetDeviceResult, GetModuleValuesResult, GetStackResult, ImportDeviceConfigResult, ListImagesResult, NewButtonFromComponentResult, NewButtonResult, PopScreenResult, PushScreenResult, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, RemoveComponentResult, RemoveDeviceResult, RemoveImageResult, ReplaceScreenResult, ResetStackResult, SaveDeviceConfigResult, SaveDeviceConfigsResult, SetBrightnessResult, SetButtonResult, SetComponentValueResult, SetModuleValueResult};
 
 #[cfg(target_family = "unix")]
 pub mod unix;
@@ -129,7 +129,7 @@ pub trait SDClient {
 pub enum SDClientError {
     WriteError(std::io::Error),
     SerializeError(serde_json::Error),
-    SocketError(streamduck_daemon::socket::SocketError),
+    SocketError(streamduck_core::socket::SocketError),
     UTF8Error(std::string::FromUtf8Error),
     Custom(String)
 }
@@ -146,7 +146,7 @@ impl From<serde_json::Error> for SDClientError {
     }
 }
 
-impl From<streamduck_daemon::socket::SocketError> for SDClientError {
+impl From<streamduck_core::socket::SocketError> for SDClientError {
     fn from(err: SocketError) -> Self {
         SDClientError::SocketError(err)
     }

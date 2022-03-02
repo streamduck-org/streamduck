@@ -1,5 +1,5 @@
 use std::str::Split;
-use streamduck_client::daemon::socket::daemon_data::{GetModuleValuesResult, SetModuleValueResult};
+use streamduck_client::daemon::daemon_data::{GetModuleValuesResult, SetModuleValueResult};
 use streamduck_core::modules::components::{UIFieldType, UIFieldValue, UIValue};
 use crate::prompt::buttons::change_from_path;
 use crate::prompt::ClientRef;

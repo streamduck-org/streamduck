@@ -3,7 +3,7 @@ use std::sync::{Arc, LockResult, MutexGuard};
 use serde_json::{Map, Value};
 use crate::core::{ButtonPanel, UniqueButton};
 use crate::{ModuleManager, SDCore};
-use crate::util::{button_to_raw, deserialize_panel, make_button_unique, serialize_panel};
+use crate::util::{button_to_raw, deserialize_panel, make_button_unique, panel_to_raw, serialize_panel};
 use serde::de::Error as DeError;
 use serde_json::Error as JSONError;
 use crate::modules::events::SDEvent;
@@ -522,5 +522,19 @@ pub fn replace_screen(core: &CoreHandle, screen: ButtonPanel) {
 /// Sets brightness of the streamdeck to specified (Range from 0 to 100)
 pub fn set_brightness(core: &CoreHandle, brightness: u8) {
     core.required_feature("core_methods");
-    core.core().send_commands(vec![StreamDeckCommand::SetBrightness(brightness)])
+    core.core().send_commands(vec![StreamDeckCommand::SetBrightness(brightness)]);
+
+    let core = core.core();
+    let mut handle = core.device_config.write().unwrap();
+    handle.brightness = brightness;
+}
+
+/// Commits all changes to layout to device config so it can be later saved
+pub fn commit_changes(core: &CoreHandle) {
+    core.required_feature("core_methods");
+    let stack = save_panels(core);
+
+    let core = core.core();
+    let mut handle = core.device_config.write().unwrap();
+    handle.layout = panel_to_raw(&stack);
 }

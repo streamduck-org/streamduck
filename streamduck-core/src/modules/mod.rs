@@ -4,6 +4,7 @@ mod folders;
 pub mod components;
 /// Definition for event enumeration
 pub mod events;
+pub mod plugins;
 
 use std::collections::HashMap;
 use std::io::Cursor;
@@ -15,7 +16,7 @@ use crate::modules::components::{ComponentDefinition, map_ui_values, map_ui_valu
 use crate::modules::events::SDEvent;
 use crate::modules::folders::FolderModule;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use crate::threads::rendering::{ButtonBackground, ButtonText, ButtonTextShadow, RendererComponent};
 use crate::util::rendering::{resize_for_streamdeck, TextAlignment};
 use crate::versions::CORE;
