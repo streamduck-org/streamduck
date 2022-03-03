@@ -18,6 +18,7 @@ pub const COMMANDS: &'static [(&'static str, &'static str)] = &[
     ("(m)odule (p)arams (r)emove", "<name> <parameter path> <element index> - removes element from parameter array"),
     ("(m)odule (p)arams (s)et", "<name> <parameter path> <value> - sets value to module's parameter"),
     ("(m)odule (p)arams (l)ist", "<name> - lists parameters of the module along with values and paths"),
+    ("(f)ont (l)ist", "- lists names of fonts loaded by daemon"),
     ("(com)ponent (l)ist", "- lists available components from modules"),
     ("(com)ponent (i)nfo", "<name> - prints information about component"),
     ("(i)mage (l)ist", "[<serial>] [preview size] - lists all images used by a device, optionally sizes images according to provided size"),

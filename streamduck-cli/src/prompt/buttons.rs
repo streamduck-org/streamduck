@@ -368,6 +368,7 @@ pub fn button_component_params_set(client: ClientRef, current_sn: &str, mut args
             if let Some(component) = args.next() {
                 if let Some(path) = args.next() {
                     let result = client.get_component_values(current_sn, key, component).expect("Failed to get component values");
+                    let fonts = client.list_fonts().expect("Failed to get list of fonts");
 
                     match result {
                         GetComponentValuesResult::DeviceNotFound => println!("button component params set: Device not found"),
@@ -525,6 +526,14 @@ pub fn button_component_params_set(client: ClientRef, current_sn: &str, mut args
                                         x.value = UIFieldValue::ExistingImage(value.clone());
                                         true
                                     }
+                                    UIFieldType::Font => {
+                                        if fonts.contains(&value) {
+                                            x.value = UIFieldValue::Font(value.clone());
+                                            true
+                                        } else {
+                                            false
+                                        }
+                                    }
                                 }
                             }, false);
 
@@ -543,7 +552,7 @@ pub fn button_component_params_set(client: ClientRef, current_sn: &str, mut args
                                     println!("button component params set: Invalid path");
                                 }
                             } else {
-                                println!("button component params set: No settable parameter found at path");
+                                println!("button component params set: No settable parameter found at path or invalid data");
                             }
                         }
                     }
@@ -723,6 +732,10 @@ pub fn button_component_list_params(client: ClientRef, current_sn: &str, mut arg
                                     UIFieldValue::ExistingImage(identifier) => {
                                         println!("{}Type: ExistingImage", tabs);
                                         println!("{}Identifier: {}", tabs, identifier);
+                                    }
+                                    UIFieldValue::Font(font) => {
+                                        println!("{}Type: Font", tabs);
+                                        println!("{}Font Name: {}", tabs, font);
                                     }
                                 }
 

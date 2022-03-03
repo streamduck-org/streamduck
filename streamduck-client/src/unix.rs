@@ -13,7 +13,7 @@ use streamduck_core::modules::components::{ComponentDefinition, UIValue};
 use streamduck_core::modules::PluginMetadata;
 use streamduck_core::versions::SOCKET_API;
 use streamduck_core::socket::{parse_packet_to_data, send_no_data_packet_with_requester, send_packet_with_requester, SocketData, SocketPacket};
-use streamduck_daemon::daemon_data::{AddComponent, AddComponentResult, AddDevice, AddDeviceResult, AddImage, AddImageResult, ClearButton, ClearButtonResult, CommitChangesToConfig, CommitChangesToConfigResult, Device, DoButtonAction, DoButtonActionResult, ExportDeviceConfig, ExportDeviceConfigResult, ForciblyPopScreen, ForciblyPopScreenResult, GetButton, GetButtonImages, GetButtonImagesResult, GetButtonResult, GetComponentValues, GetComponentValuesResult, GetCurrentScreen, GetCurrentScreenResult, GetDevice, GetDeviceConfig, GetDeviceConfigResult, GetDeviceResult, GetModuleValues, GetModuleValuesResult, GetStack, GetStackResult, ImportDeviceConfig, ImportDeviceConfigResult, ListComponents, ListDevices, ListImages, ListImagesResult, ListModules, NewButton, NewButtonFromComponent, NewButtonFromComponentResult, NewButtonResult, PopScreen, PopScreenResult, PushScreen, PushScreenResult, ReloadDeviceConfig, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, RemoveComponent, RemoveComponentResult, RemoveDevice, RemoveDeviceResult, RemoveImage, RemoveImageResult, ReplaceScreen, ReplaceScreenResult, ResetStack, ResetStackResult, SaveDeviceConfig, SaveDeviceConfigResult, SaveDeviceConfigsResult, SetBrightness, SetBrightnessResult, SetButton, SetButtonResult, SetComponentValue, SetComponentValueResult, SetModuleValue, SetModuleValueResult, SocketAPIVersion};
+use streamduck_daemon::daemon_data::{AddComponent, AddComponentResult, AddDevice, AddDeviceResult, AddImage, AddImageResult, ClearButton, ClearButtonResult, CommitChangesToConfig, CommitChangesToConfigResult, Device, DoButtonAction, DoButtonActionResult, ExportDeviceConfig, ExportDeviceConfigResult, ForciblyPopScreen, ForciblyPopScreenResult, GetButton, GetButtonImages, GetButtonImagesResult, GetButtonResult, GetComponentValues, GetComponentValuesResult, GetCurrentScreen, GetCurrentScreenResult, GetDevice, GetDeviceConfig, GetDeviceConfigResult, GetDeviceResult, GetModuleValues, GetModuleValuesResult, GetStack, GetStackResult, ImportDeviceConfig, ImportDeviceConfigResult, ListComponents, ListDevices, ListFonts, ListImages, ListImagesResult, ListModules, NewButton, NewButtonFromComponent, NewButtonFromComponentResult, NewButtonResult, PopScreen, PopScreenResult, PushScreen, PushScreenResult, ReloadDeviceConfig, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, RemoveComponent, RemoveComponentResult, RemoveDevice, RemoveDeviceResult, RemoveImage, RemoveImageResult, ReplaceScreen, ReplaceScreenResult, ResetStack, ResetStackResult, SaveDeviceConfig, SaveDeviceConfigResult, SaveDeviceConfigsResult, SetBrightness, SetBrightnessResult, SetButton, SetButtonResult, SetComponentValue, SetComponentValueResult, SetModuleValue, SetModuleValueResult, SocketAPIVersion};
 
 use crate::{SDClient, SDClientError};
 
@@ -193,6 +193,12 @@ impl SDClient for UnixClient {
         })?;
 
         Ok(response)
+    }
+
+    fn list_fonts(&self) -> Result<Vec<String>, SDClientError> {
+        let response: ListFonts = self.process_request_without_data()?;
+
+        Ok(response.font_names)
     }
 
     fn list_modules(&self) -> Result<Vec<PluginMetadata>, SDClientError> {

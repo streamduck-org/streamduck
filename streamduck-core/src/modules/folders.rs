@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::sync::RwLock;
 use serde::{Serialize, Deserialize};
-use serde_json::{Number, Value};
 use crate::core::button::{Button, Component, parse_button_to_component, parse_unique_button_to_component};
 use crate::core::{RawButtonPanel, UniqueButton};
 use crate::core::methods::{CoreHandle, get_stack, pop_screen, push_screen};
@@ -36,8 +35,8 @@ impl SDModule for FolderModule {
                 text: vec![
                     ButtonText {
                         text: "Folder".to_string(),
-                        font: "SourceHanSans-Medium.ttf".to_string(),
-                        scale: (25.0, 25.0),
+                        font: "default".to_string(),
+                        scale: (22.0, 22.0),
                         alignment: TextAlignment::Center,
                         padding: 0,
                         offset: (0.0, 0.0),
@@ -57,8 +56,8 @@ impl SDModule for FolderModule {
                 text: vec![
                     ButtonText {
                         text: "Back".to_string(),
-                        font: "SourceHanSans-Medium.ttf".to_string(),
-                        scale: (25.0, 25.0),
+                        font: "default".to_string(),
+                        scale: (22.0, 22.0),
                         alignment: TextAlignment::Center,
                         padding: 0,
                         offset: (0.0, 0.0),

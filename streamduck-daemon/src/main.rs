@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::thread::spawn;
 use flexi_logger::{DeferredNow, Logger, LogSpecification, style, TS_DASHES_BLANK_COLONS_DOT_BLANK};
 use log::{LevelFilter, Record};
-use streamduck_core::font::load_fonts_from_resources;
+use streamduck_core::font::{load_default_font, load_fonts_from_resources};
 use streamduck_core::modules::{load_base_modules, ModuleManager};
 use streamduck_core::config::Config;
 use streamduck_core::core::manager::CoreManager;
@@ -38,7 +38,7 @@ fn main() {
         .format(logging_format)
         .start().unwrap();
 
-    log::info!("Streamduck v{}", get_version());
+    log::info!("Streamduck Daemon");
 
     // Initializing module manager
     let module_manager = ModuleManager::new();
@@ -48,6 +48,7 @@ fn main() {
 
     // Initializing core stuff
     load_base_modules(module_manager.clone());
+    load_default_font();
     load_fonts_from_resources();
 
     // Initializing built-in modules
@@ -105,8 +106,4 @@ fn run_socket(socket_manager: Arc<SocketManager>) {
 #[cfg(target_family = "unix")]
 fn clean_socket() {
     unix::remove_socket()
-}
-
-fn get_version() -> String {
-    "0.0.7".to_string()
 }

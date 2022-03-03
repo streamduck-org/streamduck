@@ -86,6 +86,9 @@ pub enum UIFieldType {
 
     /// Image from image collection
     ExistingImage,
+
+    /// Font name
+    Font,
 }
 
 /// UI Field value, current state of the settings
@@ -135,6 +138,9 @@ pub enum UIFieldValue {
 
     /// Image from image collection
     ExistingImage(String),
+
+    /// Font name
+    Font(String),
 }
 
 impl UIFieldValue {
@@ -192,7 +198,7 @@ impl TryInto<bool> for UIFieldValue {
         if let UIFieldValue::Checkbox(b) = self {
             Ok(b)
         } else {
-            Err("Incorrect enum value".to_string())
+            Err("Incorrect value".to_string())
         }
     }
 }
@@ -204,7 +210,7 @@ impl TryInto<bool> for &UIFieldValue {
         if let UIFieldValue::Checkbox(b) = self {
             Ok(*b)
         } else {
-            Err("Incorrect enum value".to_string())
+            Err("Incorrect value".to_string())
         }
     }
 }
@@ -216,7 +222,7 @@ impl TryInto<f32> for UIFieldValue {
         if let UIFieldValue::InputFieldFloat(f) | UIFieldValue::ValueSliderFloat(f) = self {
             Ok(f)
         } else {
-            Err("Incorrect enum value".to_string())
+            Err("Incorrect value".to_string())
         }
     }
 }
@@ -228,7 +234,7 @@ impl TryInto<f32> for &UIFieldValue {
         if let UIFieldValue::InputFieldFloat(f) | UIFieldValue::ValueSliderFloat(f) = self {
             Ok(*f)
         } else {
-            Err("Incorrect enum value".to_string())
+            Err("Incorrect value".to_string())
         }
     }
 }
@@ -240,7 +246,7 @@ impl TryInto<i32> for UIFieldValue {
         if let UIFieldValue::InputFieldInteger(i) | UIFieldValue::ValueSliderInteger(i) = self {
             Ok(i)
         } else {
-            Err("Incorrect enum value".to_string())
+            Err("Incorrect value".to_string())
         }
     }
 }
@@ -252,7 +258,7 @@ impl TryInto<i32> for &UIFieldValue {
         if let UIFieldValue::InputFieldInteger(i) | UIFieldValue::ValueSliderInteger(i) = self {
             Ok(*i)
         } else {
-            Err("Incorrect enum value".to_string())
+            Err("Incorrect value".to_string())
         }
     }
 }
@@ -264,7 +270,7 @@ impl TryInto<u32> for UIFieldValue {
         if let UIFieldValue::InputFieldUnsignedInteger(u) = self {
             Ok(u)
         } else {
-            Err("Incorrect enum value".to_string())
+            Err("Incorrect value".to_string())
         }
     }
 }
@@ -276,7 +282,7 @@ impl TryInto<u32> for &UIFieldValue {
         if let UIFieldValue::InputFieldUnsignedInteger(u) = self {
             Ok(*u)
         } else {
-            Err("Incorrect enum value".to_string())
+            Err("Incorrect value".to_string())
         }
     }
 }
@@ -288,7 +294,7 @@ impl TryInto<(f32, f32)> for UIFieldValue {
         if let UIFieldValue::InputFieldFloat2(f1, f2) = self {
             Ok((f1, f2))
         } else {
-            Err("Incorrect enum value".to_string())
+            Err("Incorrect value".to_string())
         }
     }
 }
@@ -300,7 +306,7 @@ impl TryInto<(f32, f32)> for &UIFieldValue {
         if let UIFieldValue::InputFieldFloat2(f1, f2) = self {
             Ok((*f1, *f2))
         } else {
-            Err("Incorrect enum value".to_string())
+            Err("Incorrect value".to_string())
         }
     }
 }
@@ -312,7 +318,7 @@ impl TryInto<(i32, i32)> for UIFieldValue {
         if let UIFieldValue::InputFieldInteger2(i1, i2) = self {
             Ok((i1, i2))
         } else {
-            Err("Incorrect enum value".to_string())
+            Err("Incorrect value".to_string())
         }
     }
 }
@@ -324,7 +330,7 @@ impl TryInto<(i32, i32)> for &UIFieldValue {
         if let UIFieldValue::InputFieldInteger2(i1, i2) = self {
             Ok((*i1, *i2))
         } else {
-            Err("Incorrect enum value".to_string())
+            Err("Incorrect value".to_string())
         }
     }
 }
@@ -336,7 +342,7 @@ impl TryInto<Color> for UIFieldValue {
         if let UIFieldValue::Color(c1, c2, c3, c4) = self {
             Ok((c1, c2, c3, c4))
         } else {
-            Err("Incorrect enum value".to_string())
+            Err("Incorrect value".to_string())
         }
     }
 }
@@ -348,7 +354,7 @@ impl TryInto<Color> for &UIFieldValue {
         if let UIFieldValue::Color(c1, c2, c3, c4) = self {
             Ok((*c1, *c2, *c3, *c4))
         } else {
-            Err("Incorrect enum value".to_string())
+            Err("Incorrect value".to_string())
         }
     }
 }
@@ -357,10 +363,10 @@ impl TryInto<String> for UIFieldValue {
     type Error = String;
 
     fn try_into(self) -> Result<String, Self::Error> {
-        if let UIFieldValue::InputFieldString(str) | UIFieldValue::Choice(str) | UIFieldValue::ImageData(str) | UIFieldValue::ExistingImage(str) = self {
+        if let UIFieldValue::InputFieldString(str) | UIFieldValue::Choice(str) | UIFieldValue::ImageData(str) | UIFieldValue::ExistingImage(str) | UIFieldValue::Font(str) = self {
             Ok(str)
         } else {
-            Err("Incorrect enum value".to_string())
+            Err("Incorrect value".to_string())
         }
     }
 }
@@ -369,10 +375,10 @@ impl TryInto<String> for &UIFieldValue {
     type Error = String;
 
     fn try_into(self) -> Result<String, Self::Error> {
-        if let UIFieldValue::InputFieldString(str) | UIFieldValue::Choice(str) | UIFieldValue::ImageData(str) | UIFieldValue::ExistingImage(str) = self {
+        if let UIFieldValue::InputFieldString(str) | UIFieldValue::Choice(str) | UIFieldValue::ImageData(str) | UIFieldValue::ExistingImage(str) | UIFieldValue::Font(str) = self {
             Ok(str.clone())
         } else {
-            Err("Incorrect enum value".to_string())
+            Err("Incorrect value".to_string())
         }
     }
 }
@@ -404,7 +410,7 @@ impl TryInto<PathBuf> for &UIFieldValue {
                 Err("Failed to parse path".to_string())
             }
         } else {
-            Err("Incorrect enum value".to_string())
+            Err("Incorrect value".to_string())
         }
     }
 }

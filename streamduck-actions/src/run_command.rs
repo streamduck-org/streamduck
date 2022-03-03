@@ -17,8 +17,8 @@ pub fn add_definition(map: &mut HashMap<String, ComponentDefinition>) {
             text: vec![
                 ButtonText {
                     text: ">_".to_string(),
-                    font: "SourceHanSans-Medium.ttf".to_string(),
-                    scale: (40.0, 40.0),
+                    font: "default".to_string(),
+                    scale: (30.0, 30.0),
                     alignment: TextAlignment::Center,
                     padding: 0,
                     offset: (0.0, 0.0),

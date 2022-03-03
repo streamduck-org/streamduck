@@ -11,11 +11,19 @@ pub fn add_font_to_collection(name: String, font: Font<'static>) {
     }
 }
 
-/// Loads fonts into global collection from resources/fonts folder
+/// Loads default font for everything
+pub fn load_default_font() {
+    let bytes = include_bytes!("DejaVuSans.ttf").to_vec();
+    if let Some(font) = Font::try_from_vec(bytes) {
+        add_font_to_collection("default".to_string(), font);
+    }
+}
+
+/// Loads fonts into global collection from fonts folder
 pub fn load_fonts_from_resources() {
     let mut counter = 0;
 
-    match fs::read_dir("resources/fonts") {
+    match fs::read_dir("fonts") {
         Ok(directory) => {
             for entry in directory {
                 if let Ok(entry) = entry {

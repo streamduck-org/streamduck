@@ -437,8 +437,8 @@ impl SDModule for CoreModule {
                                     UIField {
                                         name: "font".to_string(),
                                         display_name: "Font".to_string(),
-                                        ty: UIFieldType::InputFieldString,
-                                        default_value: UIFieldValue::InputFieldString("SourceHanSans-Medium.ttf".to_string())
+                                        ty: UIFieldType::Font,
+                                        default_value: UIFieldValue::Font("default".to_string())
                                     },
                                     UIField {
                                         name: "scale".to_string(),
@@ -510,8 +510,8 @@ impl SDModule for CoreModule {
                                     values.push(UIValue {
                                         name: "font".to_string(),
                                         display_name: "Font".to_string(),
-                                        ty: UIFieldType::InputFieldString,
-                                        value: UIFieldValue::InputFieldString(text.font.clone())
+                                        ty: UIFieldType::Font,
+                                        value: UIFieldValue::Font(text.font.clone())
                                     });
 
                                     values.push(UIValue {
@@ -713,10 +713,12 @@ impl SDModule for CoreModule {
                                     fn decode_blob(blob: &String) -> Option<(String, DynamicImage)> {
                                         let identifier = hash_image(blob);
                                         if let Ok(decoded_bytes) = base64::decode(blob) {
-                                            if let Ok(recognized_image) = Reader::new(Cursor::new(decoded_bytes)).with_guessed_format() {
+                                            if let Ok(recognized_image) = Reader::new(Cursor::new(&decoded_bytes)).with_guessed_format() {
                                                 if let Ok(decoded_image) = recognized_image.decode() {
+                                                    drop(decoded_bytes);
                                                     return Some((identifier, decoded_image));
                                                 }
+                                                drop(decoded_bytes);
                                             }
                                         }
 

@@ -234,7 +234,8 @@ impl Config {
         let mut buffer: Vec<u8> = vec![];
 
         if let Ok(_) = image.write_to(&mut buffer, ImageOutputFormat::Png) {
-            let base = base64::encode(buffer);
+            let base = base64::encode(&buffer);
+            drop(buffer);
 
             if let Some(config) = self.get_device_config(serial) {
                 let mut config_handle = config.write().unwrap();
@@ -306,11 +307,12 @@ impl Config {
             for (key, image) in &device_config.images {
                 if !collection_handle.contains_key(key) {
                     if let Ok(decode) = base64::decode(image) {
-                        if let Ok(recognized_image) = Reader::new(Cursor::new(decode)).with_guessed_format() {
+                        if let Ok(recognized_image) = Reader::new(Cursor::new(&decode)).with_guessed_format() {
                             if let Ok(decoded_image) = recognized_image.decode() {
                                 collection_handle.insert(key.to_string(), decoded_image);
                             }
                         }
+                        drop(decode);
                     }
                 }
             }
@@ -320,7 +322,8 @@ impl Config {
                 if !device_config.images.contains_key(key) {
                     let mut buffer: Vec<u8> = vec![];
                     image.write_to(&mut buffer, ImageOutputFormat::Png).ok();
-                    device_config.images.insert(key.to_string(), base64::encode(buffer));
+                    device_config.images.insert(key.to_string(), base64::encode(&buffer));
+                    drop(buffer);
                 }
             }
         }

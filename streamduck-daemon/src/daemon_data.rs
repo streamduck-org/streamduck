@@ -23,6 +23,7 @@ use streamduck_core::image::io::Reader;
 use streamduck_core::streamdeck;
 use streamduck_core::util::rendering::resize_for_streamdeck;
 use strum_macros::Display;
+use streamduck_core::font::get_font_names;
 
 
 /// Listener for daemon types
@@ -59,6 +60,8 @@ impl SocketListener for DaemonListener {
         process_for_type::<ListImages>(self, socket, &packet);
         process_for_type::<AddImage>(self, socket, &packet);
         process_for_type::<RemoveImage>(self, socket, &packet);
+
+        process_for_type::<ListFonts>(self,socket, &packet);
 
         // Module management
         process_for_type::<ListModules>(self,socket, &packet);
@@ -192,7 +195,8 @@ pub enum DeviceType {
     Mini,
     Original,
     OriginalV2,
-    XL
+    XL,
+    MK2
 }
 
 impl DeviceType {
@@ -203,6 +207,7 @@ impl DeviceType {
             streamdeck::pids::ORIGINAL_V2 => DeviceType::OriginalV2,
             streamdeck::pids::MINI => DeviceType::Mini,
             streamdeck::pids::XL => DeviceType::XL,
+            streamdeck::pids::MK2 => DeviceType::MK2,
             _ => DeviceType::Unknown,
         }
     }
@@ -798,10 +803,12 @@ impl DaemonRequest for AddImage {
         if let Ok(request) = parse_packet_to_data::<AddImage>(packet) {
             // Decoding image to make sure the data is correct
             if let Ok(byte_array) = base64::decode(request.image_data) {
-                if let Ok(recognized_image) = Reader::new(Cursor::new(byte_array)).with_guessed_format() {
+                if let Ok(recognized_image) = Reader::new(Cursor::new(&byte_array)).with_guessed_format() {
                     if let Ok(decoded_image) = recognized_image.decode() {
                         if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                             let decoded_image = resize_for_streamdeck(device.core.image_size, decoded_image);
+
+
 
                             if let Some(identifier) = listener.config.add_image_encode(&request.serial_number, decoded_image) {
                                 send_packet(handle, packet, &AddImageResult::Added(identifier)).ok();
@@ -812,9 +819,13 @@ impl DaemonRequest for AddImage {
                             send_packet(handle, packet, &AddImageResult::DeviceNotFound).ok();
                         }
 
+                        drop(byte_array);
+
                         return;
                     }
                 }
+
+                drop(byte_array);
             }
 
             send_packet(handle, packet, &AddImageResult::InvalidData).ok();
@@ -856,6 +867,26 @@ impl DaemonRequest for RemoveImage {
             } else {
                 send_packet(handle, packet, &RemoveImageResult::NotFound).ok();
             }
+        }
+    }
+}
+
+/// Request for getting fonts loaded by daemon
+#[derive(Serialize, Deserialize)]
+pub struct ListFonts {
+    pub font_names: Vec<String>
+}
+
+impl SocketData for ListFonts {
+    const NAME: &'static str = "list_fonts";
+}
+
+impl DaemonRequest for ListFonts {
+    fn process(_: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+        if check_packet_for_data::<ListFonts>(packet) {
+            send_packet(handle, packet, &ListFonts {
+                font_names: get_font_names()
+            }).ok();
         }
     }
 }

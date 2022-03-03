@@ -170,6 +170,7 @@ pub fn module_params_set(client: ClientRef, mut args: Split<&str>) {
     if let Some(module_name) = args.next() {
         if let Some(path) = args.next() {
             let result = client.get_module_values(module_name).expect("Failed to get module values");
+            let fonts = client.list_fonts().expect("Failed to get list of fonts");
 
             match result {
                 GetModuleValuesResult::ModuleNotFound => println!("module params set: Module not found"),
@@ -326,6 +327,15 @@ pub fn module_params_set(client: ClientRef, mut args: Split<&str>) {
                                 x.value = UIFieldValue::ExistingImage(value.clone());
                                 true
                             }
+
+                            UIFieldType::Font => {
+                                if fonts.contains(&value) {
+                                    x.value = UIFieldValue::Font(value.clone());
+                                    true
+                                } else {
+                                    false
+                                }
+                            }
                         }
                     }, false);
 
@@ -456,6 +466,10 @@ pub fn module_list_params(client: ClientRef, mut args: Split<&str>) {
                             UIFieldValue::ExistingImage(identifier) => {
                                 println!("{}Type: ExistingImage", tabs);
                                 println!("{}Identifier: {}", tabs, identifier);
+                            }
+                            UIFieldValue::Font(font) => {
+                                println!("{}Type: Font", tabs);
+                                println!("{}Font Name: {}", tabs, font);
                             }
                         }
 

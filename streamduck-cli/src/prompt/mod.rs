@@ -15,7 +15,7 @@ use crate::prompt::buttons::{button_component, button_from, button_new, button_r
 use crate::prompt::config::{export_config, import_config, reload_config, save_config};
 use crate::prompt::device::{add_device, device_list, remove_device};
 use crate::prompt::images::{add_image, list_images, remove_image};
-use crate::prompt::info::{button_info, component_info, list_buttons, list_components, prompt_help};
+use crate::prompt::info::{button_info, component_info, list_buttons, list_components, list_fonts, prompt_help};
 use crate::prompt::module::{list_modules, module_info, module_list_params, module_params_add, module_params_remove, module_params_set};
 
 type ClientRef<'a> = &'a Arc<Box<dyn SDClient>>;
@@ -179,6 +179,18 @@ pub fn prompt(client: Arc<Box<dyn SDClient>>) {
                         }
                     } else {
                         println!("component: Unknown command");
+                    }
+                }
+
+                "font" | "f" => {
+                    if let Some(command) = args.next() {
+                        match command {
+                            "list" | "l" => list_fonts(&client),
+
+                            _ => println!("font: Unknown command"),
+                        }
+                    } else {
+                        println!("font: Unknown command");
                     }
                 }
 

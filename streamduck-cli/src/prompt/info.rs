@@ -17,6 +17,16 @@ pub fn prompt_help() -> String {
     help
 }
 
+pub fn list_fonts(client: ClientRef) {
+    let mut table = vec![
+        vec!["Font name".to_string()]
+    ];
+
+    table[0].extend(client.list_fonts().expect("Failed to get list of fonts"));
+
+    print_table_with_strings(table, "-", "|");
+}
+
 pub fn list_components(client: ClientRef) {
     let mut table = vec![
         vec!["Display Name"],

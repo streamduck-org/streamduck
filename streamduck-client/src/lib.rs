@@ -61,6 +61,9 @@ pub trait SDClient {
     /// Removes image from device config
     fn remove_image(&self, serial_number: &str, identifier: &str) -> Result<RemoveImageResult, SDClientError>;
 
+    /// Gets names of fonts currently loaded by daemon
+    fn list_fonts(&self) -> Result<Vec<String>, SDClientError>;
+
     // Module management
     /// Lists all modules loaded by daemon
     fn list_modules(&self) -> Result<Vec<PluginMetadata>, SDClientError>;

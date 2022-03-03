@@ -317,8 +317,12 @@ impl Hash for ButtonText {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.text.hash(state);
         self.font.hash(state);
+        ((self.scale.0 * 100.0) as u32).hash(state);
+        ((self.scale.1 * 100.0) as u32).hash(state);
         self.alignment.hash(state);
         self.padding.hash(state);
+        ((self.offset.0 * 100.0) as u32).hash(state);
+        ((self.offset.1 * 100.0) as u32).hash(state);
         self.color.hash(state);
         self.shadow.hash(state);
     }
