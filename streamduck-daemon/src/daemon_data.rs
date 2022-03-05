@@ -10,7 +10,7 @@ use streamduck_core::versions::SOCKET_API;
 use streamduck_core::core::manager::CoreManager;
 use streamduck_core::socket::{check_packet_for_data, parse_packet_to_data, send_packet, SocketData, SocketHandle, SocketListener, SocketPacket};
 use streamduck_core::core::button::Button;
-use streamduck_core::core::methods::{add_component, button_action, clear_button, commit_changes, CoreHandle, get_button, get_component_values, get_current_screen, get_stack, load_panels, pop_screen, push_screen, remove_component, replace_screen, set_brightness, set_button, set_component_value};
+use streamduck_core::core::methods::{add_component, button_action, clear_button, commit_changes, CoreHandle, get_button, get_component_values, get_current_screen, get_stack, reset_stack, pop_screen, push_screen, remove_component, replace_screen, set_brightness, set_button, set_component_value, get_root_screen};
 use streamduck_core::core::RawButtonPanel;
 use streamduck_core::modules::{ModuleManager, PluginMetadata};
 use streamduck_core::modules::components::{ComponentDefinition, UIValue};
@@ -92,6 +92,7 @@ impl SocketListener for DaemonListener {
         process_for_type::<ForciblyPopScreen>(self, socket, &packet);
         process_for_type::<ReplaceScreen>(self, socket, &packet);
         process_for_type::<ResetStack>(self, socket, &packet);
+        process_for_type::<DropStackToRoot>(self, socket, &packet);
 
         process_for_type::<CommitChangesToConfig>(self, socket, &packet);
 
@@ -367,7 +368,7 @@ impl DaemonRequest for ReloadDeviceConfigsResult {
                                 let handle = dvc_cfg.read().unwrap();
                                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                                load_panels(&wrapped_core, make_panel_unique(handle.layout.clone()));
+                                reset_stack(&wrapped_core, make_panel_unique(handle.layout.clone()));
                                 wrapped_core.core().mark_for_redraw()
                             }
                         }
@@ -422,7 +423,7 @@ impl DaemonRequest for ReloadDeviceConfig {
                                 let handle = dvc_cfg.read().unwrap();
                                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                                load_panels(&wrapped_core, make_panel_unique(handle.layout.clone()));
+                                reset_stack(&wrapped_core, make_panel_unique(handle.layout.clone()));
                                 wrapped_core.core().mark_for_redraw();
                             }
                         }
@@ -658,7 +659,7 @@ impl DaemonRequest for ImportDeviceConfig {
                                 Ok(_) => {
                                     let wrapped_core = CoreHandle::wrap(device.core);
 
-                                    load_panels(&wrapped_core, make_panel_unique(config.layout));
+                                    reset_stack(&wrapped_core, make_panel_unique(config.layout));
                                     set_brightness(&wrapped_core, config.brightness);
                                     wrapped_core.core().mark_for_redraw();
 
@@ -1104,7 +1105,7 @@ impl DaemonRequest for GetCurrentScreen {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
                 if let Some(screen) = get_current_screen(&wrapped_core) {
-                    send_packet(handle, packet, &GetCurrentScreenResult::Screen(panel_to_raw(&screen))).unwrap();
+                    send_packet(handle, packet, &GetCurrentScreenResult::Screen(panel_to_raw(&screen))).ok();
                 } else {
                     send_packet(handle, packet, &GetCurrentScreenResult::NoScreen).ok();
                 }
@@ -1153,7 +1154,7 @@ impl DaemonRequest for GetButtonImages {
                     })
                     .collect();
 
-                send_packet(handle, packet, &GetButtonImagesResult::Images(images)).unwrap();
+                send_packet(handle, packet, &GetButtonImagesResult::Images(images)).ok();
             } else {
                 send_packet(handle, packet, &GetButtonImagesResult::DeviceNotFound).ok();
             }
@@ -1780,7 +1781,7 @@ impl DaemonRequest for ReplaceScreen {
     }
 }
 
-/// Request for replacing a screen on a device
+/// Request for resetting stack with provided screen
 #[derive(Serialize, Deserialize)]
 pub struct ResetStack {
     pub serial_number: String,
@@ -1811,10 +1812,50 @@ impl DaemonRequest for ResetStack {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                load_panels(&wrapped_core, make_panel_unique(request.screen));
+                reset_stack(&wrapped_core, make_panel_unique(request.screen));
                 send_packet(handle, packet, &ResetStackResult::Reset).ok();
             } else {
                 send_packet(handle, packet, &ResetStackResult::DeviceNotFound).ok();
+            }
+        }
+    }
+}
+
+/// Request for going to root screen
+#[derive(Serialize, Deserialize)]
+pub struct DropStackToRoot {
+    pub serial_number: String
+}
+
+/// Response of ReplaceScreen request
+#[derive(Serialize, Deserialize)]
+pub enum DropStackToRootResult {
+    /// Sent if device wasn't found
+    DeviceNotFound,
+
+    /// Sent if successfully dropped to root
+    Dropped
+}
+
+impl SocketData for DropStackToRoot {
+    const NAME: &'static str = "drop_stack_to_root";
+}
+
+impl SocketData for DropStackToRootResult {
+    const NAME: &'static str = "drop_stack_to_root";
+}
+
+impl DaemonRequest for DropStackToRoot {
+    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+        if let Ok(request) = parse_packet_to_data::<DropStackToRoot>(packet) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+                let wrapped_core = CoreHandle::wrap(device.core);
+
+                let first_screen = get_root_screen(&wrapped_core);
+                reset_stack(&wrapped_core, first_screen);
+                send_packet(handle, packet, &DropStackToRootResult::Dropped).ok();
+            } else {
+                send_packet(handle, packet, &DropStackToRootResult::DeviceNotFound).ok();
             }
         }
     }

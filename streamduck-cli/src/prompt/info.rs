@@ -1,5 +1,5 @@
 use std::str::Split;
-use streamduck_client::daemon::daemon_data::{GetButtonResult, GetComponentValuesResult, GetCurrentScreenResult};
+use streamduck_client::daemon::daemon_data::{GetButtonResult, GetComponentValuesResult, GetCurrentScreenResult, GetStackResult};
 use streamduck_client::util::module_component_map_to_component_map;
 use streamduck_core::core::button::Button;
 use streamduck_core::modules::components::{ComponentDefinition, UIFieldValue, UIValue};
@@ -92,7 +92,7 @@ pub fn list_buttons(client: ClientRef, current_sn: &str) {
                     vec!["Components".to_string()],
                 ];
 
-                let mut screen: Vec<(u8, Button)> = screen.into_iter().collect();
+                let mut screen: Vec<(u8, Button)> = screen.buttons.into_iter().collect();
 
                 screen.sort_by(|(a_key, _), (b_key, _)| a_key.cmp(b_key));
 
@@ -112,6 +112,25 @@ pub fn list_buttons(client: ClientRef, current_sn: &str) {
         }
     } else {
         println!("button list: No device is selected")
+    }
+}
+
+pub fn show_stack(client: ClientRef, current_sn: &str) {
+    if !current_sn.is_empty() {
+        let screen = client.get_stack(current_sn).expect("Failed to get stack");
+
+        match screen {
+            GetStackResult::DeviceNotFound => println!("stack: Device not found"),
+            GetStackResult::Stack(stack) => {
+                println!("Current stack:");
+
+                for panel in stack {
+                    println!("- '{}'", panel.display_name);
+                }
+            }
+        }
+    } else {
+        println!("stack: No device is selected")
     }
 }
 

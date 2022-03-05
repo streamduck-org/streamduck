@@ -21,7 +21,7 @@ pub fn open_socket(socket_manager: Arc<SocketManager>) {
                 thread::spawn(move || handle_client(stream, manager));
             }
             Err(err) => {
-                println!("Error: {}", err);
+                log::error!("Unix socket error: {}", err);
                 break;
             }
         }
@@ -29,7 +29,7 @@ pub fn open_socket(socket_manager: Arc<SocketManager>) {
 }
 
 fn handle_client(stream: UnixStream, socket_manager: Arc<SocketManager>) {
-    println!("Unix Socket client connected");
+    log::info!("Unix Socket client connected");
     let mut stream = BufReader::new(stream);
 
     let mut message = vec![];
@@ -47,5 +47,5 @@ fn handle_client(stream: UnixStream, socket_manager: Arc<SocketManager>) {
 
         message.clear();
     }
-    println!("Unix Socket client disconnected");
+    log::info!("Unix Socket client disconnected");
 }

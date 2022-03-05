@@ -1,4 +1,4 @@
-//! Daemon config and device configs
+//! Core and device configs
 use std::collections::HashMap;
 use std::fs;
 use std::io::Cursor;

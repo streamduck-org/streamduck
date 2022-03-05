@@ -91,7 +91,8 @@ impl CoreHandle {
 pub fn get_button(core: &CoreHandle, key: u8) -> Option<UniqueButton> {
     core.required_feature("core_methods");
     if let Some(screen) = get_current_screen(core) {
-        screen.get(&key).cloned()
+        let handle = screen.read().unwrap();
+        handle.buttons.get(&key).cloned()
     } else {
         None
     }
@@ -100,12 +101,15 @@ pub fn get_button(core: &CoreHandle, key: u8) -> Option<UniqueButton> {
 /// Sets button to current screen with specified position
 pub fn set_button(core: &CoreHandle, key: u8, button: UniqueButton) -> bool {
     core.required_feature("core_methods");
-    if let Some(mut screen) = get_current_screen(core) {
-        let previous_button = screen.get(&key).cloned();
+    if let Some(screen) = get_current_screen(core) {
+        let mut handle = screen.write().unwrap();
+        let previous_button = handle.buttons.get(&key).cloned();
 
-        screen.insert(key, button.clone());
+        handle.buttons.insert(key, button.clone());
 
-        replace_screen(core, screen.clone());
+        drop(handle);
+
+        core.core.mark_for_redraw();
 
         if let Some(previous_button) = previous_button {
             for module in core.module_manager().get_module_list() {
@@ -143,9 +147,12 @@ pub fn set_button(core: &CoreHandle, key: u8, button: UniqueButton) -> bool {
 /// Clears button from current screen on specified position
 pub fn clear_button(core: &CoreHandle, key: u8) -> bool {
     core.required_feature("core_methods");
-    if let Some(mut screen) = get_current_screen(core) {
-        if let Some(button) = screen.remove(&key) {
-            replace_screen(core, screen.clone());
+    if let Some(screen) = get_current_screen(core) {
+        let mut handle = screen.write().unwrap();
+        if let Some(button) = handle.buttons.remove(&key) {
+            drop(handle);
+
+            core.core.mark_for_redraw();
 
             for module in core.module_manager().get_module_list() {
                 if module.name() == core.module_name {
@@ -171,10 +178,12 @@ pub fn clear_button(core: &CoreHandle, key: u8) -> bool {
 pub fn add_component(core: &CoreHandle, key: u8, component_name: &str) -> bool {
     core.required_feature("core_methods");
     if let Some(screen) = get_current_screen(&core) {
-        if let Some(button) = screen.get(&key) {
-            let previous = make_button_unique(button_to_raw(button));
+        let handle = screen.read().unwrap();
+        if let Some(button) = handle.buttons.get(&key).cloned() {
+            let previous = make_button_unique(button_to_raw(&button));
 
             let mut button_handle = button.write().unwrap();
+            drop(handle);
 
             if !button_handle.component_names().contains(&component_name.to_string()) {
                 let components = core.module_manager().get_components_list_by_modules();
@@ -185,6 +194,8 @@ pub fn add_component(core: &CoreHandle, key: u8, component_name: &str) -> bool {
                             let module = core.module_manager().get_module(&module).unwrap();
 
                             module.add_component(core.clone_for(&module), button_handle.deref_mut(), &component);
+
+                            core.core.mark_for_redraw();
 
                             drop(button_handle);
 
@@ -215,8 +226,10 @@ pub fn add_component(core: &CoreHandle, key: u8, component_name: &str) -> bool {
 pub fn get_component_values(core: &CoreHandle, key: u8, component_name: &str) -> Option<Vec<UIValue>> {
     core.required_feature("core_methods");
     if let Some(screen) = get_current_screen(&core) {
-        if let Some(button) = screen.get(&key) {
+        let handle = screen.read().unwrap();
+        if let Some(button) = handle.buttons.get(&key).cloned() {
             let mut button_handle = button.write().unwrap();
+            drop(handle);
 
             if button_handle.component_names().contains(&component_name.to_string()) {
                 let components = core.module_manager().get_components_list_by_modules();
@@ -240,10 +253,12 @@ pub fn get_component_values(core: &CoreHandle, key: u8, component_name: &str) ->
 pub fn set_component_value(core: &CoreHandle, key: u8, component_name: &str, value: Vec<UIValue>) -> bool {
     core.required_feature("core_methods");
     if let Some(screen) = get_current_screen(&core) {
-        if let Some(button) = screen.get(&key) {
-            let previous = make_button_unique(button_to_raw(button));
+        let handle = screen.read().unwrap();
+        if let Some(button) = handle.buttons.get(&key).cloned() {
+            let previous = make_button_unique(button_to_raw(&button));
 
             let mut button_handle = button.write().unwrap();
+            drop(handle);
 
             if button_handle.component_names().contains(&component_name.to_string()) {
                 let components = core.module_manager().get_components_list_by_modules();
@@ -254,6 +269,8 @@ pub fn set_component_value(core: &CoreHandle, key: u8, component_name: &str, val
                             let module = core.module_manager().get_module(&module).unwrap();
                             module.set_component_value(core.clone_for(&module), button_handle.deref_mut(), &component, value);
                             drop(button_handle);
+
+                            core.core.mark_for_redraw();
 
                             for module in core.module_manager().get_module_list() {
                                 if module.name() == core.module_name {
@@ -282,10 +299,12 @@ pub fn set_component_value(core: &CoreHandle, key: u8, component_name: &str, val
 pub fn remove_component(core: &CoreHandle, key: u8, component_name: &str) -> bool {
     core.required_feature("core_methods");
     if let Some(screen) = get_current_screen(&core) {
-        if let Some(button) = screen.get(&key) {
-            let previous = make_button_unique(button_to_raw(button));
+        let handle = screen.read().unwrap();
+        if let Some(button) = handle.buttons.get(&key).cloned() {
+            let previous = make_button_unique(button_to_raw(&button));
 
             let mut button_handle = button.write().unwrap();
+            drop(handle);
 
             if button_handle.component_names().contains(&component_name.to_string()) {
                 let components = core.module_manager().get_components_list_by_modules();
@@ -298,6 +317,8 @@ pub fn remove_component(core: &CoreHandle, key: u8, component_name: &str) -> boo
                             module.remove_component(core.clone_for(&module), button_handle.deref_mut(), &component);
 
                             drop(button_handle);
+
+                            core.core.mark_for_redraw();
 
                             for module in core.module_manager().get_module_list() {
                                 if module.name() == core.module_name {
@@ -368,7 +389,7 @@ pub fn pop_screen(core: &CoreHandle) {
 }
 
 /// Returns first panel of the stack for saving purposes
-pub fn save_panels(core: &CoreHandle) -> ButtonPanel {
+pub fn get_root_screen(core: &CoreHandle) -> ButtonPanel {
     core.required_feature("core_methods");
     let stack = core.current_stack().unwrap();
     stack.get(0).unwrap().clone()
@@ -388,7 +409,7 @@ pub fn save_panels_to_value(core: &CoreHandle) -> Value {
 }
 
 /// Clears the stack and loads provided panel into the stack
-pub fn load_panels(core: &CoreHandle, panel: ButtonPanel) {
+pub fn reset_stack(core: &CoreHandle, panel: ButtonPanel) {
     core.required_feature("core_methods");
     let mut stack = core.current_stack().unwrap();
 
@@ -474,7 +495,9 @@ pub fn button_up(core: &CoreHandle, key: u8) {
 pub fn button_action(core: &CoreHandle, key: u8) {
     core.required_feature("core_methods");
     if let Some(screen) = get_current_screen(core) {
-        if let Some(button) = screen.get(&key) {
+        let handle = screen.read().unwrap();
+        if let Some(button) = handle.buttons.get(&key).cloned() {
+            drop(handle);
             for module in core.module_manager().get_modules_for_components(button.read().unwrap().component_names().as_slice()) {
                 if module.name() == core.module_name {
                     continue;
@@ -532,7 +555,7 @@ pub fn set_brightness(core: &CoreHandle, brightness: u8) {
 /// Commits all changes to layout to device config so it can be later saved
 pub fn commit_changes(core: &CoreHandle) {
     core.required_feature("core_methods");
-    let stack = save_panels(core);
+    let stack = get_root_screen(core);
 
     let core = core.core();
     let mut handle = core.device_config.write().unwrap();

@@ -8,7 +8,7 @@ use streamduck_core::modules::components::{ComponentDefinition, UIValue};
 use streamduck_core::modules::PluginMetadata;
 pub use streamduck_daemon as daemon;
 use streamduck_core::socket::{SocketError, SocketPacket};
-use streamduck_daemon::daemon_data::{AddComponentResult, AddDeviceResult, AddImageResult, ClearButtonResult, CommitChangesToConfigResult, Device, DoButtonActionResult, ExportDeviceConfigResult, ForciblyPopScreenResult, GetButtonImagesResult, GetButtonResult, GetComponentValuesResult, GetCurrentScreenResult, GetDeviceConfigResult, GetDeviceResult, GetModuleValuesResult, GetStackResult, ImportDeviceConfigResult, ListImagesResult, NewButtonFromComponentResult, NewButtonResult, PopScreenResult, PushScreenResult, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, RemoveComponentResult, RemoveDeviceResult, RemoveImageResult, ReplaceScreenResult, ResetStackResult, SaveDeviceConfigResult, SaveDeviceConfigsResult, SetBrightnessResult, SetButtonResult, SetComponentValueResult, SetModuleValueResult};
+use streamduck_daemon::daemon_data::{AddComponentResult, AddDeviceResult, AddImageResult, ClearButtonResult, CommitChangesToConfigResult, Device, DoButtonActionResult, DropStackToRootResult, ExportDeviceConfigResult, ForciblyPopScreenResult, GetButtonImagesResult, GetButtonResult, GetComponentValuesResult, GetCurrentScreenResult, GetDeviceConfigResult, GetDeviceResult, GetModuleValuesResult, GetStackResult, ImportDeviceConfigResult, ListImagesResult, NewButtonFromComponentResult, NewButtonResult, PopScreenResult, PushScreenResult, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, RemoveComponentResult, RemoveDeviceResult, RemoveImageResult, ReplaceScreenResult, ResetStackResult, SaveDeviceConfigResult, SaveDeviceConfigsResult, SetBrightnessResult, SetButtonResult, SetComponentValueResult, SetModuleValueResult};
 
 #[cfg(target_family = "unix")]
 pub mod unix;
@@ -114,6 +114,8 @@ pub trait SDClient {
     fn replace_screen(&self, serial_number: &str, screen: RawButtonPanel) -> Result<ReplaceScreenResult, SDClientError>;
     /// Resets stack and sets provided screen as root screen
     fn reset_stack(&self, serial_number: &str, screen: RawButtonPanel) -> Result<ResetStackResult, SDClientError>;
+    /// Drops stack to root screen
+    fn drop_stack_to_root(&self, serial_number: &str) -> Result<DropStackToRootResult, SDClientError>;
 
     /// Commits all changes to stack to device config, should be called after each change/sequence of changes, otherwise all changes will be lost on reconnect
     fn commit_changes(&self, serial_number: &str) -> Result<CommitChangesToConfigResult, SDClientError>;

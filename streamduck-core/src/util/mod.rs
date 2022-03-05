@@ -1,11 +1,10 @@
 use std::collections::hash_map::DefaultHasher;
-use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 use serde_json::{Error, Value};
 use crate::core::button::Button;
-use crate::core::{ButtonPanel, RawButtonPanel, UniqueButton};
+use crate::core::{ButtonPanel, Panel, RawButtonPanel, UniqueButton, UniqueButtonMap};
 
 /// Rendering utilities
 pub mod rendering;
@@ -17,13 +16,9 @@ pub fn make_button_unique(button: Button) -> UniqueButton {
 
 /// Parses button panel to Value, serializing all the unique buttons in process
 pub fn serialize_panel(panel: ButtonPanel) -> Result<Value, Error> {
-    let mut buttons = HashMap::new();
+    let panel = panel_to_raw(&panel);
 
-    for (key, button) in panel {
-        buttons.insert(key, button_to_raw(&button));
-    }
-
-    serialize_panel_raw(buttons)
+    serialize_panel_raw(panel)
 }
 
 /// Serializes raw button panel to Value in more understandable function
@@ -38,18 +33,32 @@ pub fn deserialize_panel(value: Value) -> Result<ButtonPanel, Error> {
 
 /// Parses value into a raw button panel
 pub fn deserialize_panel_raw(value: Value) -> Result<RawButtonPanel, Error> {
-    Ok(serde_json::from_value::<HashMap<u8, Button>>(value)?)
+    Ok(serde_json::from_value(value)?)
 }
 
 /// Converts raw button panel into button panel
 pub fn make_panel_unique(raw_panel: RawButtonPanel) -> ButtonPanel {
-    raw_panel.into_iter().map(|(key, button)| (key, make_button_unique(button))).collect()
+    Arc::new(RwLock::new(
+        Panel::<UniqueButtonMap> {
+            display_name: raw_panel.display_name,
+            data: raw_panel.data,
+            buttons: raw_panel.buttons.into_iter().map(|(key, button)| (key, make_button_unique(button))).collect()
+        }
+    ))
 }
 
 
 /// Converts button panel to raw button panel
 pub fn panel_to_raw(panel: &ButtonPanel) -> RawButtonPanel {
-    panel.iter().map(|(k, b)| (*k, b.read().unwrap().deref().clone())).collect()
+    let handle = panel.read().unwrap();
+    let panel = (*handle).clone();
+    drop(handle);
+
+    RawButtonPanel {
+        display_name: panel.display_name,
+        data: panel.data,
+        buttons: panel.buttons.into_iter().map(|(key, button)| (key, button_to_raw(&button))).collect()
+    }
 }
 
 /// Converts unique button to raw button

@@ -1,6 +1,4 @@
-//! Provides core functionality for streamduck project
-//!
-//! [SDCore] is a stack-based panel system for keeping buttons
+//! Crate responsible for managing streamdeck devices, rendering, managing configuration and pretty much everything
 
 /// Thread code used for keeping some tedious work off main threads
 pub mod threads;

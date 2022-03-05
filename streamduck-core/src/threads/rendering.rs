@@ -55,7 +55,7 @@ pub fn spawn_rendering_thread(core: Arc<SDCore>) -> RendererHandle {
 
     let state = Arc::new(RendererState {
         render_cache: Default::default(),
-        current_images: Default::default()
+        current_images: Default::default(),
     });
 
     let renderer_state = state.clone();
@@ -91,7 +91,7 @@ pub fn spawn_rendering_thread(core: Arc<SDCore>) -> RendererHandle {
 
         let mut missing = DynamicImage::ImageRgba8(frame);
 
-        if let Some(font) = get_font_from_collection("SourceHanSans-Bold.ttf") {
+        if let Some(font) = get_font_from_collection("default") {
             render_aligned_shadowed_text_on_image(
                 (iw, ih),
                 &mut missing,
@@ -103,7 +103,7 @@ pub fn spawn_rendering_thread(core: Arc<SDCore>) -> RendererHandle {
                 (0.0, -13.0),
                 (255, 0, 255, 255),
                 (2, 2),
-                (0, 0, 0, 255)
+                (0, 0, 0, 255),
             );
 
             render_aligned_shadowed_text_on_image(
@@ -117,7 +117,7 @@ pub fn spawn_rendering_thread(core: Arc<SDCore>) -> RendererHandle {
                 (0.0, 8.0),
                 (255, 0, 255, 255),
                 (1, 1),
-                (0, 0, 0, 255)
+                (0, 0, 0, 255),
             );
         }
 
@@ -143,130 +143,137 @@ pub fn spawn_rendering_thread(core: Arc<SDCore>) -> RendererHandle {
 
     RendererHandle {
         tx,
-        state
+        state,
     }
 }
 
 fn redraw(core: Arc<SDCore>, state: &RendererState, missing: &DynamicImage) {
     let core_handle = CoreHandle::wrap(core.clone());
     let current_screen = get_current_screen(&core_handle);
+
+    if current_screen.is_none() {
+        return;
+    }
+
+    let current_screen = current_screen.unwrap();
+    let screen_handle = current_screen.read().unwrap();
+    let current_screen = screen_handle.buttons.clone();
+    drop(screen_handle);
+
     let mut commands = vec![];
 
     let mut current_images = HashMap::new();
 
     for i in 0..core.key_count {
-        if let Some(current_screen) = &current_screen {
-            if let Some(button) = current_screen.get(&i) {
-                if let Ok(renderer) = parse_unique_button_to_component::<RendererComponent>(button) {
-                    let renderer_hash = hash_renderer(&renderer);
+        if let Some(button) = current_screen.get(&i) {
+            if let Ok(renderer) = parse_unique_button_to_component::<RendererComponent>(button) {
+                let renderer_hash = hash_renderer(&renderer);
 
-                    let mut cache_handle = state.render_cache.write().unwrap();
+                let mut cache_handle = state.render_cache.write().unwrap();
 
-                    let cache_entry = cache_handle.get(&renderer_hash);
-                    let image = if cache_entry.is_some() && renderer.to_cache {
-                        cache_entry.unwrap().clone()
-                    } else {
-                        let mut no_image = false;
+                let cache_entry = cache_handle.get(&renderer_hash);
+                let image = if cache_entry.is_some() && renderer.to_cache {
+                    cache_entry.unwrap().clone()
+                } else {
+                    let mut no_image = false;
 
-                        let mut image = match renderer.background {
-                            ButtonBackground::Solid(color) => {
-                                image_from_solid(core.image_size, Rgba([color.0, color.1, color.2, 255]))
+                    let mut image = match renderer.background {
+                        ButtonBackground::Solid(color) => {
+                            image_from_solid(core.image_size, Rgba([color.0, color.1, color.2, 255]))
+                        }
+
+                        ButtonBackground::HorizontalGradient(start, end) => {
+                            image_from_horiz_gradient(core.image_size, Rgba([start.0, start.1, start.2, 255]), Rgba([end.0, end.1, end.2, 255]))
+                        }
+
+                        ButtonBackground::VerticalGradient(start, end) => {
+                            image_from_vert_gradient(core.image_size, Rgba([start.0, start.1, start.2, 255]), Rgba([end.0, end.1, end.2, 255]))
+                        }
+
+                        ButtonBackground::ExistingImage(identifier) => {
+                            if let Some(image) = core.image_collection.read().unwrap().get(&identifier) {
+                                image.resize_to_fill(core.image_size.0 as u32, core.image_size.1 as u32, FilterType::Triangle)
+                            } else {
+                                no_image = true;
+                                missing.clone()
                             }
+                        }
 
-                            ButtonBackground::HorizontalGradient(start, end) => {
-                                image_from_horiz_gradient(core.image_size, Rgba([start.0, start.1, start.2, 255]), Rgba([end.0, end.1, end.2, 255]))
-                            }
-
-                            ButtonBackground::VerticalGradient(start, end) => {
-                                image_from_vert_gradient(core.image_size, Rgba([start.0, start.1, start.2, 255]), Rgba([end.0, end.1, end.2, 255]))
-                            }
-
-                            ButtonBackground::ExistingImage(identifier) => {
-                                if let Some(image) = core.image_collection.read().unwrap().get(&identifier) {
-                                    image.resize_to_fill(core.image_size.0 as u32, core.image_size.1 as u32, FilterType::Triangle)
-                                } else {
-                                    no_image = true;
-                                    missing.clone()
-                                }
-                            }
-
-                            ButtonBackground::NewImage(blob) => {
-                                fn get_image(blob: String) -> Option<DynamicImage> {
-                                    if let Ok(byte_array) = base64::decode(blob) {
-                                        if let Ok(recognized_image) = Reader::new(Cursor::new(byte_array)).with_guessed_format() {
-                                            if let Ok(decoded_image) = recognized_image.decode() {
-                                                return Some(decoded_image);
-                                            }
+                        ButtonBackground::NewImage(blob) => {
+                            fn get_image(blob: String) -> Option<DynamicImage> {
+                                if let Ok(byte_array) = base64::decode(blob) {
+                                    if let Ok(recognized_image) = Reader::new(Cursor::new(byte_array)).with_guessed_format() {
+                                        if let Ok(decoded_image) = recognized_image.decode() {
+                                            return Some(decoded_image);
                                         }
                                     }
-
-                                    None
                                 }
 
-                                if let Some(image) = get_image(blob) {
-                                    image.resize_to_fill(core.image_size.0 as u32, core.image_size.1 as u32, FilterType::Triangle)
-                                } else {
-                                    no_image = true;
-                                    missing.clone()
-                                }
+                                None
                             }
-                        };
 
-                        for button_text in renderer.text {
-                            let text = button_text.text.as_str();
-                            let scale = Scale { x: button_text.scale.0, y: button_text.scale.1 };
-                            let align = button_text.alignment.clone();
-                            let padding = button_text.padding;
-                            let offset = button_text.offset.clone();
-                            let color = button_text.color.clone();
-
-                            if let Some(font) = get_font_from_collection(&button_text.font) {
-                                if let Some(shadow) = &button_text.shadow {
-                                    render_aligned_shadowed_text_on_image(
-                                        core.image_size,
-                                        &mut image,
-                                        font.as_ref(),
-                                        text,
-                                        scale,
-                                        align,
-                                        padding,
-                                        offset,
-                                        color,
-                                        shadow.offset.clone(),
-                                        shadow.color.clone()
-                                    )
-                                } else {
-                                    render_aligned_text_on_image(
-                                        core.image_size,
-                                        &mut image,
-                                        font.as_ref(),
-                                        text,
-                                        scale,
-                                        align,
-                                        padding,
-                                        offset,
-                                        color
-                                    )
-                                }
+                            if let Some(image) = get_image(blob) {
+                                image.resize_to_fill(core.image_size.0 as u32, core.image_size.1 as u32, FilterType::Triangle)
+                            } else {
+                                no_image = true;
+                                missing.clone()
                             }
                         }
-
-                        if renderer.to_cache && (!no_image) {
-                            cache_handle.insert(renderer_hash, image.clone());
-                        }
-
-                        image
                     };
 
-                    drop(cache_handle);
+                    for button_text in renderer.text {
+                        let text = button_text.text.as_str();
+                        let scale = Scale { x: button_text.scale.0, y: button_text.scale.1 };
+                        let align = button_text.alignment.clone();
+                        let padding = button_text.padding;
+                        let offset = button_text.offset.clone();
+                        let color = button_text.color.clone();
 
-                    current_images.insert(i, image.clone());
+                        if let Some(font) = get_font_from_collection(&button_text.font) {
+                            if let Some(shadow) = &button_text.shadow {
+                                render_aligned_shadowed_text_on_image(
+                                    core.image_size,
+                                    &mut image,
+                                    font.as_ref(),
+                                    text,
+                                    scale,
+                                    align,
+                                    padding,
+                                    offset,
+                                    color,
+                                    shadow.offset.clone(),
+                                    shadow.color.clone(),
+                                )
+                            } else {
+                                render_aligned_text_on_image(
+                                    core.image_size,
+                                    &mut image,
+                                    font.as_ref(),
+                                    text,
+                                    scale,
+                                    align,
+                                    padding,
+                                    offset,
+                                    color,
+                                )
+                            }
+                        }
+                    }
 
-                    commands.push(StreamDeckCommand::SetButtonImage(i, image));
-                } else {
-                    commands.push(StreamDeckCommand::ClearButtonImage(i));
-                }
+                    if renderer.to_cache && (!no_image) {
+                        cache_handle.insert(renderer_hash, image.clone());
+                    }
+
+                    image
+                };
+
+                drop(cache_handle);
+
+                current_images.insert(i, image.clone());
+
+                commands.push(StreamDeckCommand::SetButtonImage(i, image));
             } else {
+                current_images.insert(i, image_from_solid(core.image_size, Rgba([0, 0, 0, 255])));
                 commands.push(StreamDeckCommand::ClearButtonImage(i));
             }
         } else {
@@ -332,7 +339,7 @@ impl Hash for ButtonText {
 #[derive(Serialize, Deserialize, Debug, Clone, Hash)]
 pub struct ButtonTextShadow {
     pub offset: (i32, i32),
-    pub color: Color
+    pub color: Color,
 }
 
 /// Renderer component that contains button background and array of text structs
@@ -343,7 +350,7 @@ pub struct RendererComponent {
     #[serde(default)]
     pub text: Vec<ButtonText>,
     #[serde(default = "make_true")]
-    pub to_cache: bool
+    pub to_cache: bool,
 }
 
 fn make_true() -> bool { true }
@@ -353,7 +360,7 @@ impl Default for RendererComponent {
         Self {
             background: ButtonBackground::Solid((255, 255, 255, 255)),
             text: vec![],
-            to_cache: true
+            to_cache: true,
         }
     }
 }

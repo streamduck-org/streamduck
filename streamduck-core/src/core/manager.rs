@@ -5,8 +5,9 @@ use std::sync::{Arc, RwLock};
 use std::thread::{sleep, spawn};
 use std::time::Duration;
 use crate::core::{RawButtonPanel, SDCore};
-use crate::core::methods::{CoreHandle, load_panels, set_brightness};
+use crate::core::methods::{CoreHandle, reset_stack, set_brightness};
 use hidapi::HidApi;
+use serde_json::Value;
 use crate::config::{Config, DeviceConfig};
 use crate::{connect, find_decks, ModuleManager};
 use crate::util::{make_panel_unique};
@@ -85,7 +86,11 @@ impl CoreManager {
                 pid,
                 serial: serial.to_string(),
                 brightness: 50,
-                layout: RawButtonPanel::new(),
+                layout: RawButtonPanel {
+                    display_name: "Root".to_string(),
+                    data: Value::Null,
+                    buttons: Default::default()
+                },
                 images: Default::default(),
                 plugin_data: Default::default()
             });
@@ -116,7 +121,7 @@ impl CoreManager {
             drop(config_handle);
 
             set_brightness(&core_handle, brightness);
-            load_panels(&core_handle, make_panel_unique(layout));
+            reset_stack(&core_handle, make_panel_unique(layout));
 
 
             let mut handle = self.devices.write().unwrap();
@@ -150,7 +155,15 @@ impl CoreManager {
 
     /// Gets device data from managed devices
     pub fn get_device(&self, serial: &str) -> Option<DeviceData> {
-        self.devices.read().unwrap().get(serial).cloned()
+        if let Some(device_data) = self.devices.read().unwrap().get(serial) {
+            if !device_data.core.is_closed() {
+                Some(device_data.clone())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 
     /// Starts running reconnection routine on current thread, probably spawn it out as a separate thread

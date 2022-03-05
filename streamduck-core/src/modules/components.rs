@@ -41,6 +41,9 @@ pub enum UIFieldType {
     /// Displays a header for separation reasons
     Header,
 
+    /// Displays text
+    Label,
+
     /// Text field that accepts float values
     InputFieldFloat,
     /// Text field that accepts integer values
@@ -96,6 +99,9 @@ pub enum UIFieldType {
 pub enum UIFieldValue {
     /// Displays a header for separation reasons
     Header,
+
+    /// Displays text
+    Label(String),
 
     /// Text field that accepts float values
     InputFieldFloat(f32),
@@ -363,7 +369,7 @@ impl TryInto<String> for UIFieldValue {
     type Error = String;
 
     fn try_into(self) -> Result<String, Self::Error> {
-        if let UIFieldValue::InputFieldString(str) | UIFieldValue::Choice(str) | UIFieldValue::ImageData(str) | UIFieldValue::ExistingImage(str) | UIFieldValue::Font(str) = self {
+        if let UIFieldValue::InputFieldString(str) | UIFieldValue::Choice(str) | UIFieldValue::ImageData(str) | UIFieldValue::ExistingImage(str) | UIFieldValue::Font(str) | UIFieldValue::Label(str) = self {
             Ok(str)
         } else {
             Err("Incorrect value".to_string())
@@ -375,7 +381,7 @@ impl TryInto<String> for &UIFieldValue {
     type Error = String;
 
     fn try_into(self) -> Result<String, Self::Error> {
-        if let UIFieldValue::InputFieldString(str) | UIFieldValue::Choice(str) | UIFieldValue::ImageData(str) | UIFieldValue::ExistingImage(str) | UIFieldValue::Font(str) = self {
+        if let UIFieldValue::InputFieldString(str) | UIFieldValue::Choice(str) | UIFieldValue::ImageData(str) | UIFieldValue::ExistingImage(str) | UIFieldValue::Font(str) | UIFieldValue::Label(str) = self {
             Ok(str.clone())
         } else {
             Err("Incorrect value".to_string())

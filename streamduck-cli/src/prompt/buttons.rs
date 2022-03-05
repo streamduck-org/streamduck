@@ -379,6 +379,7 @@ pub fn button_component_params_set(client: ClientRef, current_sn: &str, mut args
                             let (changes, success) = change_from_path(path, values, &|x| {
                                 match &x.ty {
                                     UIFieldType::Header => false,
+                                    UIFieldType::Label => false,
                                     UIFieldType::Collapsable(_) => false,
                                     UIFieldType::Array(_) => false,
 
@@ -659,6 +660,11 @@ pub fn button_component_list_params(client: ClientRef, current_sn: &str, mut arg
                                         println!("{}Type: Header", tabs);
                                     }
 
+                                    UIFieldValue::Label(str) => {
+                                        println!("{}Type: Label", tabs);
+                                        println!("{}Value: {}", tabs, str);
+                                    }
+
                                     UIFieldValue::InputFieldFloat(f) | UIFieldValue::ValueSliderFloat(f) => {
                                         println!("{}Type: Float", tabs);
                                         println!("{}Value: {}", tabs, f);
@@ -717,7 +723,7 @@ pub fn button_component_list_params(client: ClientRef, current_sn: &str, mut arg
                                     }
 
                                     UIFieldValue::Array(array) => {
-                                        println!("{}Type: Submenu", tabs);
+                                        println!("{}Type: Array", tabs);
                                         println!("{}Items:", tabs);
 
                                         for (index, array_item) in array.into_iter().enumerate() {

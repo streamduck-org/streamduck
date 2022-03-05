@@ -10,6 +10,8 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::sync::mpsc::{channel, Receiver};
 use image::DynamicImage;
 use streamdeck::StreamDeck;
+use serde::{Serialize, Deserialize};
+use serde_json::Value;
 use crate::config::{UniqueDeviceConfig};
 use crate::core::button::Button;
 use crate::core::methods::{button_down, button_up, CoreHandle};
@@ -20,11 +22,52 @@ use crate::threads::streamdeck::{spawn_streamdeck_thread, StreamDeckCommand, Str
 /// Reference counted RwLock of a button, prevents data duplication and lets you edit buttons if they're in many stacks at once
 pub type UniqueButton = Arc<RwLock<Button>>;
 
+/// Map of UniqueButtons
+pub type UniqueButtonMap = HashMap<u8, UniqueButton>;
+
+/// Map of Buttons
+pub type ButtonMap = HashMap<u8, Button>;
+
 /// Hashmap of UniqueButtons
-pub type ButtonPanel = HashMap<u8, UniqueButton>;
+pub type ButtonPanel = Arc<RwLock<Panel<UniqueButtonMap>>>;
 
 /// Hashmap of raw Buttons
-pub type RawButtonPanel = HashMap<u8, Button>;
+pub type RawButtonPanel = Panel<ButtonMap>;
+
+/// Panel definition
+#[derive(Serialize, Deserialize, Clone, Default, Debug)]
+pub struct Panel<T> {
+    /// Display name that will be shown in UI
+    pub display_name: String,
+    /// Data to keep with stack
+    pub data: Value,
+    /// Buttons of the panel
+    pub buttons: T
+}
+
+impl Into<ButtonMap> for Panel<ButtonMap> {
+    fn into(self) -> ButtonMap {
+        self.buttons
+    }
+}
+
+impl Into<ButtonMap> for &Panel<ButtonMap> {
+    fn into(self) -> ButtonMap {
+        self.buttons.clone()
+    }
+}
+
+impl Into<UniqueButtonMap> for Panel<UniqueButtonMap> {
+    fn into(self) -> UniqueButtonMap {
+        self.buttons
+    }
+}
+
+impl Into<UniqueButtonMap> for &Panel<UniqueButtonMap> {
+    fn into(self) -> UniqueButtonMap {
+        self.buttons.clone()
+    }
+}
 
 /// Core struct that contains all relevant information about streamdeck and manages the streamdeck
 #[allow(dead_code)]

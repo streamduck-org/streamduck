@@ -8,14 +8,14 @@ mod images;
 
 use std::io::Write;
 use std::sync::Arc;
-use streamduck_client::daemon::daemon_data::{DoButtonActionResult, GetButtonResult, GetDeviceResult, PopScreenResult, SetBrightnessResult, SetButtonResult};
+use streamduck_client::daemon::daemon_data::{DoButtonActionResult, DropStackToRootResult, GetButtonResult, GetDeviceResult, PopScreenResult, SetBrightnessResult, SetButtonResult};
 use streamduck_client::SDClient;
 use streamduck_core::core::button::Button;
 use crate::prompt::buttons::{button_component, button_from, button_new, button_remove};
 use crate::prompt::config::{export_config, import_config, reload_config, save_config};
 use crate::prompt::device::{add_device, device_list, remove_device};
 use crate::prompt::images::{add_image, list_images, remove_image};
-use crate::prompt::info::{button_info, component_info, list_buttons, list_components, list_fonts, prompt_help};
+use crate::prompt::info::{button_info, component_info, list_buttons, list_components, list_fonts, prompt_help, show_stack};
 use crate::prompt::module::{list_modules, module_info, module_list_params, module_params_add, module_params_remove, module_params_set};
 
 type ClientRef<'a> = &'a Arc<Box<dyn SDClient>>;
@@ -100,10 +100,21 @@ pub fn prompt(client: Arc<Box<dyn SDClient>>) {
 
                 "back" | "ba" => {
                     if !current_sn.is_empty() {
-                        match client.pop_screen(&current_sn).expect("Failed to pop screen") {
-                            PopScreenResult::DeviceNotFound => println!("back: Device not found"),
-                            PopScreenResult::OnlyOneRemaining => println!("back: Only one remaining"),
-                            PopScreenResult::Popped => println!("back: Popped screen"),
+                        if let Some(drop) = args.next() {
+                            if drop == "drop" {
+                                match client.drop_stack_to_root(&current_sn).expect("Failed to drop stack") {
+                                    DropStackToRootResult::DeviceNotFound => println!("back drop: Device not found"),
+                                    DropStackToRootResult::Dropped => println!("back drop: Dropped to root screen")
+                                }
+                            } else {
+                                println!("back: Unknown command")
+                            }
+                        } else {
+                            match client.pop_screen(&current_sn).expect("Failed to pop screen") {
+                                PopScreenResult::DeviceNotFound => println!("back: Device not found"),
+                                PopScreenResult::OnlyOneRemaining => println!("back: Only one remaining"),
+                                PopScreenResult::Popped => println!("back: Popped screen"),
+                            }
                         }
                     } else {
                         println!("back: No device is selected");
@@ -180,6 +191,10 @@ pub fn prompt(client: Arc<Box<dyn SDClient>>) {
                     } else {
                         println!("component: Unknown command");
                     }
+                }
+
+                "stack" => {
+                    show_stack(&client, &current_sn);
                 }
 
                 "font" | "f" => {
