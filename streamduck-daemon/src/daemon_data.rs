@@ -72,6 +72,7 @@ impl SocketListener for DaemonListener {
 
         // Panel management
         process_for_type::<GetStack>(self, socket, &packet);
+        process_for_type::<GetStackNames>(self, socket, &packet);
         process_for_type::<GetCurrentScreen>(self, socket, &packet);
         process_for_type::<GetButtonImages>(self, socket, &packet);
 
@@ -1066,6 +1067,51 @@ impl DaemonRequest for GetStack {
                 send_packet(handle, packet, &GetStackResult::Stack(raw_stack)).ok();
             } else {
                 send_packet(handle, packet, &GetStackResult::DeviceNotFound).ok();
+            }
+        }
+    }
+}
+
+/// Request for getting current stack names on a device, similar to GetStack, but only provides names of
+#[derive(Serialize, Deserialize)]
+pub struct GetStackNames {
+    pub serial_number: String
+}
+
+/// Response of GetStack request
+#[derive(Serialize, Deserialize)]
+pub enum GetStackNamesResult {
+    /// Sent if device wasn't found
+    DeviceNotFound,
+
+    /// Sent if successfully got stack
+    Stack(Vec<String>)
+}
+
+impl SocketData for GetStackNames {
+    const NAME: &'static str = "get_stack_names";
+}
+
+impl SocketData for GetStackNamesResult {
+    const NAME: &'static str = "get_stack_names";
+}
+
+impl DaemonRequest for GetStackNames {
+    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+        if let Ok(request) = parse_packet_to_data::<GetStackNames>(packet) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+                let wrapped_core = CoreHandle::wrap(device.core);
+
+                let mut raw_stack = vec![];
+
+                for stack_item in get_stack(&wrapped_core) {
+                    let raw_item = panel_to_raw(&stack_item);
+                    raw_stack.push(raw_item.display_name);
+                }
+
+                send_packet(handle, packet, &GetStackNamesResult::Stack(raw_stack)).ok();
+            } else {
+                send_packet(handle, packet, &GetStackNamesResult::DeviceNotFound).ok();
             }
         }
     }

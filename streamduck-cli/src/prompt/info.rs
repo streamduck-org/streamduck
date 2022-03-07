@@ -1,5 +1,5 @@
 use std::str::Split;
-use streamduck_client::daemon::daemon_data::{GetButtonResult, GetComponentValuesResult, GetCurrentScreenResult, GetStackResult};
+use streamduck_client::daemon::daemon_data::{GetButtonResult, GetComponentValuesResult, GetCurrentScreenResult, GetStackNamesResult};
 use streamduck_client::util::module_component_map_to_component_map;
 use streamduck_core::core::button::Button;
 use streamduck_core::modules::components::{ComponentDefinition, UIFieldValue, UIValue};
@@ -117,15 +117,15 @@ pub fn list_buttons(client: ClientRef, current_sn: &str) {
 
 pub fn show_stack(client: ClientRef, current_sn: &str) {
     if !current_sn.is_empty() {
-        let screen = client.get_stack(current_sn).expect("Failed to get stack");
+        let screen = client.get_stack_names(current_sn).expect("Failed to get stack");
 
         match screen {
-            GetStackResult::DeviceNotFound => println!("stack: Device not found"),
-            GetStackResult::Stack(stack) => {
+            GetStackNamesResult::DeviceNotFound => println!("stack: Device not found"),
+            GetStackNamesResult::Stack(stack) => {
                 println!("Current stack:");
 
                 for panel in stack {
-                    println!("- '{}'", panel.display_name);
+                    println!("- '{}'", panel);
                 }
             }
         }

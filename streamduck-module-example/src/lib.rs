@@ -5,7 +5,7 @@ use streamduck_core::modules::{PluginMetadata, SDModule, SDModulePointer};
 use streamduck_core::versions::{EVENTS, PLUGIN_API, SDMODULE_TRAIT};
 use serde::{Serialize, Deserialize};
 use streamduck_core::core::methods::CoreHandle;
-use streamduck_core::modules::components::{ComponentDefinition, UIValue};
+use streamduck_core::modules::components::{ComponentDefinition, UIFieldType, UIFieldValue, UIScalar, UIValue};
 use streamduck_core::modules::events::SDEvent;
 use streamduck_core::threads::rendering::{ButtonBackground, RendererComponent};
 use streamduck_core_derive::component;
@@ -92,7 +92,80 @@ impl SDModule for ExampleModule {
     }
 
     fn component_values(&self, _: CoreHandle, _: &Button, _: &str) -> Vec<UIValue> {
-        vec![]
+        vec![
+            UIValue {
+                name: "header".to_string(),
+                display_name: "Header".to_string(),
+                ty: UIFieldType::Header,
+                value: UIFieldValue::Header
+            },
+            UIValue {
+                name: "label".to_string(),
+                display_name: "Label".to_string(),
+                ty: UIFieldType::Label,
+                value: UIFieldValue::Label("label".to_string())
+            },
+            UIValue {
+                name: "float".to_string(),
+                display_name: "Float".to_string(),
+                ty: UIFieldType::InputFieldFloat,
+                value: UIFieldValue::InputFieldFloat(2.43)
+            },
+            UIValue {
+                name: "int".to_string(),
+                display_name: "Integer".to_string(),
+                ty: UIFieldType::InputFieldInteger,
+                value: UIFieldValue::InputFieldInteger(3)
+            },
+            UIValue {
+                name: "str".to_string(),
+                display_name: "String".to_string(),
+                ty: UIFieldType::InputFieldString,
+                value: UIFieldValue::InputFieldString("string".to_string())
+            },
+            UIValue {
+                name: "float2".to_string(),
+                display_name: "Float2".to_string(),
+                ty: UIFieldType::InputFieldFloat2,
+                value: UIFieldValue::InputFieldFloat2(13.23, 23.1)
+            },
+            UIValue {
+                name: "int2".to_string(),
+                display_name: "Integer2".to_string(),
+                ty: UIFieldType::InputFieldInteger2,
+                value: UIFieldValue::InputFieldInteger2(13, 23)
+            },
+            UIValue {
+                name: "uint".to_string(),
+                display_name: "Unsigned Integer".to_string(),
+                ty: UIFieldType::InputFieldUnsignedInteger,
+                value: UIFieldValue::InputFieldUnsignedInteger(232)
+            },
+            UIValue {
+                name: "float_slider".to_string(),
+                display_name: "Float Slider".to_string(),
+                ty: UIFieldType::ValueSliderFloat(UIScalar {
+                    default_value: 5.0,
+                    max_value: 100.0,
+                    min_value: 0.0,
+                    step: 1.0,
+                    allow_out_of_bounds: false
+                }),
+                value: UIFieldValue::ValueSliderFloat(23.0)
+            },
+            UIValue {
+                name: "int_slider".to_string(),
+                display_name: "Integer Slider".to_string(),
+                ty: UIFieldType::ValueSliderInteger(UIScalar {
+                    default_value: 5,
+                    max_value: 100,
+                    min_value: 0,
+                    step: 1,
+                    allow_out_of_bounds: false
+                }),
+                value: UIFieldValue::ValueSliderInteger(23)
+            }
+        ]
     }
 
     fn set_component_value(&self, _: CoreHandle, _: &mut Button, _: &str, _: Vec<UIValue>) {

@@ -8,7 +8,7 @@ use streamduck_core::modules::components::{ComponentDefinition, UIValue};
 use streamduck_core::modules::PluginMetadata;
 pub use streamduck_daemon as daemon;
 use streamduck_core::socket::{SocketError, SocketPacket};
-use streamduck_daemon::daemon_data::{AddComponentResult, AddDeviceResult, AddImageResult, ClearButtonResult, CommitChangesToConfigResult, Device, DoButtonActionResult, DropStackToRootResult, ExportDeviceConfigResult, ForciblyPopScreenResult, GetButtonImagesResult, GetButtonResult, GetComponentValuesResult, GetCurrentScreenResult, GetDeviceConfigResult, GetDeviceResult, GetModuleValuesResult, GetStackResult, ImportDeviceConfigResult, ListImagesResult, NewButtonFromComponentResult, NewButtonResult, PopScreenResult, PushScreenResult, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, RemoveComponentResult, RemoveDeviceResult, RemoveImageResult, ReplaceScreenResult, ResetStackResult, SaveDeviceConfigResult, SaveDeviceConfigsResult, SetBrightnessResult, SetButtonResult, SetComponentValueResult, SetModuleValueResult};
+use streamduck_daemon::daemon_data::{AddComponentResult, AddDeviceResult, AddImageResult, ClearButtonResult, CommitChangesToConfigResult, Device, DoButtonActionResult, DropStackToRootResult, ExportDeviceConfigResult, ForciblyPopScreenResult, GetButtonImagesResult, GetButtonResult, GetComponentValuesResult, GetCurrentScreenResult, GetDeviceConfigResult, GetDeviceResult, GetModuleValuesResult, GetStackNamesResult, GetStackResult, ImportDeviceConfigResult, ListImagesResult, NewButtonFromComponentResult, NewButtonResult, PopScreenResult, PushScreenResult, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, RemoveComponentResult, RemoveDeviceResult, RemoveImageResult, ReplaceScreenResult, ResetStackResult, SaveDeviceConfigResult, SaveDeviceConfigsResult, SetBrightnessResult, SetButtonResult, SetComponentValueResult, SetModuleValueResult};
 
 #[cfg(target_family = "unix")]
 pub mod unix;
@@ -78,6 +78,8 @@ pub trait SDClient {
     // Panel management
     /// Gets stack of a device
     fn get_stack(&self, serial_number: &str) -> Result<GetStackResult, SDClientError>;
+    /// Gets stack names of a device
+    fn get_stack_names(&self, serial_number: &str) -> Result<GetStackNamesResult, SDClientError>;
     /// Gets current screen of a device
     fn get_current_screen(&self, serial_number: &str) -> Result<GetCurrentScreenResult, SDClientError>;
     /// Gets current images rendered on a device
