@@ -12,7 +12,7 @@ use std::sync::{Arc, RwLock};
 
 use crate::core::button::{Button, parse_button_to_component};
 use crate::core::methods::CoreHandle;
-use crate::modules::components::{ComponentDefinition, map_ui_values, map_ui_values_ref, UIField, UIFieldType, UIFieldValue, UIValue};
+use crate::modules::components::{ComponentDefinition, map_ui_values, map_ui_values_ref, UIField, UIFieldType, UIFieldValue, UIPathValue, UIValue};
 use crate::modules::events::SDEvent;
 use crate::modules::folders::FolderModule;
 
@@ -25,7 +25,7 @@ use strum::VariantNames;
 use std::str::FromStr;
 use image::DynamicImage;
 use image::io::Reader;
-use crate::util::hash_image;
+use crate::util::{add_array_function, change_from_path, convert_value_to_path, hash_image, remove_array_function, set_value_function};
 
 /// Manages modules
 pub struct ModuleManager(RwLock<Vec<UniqueSDModule>>, RwLock<HashMap<String, Vec<String>>>);
@@ -248,6 +248,63 @@ impl PluginMetadata {
         }
     }
 }
+
+/// Retrieves module settings in array of UIPathValue
+pub fn get_module_settings(module: &UniqueSDModule) -> Vec<UIPathValue> {
+    module.settings()
+        .into_iter()
+        .map(|x| convert_value_to_path(x, ""))
+        .collect()
+}
+
+/// Adds new element into module setting's array
+pub fn add_element_module_setting(module: &UniqueSDModule, path: &str) -> bool {
+    let (changes, success) = change_from_path(path, module.settings(), &add_array_function(), false);
+
+    if success {
+        if !changes.is_empty() {
+            module.set_setting(changes);
+            true
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
+
+/// Removes an element from module setting's array
+pub fn remove_element_module_setting(module: &UniqueSDModule, path: &str, index: usize) -> bool {
+    let (changes, success) = change_from_path(path, module.settings(), &remove_array_function(index), false);
+
+    if success {
+        if !changes.is_empty() {
+            module.set_setting(changes);
+            true
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
+
+/// Sets value into module's setting
+pub fn set_module_setting(module: &UniqueSDModule, value: UIPathValue) -> bool {
+    let (changes, success) = change_from_path(&value.path, module.settings(), &set_value_function(value.clone()), false);
+
+    if success {
+        if !changes.is_empty() {
+            module.set_setting(changes);
+            true
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
+
 
 /// Converts features slice into Vec
 pub fn features_to_vec(features: &[(&str, &str)]) -> Vec<(String, String)> {

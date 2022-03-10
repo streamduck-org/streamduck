@@ -4,11 +4,17 @@ use std::string::FromUtf8Error;
 
 use streamduck_core::core::button::Button;
 use streamduck_core::core::RawButtonPanel;
-use streamduck_core::modules::components::{ComponentDefinition, UIValue};
+use streamduck_core::modules::components::{ComponentDefinition, UIPathValue};
 use streamduck_core::modules::PluginMetadata;
-pub use streamduck_daemon as daemon;
 use streamduck_core::socket::{SocketError, SocketPacket};
-use streamduck_daemon::daemon_data::{AddComponentResult, AddDeviceResult, AddImageResult, ClearButtonResult, CommitChangesToConfigResult, Device, DoButtonActionResult, DropStackToRootResult, ExportDeviceConfigResult, ForciblyPopScreenResult, GetButtonImagesResult, GetButtonResult, GetComponentValuesResult, GetCurrentScreenResult, GetDeviceConfigResult, GetDeviceResult, GetModuleValuesResult, GetStackNamesResult, GetStackResult, ImportDeviceConfigResult, ListImagesResult, NewButtonFromComponentResult, NewButtonResult, PopScreenResult, PushScreenResult, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, RemoveComponentResult, RemoveDeviceResult, RemoveImageResult, ReplaceScreenResult, ResetStackResult, SaveDeviceConfigResult, SaveDeviceConfigsResult, SetBrightnessResult, SetButtonResult, SetComponentValueResult, SetModuleValueResult};
+pub use streamduck_daemon as daemon;
+use streamduck_daemon::daemon_data::assets::{AddImageResult, ListImagesResult, RemoveImageResult};
+use streamduck_daemon::daemon_data::buttons::{AddComponentResult, AddComponentValueResult, ClearButtonResult, GetButtonResult, GetComponentValuesResult, NewButtonFromComponentResult, NewButtonResult, RemoveComponentResult, RemoveComponentValueResult, SetButtonResult, SetComponentValueResult};
+use streamduck_daemon::daemon_data::config::{ExportDeviceConfigResult, GetDeviceConfigResult, ImportDeviceConfigResult, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, SaveDeviceConfigResult, SaveDeviceConfigsResult};
+use streamduck_daemon::daemon_data::devices::{AddDeviceResult, Device, GetDeviceResult, RemoveDeviceResult, SetBrightnessResult};
+use streamduck_daemon::daemon_data::modules::{AddModuleValueResult, GetModuleValuesResult, RemoveModuleValueResult, SetModuleValueResult};
+use streamduck_daemon::daemon_data::ops::{CommitChangesToConfigResult, DoButtonActionResult};
+use streamduck_daemon::daemon_data::panels::{DropStackToRootResult, ForciblyPopScreenResult, GetButtonImagesResult, GetCurrentScreenResult, GetStackNamesResult, GetStackResult, PopScreenResult, PushScreenResult, ReplaceScreenResult, ResetStackResult};
 
 #[cfg(target_family = "unix")]
 pub mod unix;
@@ -72,8 +78,12 @@ pub trait SDClient {
 
     /// Gets module settings
     fn get_module_values(&self, module_name: &str) -> Result<GetModuleValuesResult, SDClientError>;
+    /// Adds element to module setting
+    fn add_module_value(&self, module_name: &str, path: &str) -> Result<AddModuleValueResult, SDClientError>;
+    /// Removes element from module setting
+    fn remove_module_value(&self, module_name: &str, path: &str, index: usize) -> Result<RemoveModuleValueResult, SDClientError>;
     /// Sets module settings
-    fn set_module_value(&self, module_name: &str, value: Vec<UIValue>) -> Result<SetModuleValueResult, SDClientError>;
+    fn set_module_value(&self, module_name: &str, value: UIPathValue) -> Result<SetModuleValueResult, SDClientError>;
 
     // Panel management
     /// Gets stack of a device
@@ -101,8 +111,12 @@ pub trait SDClient {
     fn add_component(&self, serial_number: &str, key: u8, component_name: &str) -> Result<AddComponentResult, SDClientError>;
     /// Gets component values on a button
     fn get_component_values(&self, serial_number: &str, key: u8, component_name: &str) -> Result<GetComponentValuesResult, SDClientError>;
-    /// Sets component value on a button
-    fn set_component_values(&self, serial_number: &str, key: u8, component_name: &str, value: Vec<UIValue>) -> Result<SetComponentValueResult, SDClientError>;
+    /// Adds element to component value
+    fn add_component_value(&self, serial_number: &str, key: u8, component_name: &str, path: &str) -> Result<AddComponentValueResult, SDClientError>;
+    /// Removes element from component value
+    fn remove_component_value(&self, serial_number: &str, key: u8, component_name: &str, path: &str, index: usize) -> Result<RemoveComponentValueResult, SDClientError>;
+    /// Sets value on component value
+    fn set_component_value(&self, serial_number: &str, key: u8, component_name: &str, value: UIPathValue) -> Result<SetComponentValueResult, SDClientError>;
     /// Removes component from a button
     fn remove_component(&self, serial_number: &str, key: u8, component_name: &str) -> Result<RemoveComponentResult, SDClientError>;
 

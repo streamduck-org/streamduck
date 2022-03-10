@@ -8,7 +8,10 @@ mod images;
 
 use std::io::Write;
 use std::sync::Arc;
-use streamduck_client::daemon::daemon_data::{DoButtonActionResult, DropStackToRootResult, GetButtonResult, GetDeviceResult, PopScreenResult, SetBrightnessResult, SetButtonResult};
+use streamduck_client::daemon::daemon_data::buttons::{GetButtonResult, SetButtonResult};
+use streamduck_client::daemon::daemon_data::devices::{GetDeviceResult, SetBrightnessResult};
+use streamduck_client::daemon::daemon_data::ops::DoButtonActionResult;
+use streamduck_client::daemon::daemon_data::panels::{DropStackToRootResult, PopScreenResult};
 use streamduck_client::SDClient;
 use streamduck_core::core::button::Button;
 use crate::prompt::buttons::{button_component, button_from, button_new, button_remove};

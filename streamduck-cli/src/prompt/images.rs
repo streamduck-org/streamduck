@@ -2,7 +2,7 @@ use std::io::Cursor;
 use std::str::Split;
 use image::imageops::FilterType;
 use image::io::Reader;
-use streamduck_client::daemon::daemon_data::{AddImageResult, ListImagesResult, RemoveImageResult};
+use streamduck_client::daemon::daemon_data::assets::{AddImageResult, ListImagesResult, RemoveImageResult};
 use crate::prompt::ClientRef;
 
 pub fn show_image(data: String, size: u32) {

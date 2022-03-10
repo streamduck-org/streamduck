@@ -3,12 +3,12 @@ use std::sync::{Arc, LockResult, MutexGuard};
 use serde_json::{Map, Value};
 use crate::core::{ButtonPanel, UniqueButton};
 use crate::{ModuleManager, SDCore};
-use crate::util::{button_to_raw, deserialize_panel, make_button_unique, panel_to_raw, serialize_panel};
+use crate::util::{add_array_function, button_to_raw, change_from_path, convert_value_to_path, deserialize_panel, make_button_unique, panel_to_raw, remove_array_function, serialize_panel, set_value_function};
 use serde::de::Error as DeError;
 use serde_json::Error as JSONError;
 use crate::modules::events::SDEvent;
 use crate::modules::{features_to_vec, UniqueSDModule};
-use crate::modules::components::UIValue;
+use crate::modules::components::{UIPathValue, UIValue};
 use crate::threads::streamdeck::StreamDeckCommand;
 use crate::versions::SUPPORTED_FEATURES;
 
@@ -175,6 +175,7 @@ pub fn clear_button(core: &CoreHandle, key: u8) -> bool {
     }
 }
 
+/// Adds component onto a button, returns success boolean
 pub fn add_component(core: &CoreHandle, key: u8, component_name: &str) -> bool {
     core.required_feature("core_methods");
     if let Some(screen) = get_current_screen(&core) {
@@ -223,6 +224,7 @@ pub fn add_component(core: &CoreHandle, key: u8, component_name: &str) -> bool {
     false
 }
 
+/// Gets component values from a component on a button
 pub fn get_component_values(core: &CoreHandle, key: u8, component_name: &str) -> Option<Vec<UIValue>> {
     core.required_feature("core_methods");
     if let Some(screen) = get_current_screen(&core) {
@@ -250,6 +252,16 @@ pub fn get_component_values(core: &CoreHandle, key: u8, component_name: &str) ->
     None
 }
 
+/// Gets component values from component on a button, but with paths for easier interaction with values
+pub fn get_component_values_with_paths(core: &CoreHandle, key: u8, component_name: &str) -> Option<Vec<UIPathValue>> {
+    if let Some(values) = get_component_values(core, key, component_name) {
+        Some(values.into_iter().map(|x| convert_value_to_path(x, "")).collect())
+    } else {
+        None
+    }
+}
+
+/// Sets component values based on changes for component on a button
 pub fn set_component_value(core: &CoreHandle, key: u8, component_name: &str, value: Vec<UIValue>) -> bool {
     core.required_feature("core_methods");
     if let Some(screen) = get_current_screen(&core) {
@@ -296,6 +308,64 @@ pub fn set_component_value(core: &CoreHandle, key: u8, component_name: &str, val
     false
 }
 
+/// Adds new array element to a component value
+pub fn add_element_component_value(core: &CoreHandle, key: u8, component_name: &str, path: &str) -> bool {
+    if let Some(values) = get_component_values(core, key, component_name) {
+        let (changes, success) = change_from_path(path, values, &add_array_function(), false);
+
+        if success {
+            if !changes.is_empty() {
+                set_component_value(core, key, component_name, changes)
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
+
+/// Removes element from array in component value
+pub fn remove_element_component_value(core: &CoreHandle, key: u8, component_name: &str, path: &str, index: usize) -> bool {
+    if let Some(values) = get_component_values(core, key, component_name) {
+        let (changes, success) = change_from_path(path, values, &remove_array_function(index), false);
+
+        if success {
+            if !changes.is_empty() {
+                set_component_value(core, key, component_name, changes)
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
+
+/// Sets value based on path for component value
+pub fn set_component_value_by_path(core: &CoreHandle, key: u8, component_name: &str, value: UIPathValue) -> bool {
+    if let Some(values) = get_component_values(core, key, component_name) {
+        let (changes, success) = change_from_path(&value.path, values, &set_value_function(value.clone()), false);
+
+        if success {
+            if !changes.is_empty() {
+                set_component_value(core, key, component_name, changes)
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
+
+/// Removes component from a button
 pub fn remove_component(core: &CoreHandle, key: u8, component_name: &str) -> bool {
     core.required_feature("core_methods");
     if let Some(screen) = get_current_screen(&core) {

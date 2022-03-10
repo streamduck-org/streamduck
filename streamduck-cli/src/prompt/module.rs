@@ -1,9 +1,8 @@
 use std::str::Split;
-use streamduck_client::daemon::daemon_data::{GetModuleValuesResult, SetModuleValueResult};
-use streamduck_core::modules::components::{UIFieldType, UIFieldValue, UIValue};
-use crate::prompt::buttons::change_from_path;
+use streamduck_client::daemon::daemon_data::modules::{AddModuleValueResult, GetModuleValuesResult, RemoveModuleValueResult, SetModuleValueResult};
+use streamduck_core::modules::components::{map_ui_path_values, UIFieldType, UIFieldValue, UIPathValue};
 use crate::prompt::ClientRef;
-use crate::prompt::utils::{print_table};
+use crate::prompt::utils::{parse_string_to_value, print_table};
 
 pub fn list_modules(client: ClientRef) {
     let mut table = vec![
@@ -60,52 +59,12 @@ pub fn module_info(client: ClientRef, mut args: Split<&str>) {
 pub fn module_params_add(client: ClientRef, mut args: Split<&str>) {
     if let Some(module_name) = args.next() {
         if let Some(path) = args.next() {
-            let result = client.get_module_values(module_name).expect("Failed to get module values");
+            let result = client.add_module_value(module_name, path).expect("Failed to add element to module setting");
 
             match result {
-                GetModuleValuesResult::ModuleNotFound => println!("module params add: Module not found"),
-                GetModuleValuesResult::Values(values) => {
-                    let (changes, success) = change_from_path(path, values, &|x| {
-                        if let UIFieldType::Array(template_fields) = &x.ty {
-                            let mut new_item = vec![];
-
-                            for field in template_fields {
-                                new_item.push(UIValue {
-                                    name: field.name.clone(),
-                                    display_name: field.display_name.clone(),
-                                    ty: field.ty.clone(),
-                                    value: field.default_value.clone()
-                                })
-                            }
-
-                            if let UIFieldValue::Array(array) = &mut x.value {
-                                array.push(new_item);
-                                true
-                            } else {
-                                false
-                            }
-                        } else {
-                            false
-                        }
-                    }, false);
-
-                    if success {
-                        if !changes.is_empty() {
-                            let result = client.set_module_value(module_name, changes).expect("Failed to set module values");
-
-                            match result {
-                                SetModuleValueResult::Set => {
-                                    println!("module params add: Added new element to the array");
-                                },
-                                _ => {}
-                            }
-                        } else {
-                            println!("module params add: Invalid path");
-                        }
-                    } else {
-                        println!("module params add: No array at path");
-                    }
-                }
+                AddModuleValueResult::ModuleNotFound => println!("module params add: Module not found"),
+                AddModuleValueResult::FailedToAdd => println!("module params add: No array at path"),
+                AddModuleValueResult::Added => println!("module params add: Added new element to the array"),
             }
         } else {
             println!("module params add: Specify parameter path");
@@ -120,37 +79,12 @@ pub fn module_params_remove(client: ClientRef, mut args: Split<&str>) {
         if let Some(path) = args.next() {
             if let Some(element_index) = args.next() {
                 if let Ok(element_index) = element_index.parse::<usize>() {
-                    let result = client.get_module_values(module_name).expect("Failed to get module values");
+                    let result = client.remove_module_value(module_name, path, element_index).expect("Failed to remove element from module setting");
 
                     match result {
-                        GetModuleValuesResult::ModuleNotFound => println!("module params remove: Module not found"),
-                        GetModuleValuesResult::Values(values) => {
-                            let (changes, success) = change_from_path(path, values, &|x| {
-                                if let UIFieldValue::Array(array) = &mut x.value {
-                                    array.remove(element_index);
-                                    true
-                                } else {
-                                    false
-                                }
-                            }, false);
-
-                            if success {
-                                if !changes.is_empty() {
-                                    let result = client.set_module_value(module_name, changes).expect("Failed to set module values");
-
-                                    match result {
-                                        SetModuleValueResult::Set => {
-                                            println!("module params remove: Removed element from the array");
-                                        },
-                                        _ => {}
-                                    }
-                                } else {
-                                    println!("module params remove: Invalid path");
-                                }
-                            } else {
-                                println!("module params remove: No array at path");
-                            }
-                        }
+                        RemoveModuleValueResult::ModuleNotFound => println!("module params remove: Module not found"),
+                        RemoveModuleValueResult::FailedToRemove => println!("module params add: No array at path"),
+                        RemoveModuleValueResult::Removed => println!("module params remove: Removed element from the array"),
                     }
                 } else {
                     println!("module params remove: Input valid array index");
@@ -170,191 +104,31 @@ pub fn module_params_set(client: ClientRef, mut args: Split<&str>) {
     if let Some(module_name) = args.next() {
         if let Some(path) = args.next() {
             let result = client.get_module_values(module_name).expect("Failed to get module values");
-            let fonts = client.list_fonts().expect("Failed to get list of fonts");
 
             match result {
                 GetModuleValuesResult::ModuleNotFound => println!("module params set: Module not found"),
                 GetModuleValuesResult::Values(values) => {
-                    let value = args.collect::<Vec<&str>>().join(" ");
+                    let values_map = map_ui_path_values(&values);
 
-                    let (changes, success) = change_from_path(path, values, &|x| {
-                        match &x.ty {
-                            UIFieldType::Header => false,
-                            UIFieldType::Label => false,
-                            UIFieldType::Collapsable(_) => false,
-                            UIFieldType::Array(_) => false,
+                    if let Some(mut value) = values_map.get(path).cloned() {
+                        let inputted_value = args.collect::<Vec<&str>>().join(" ");
 
-                            UIFieldType::Choice(variants) => {
-                                if variants.contains(&value) {
-                                    x.value = UIFieldValue::Choice(value.clone());
-                                    true
-                                } else {
-                                    false
-                                }
-                            }
+                        let field_value = parse_string_to_value(&inputted_value, &value.ty);
 
-                            UIFieldType::InputFieldFloat => {
-                                if let Ok(f) = value.parse::<f32>() {
-                                    x.value = UIFieldValue::InputFieldFloat(f);
-                                    true
-                                } else {
-                                    false
-                                }
-                            }
-
-                            UIFieldType::InputFieldInteger => {
-                                if let Ok(i) = value.parse::<i32>() {
-                                    x.value = UIFieldValue::InputFieldInteger(i);
-                                    true
-                                } else {
-                                    false
-                                }
-                            }
-
-                            UIFieldType::InputFieldString => {
-                                x.value = UIFieldValue::InputFieldString(value.clone());
-                                true
-                            }
-
-                            UIFieldType::InputFieldFloat2 => {
-                                let mut floats = value.split(",");
-
-                                if let Some(float1) = floats.next() {
-                                    if let Ok(float1) = float1.parse::<f32>() {
-                                        if let Some(float2) = floats.next() {
-                                            if let Ok(float2) = float2.parse::<f32>() {
-                                                x.value = UIFieldValue::InputFieldFloat2(float1, float2);
-                                                return true;
-                                            }
-                                        }
-                                    }
-                                }
-
-                                false
-                            }
-
-                            UIFieldType::InputFieldInteger2 => {
-                                let mut ints = value.split(",");
-
-                                if let Some(int1) = ints.next() {
-                                    if let Ok(int1) = int1.parse::<i32>() {
-                                        if let Some(int2) = ints.next() {
-                                            if let Ok(int2) = int2.parse::<i32>() {
-                                                x.value = UIFieldValue::InputFieldInteger2(int1, int2);
-                                                return true;
-                                            }
-                                        }
-                                    }
-                                }
-
-                                false
-                            }
-
-                            UIFieldType::InputFieldUnsignedInteger => {
-                                if let Ok(u) = value.parse::<u32>() {
-                                    x.value = UIFieldValue::InputFieldUnsignedInteger(u);
-                                    true
-                                } else {
-                                    false
-                                }
-                            }
-
-                            UIFieldType::ValueSliderFloat(limits) => {
-                                if let Ok(f) = value.parse::<f32>() {
-                                    if !limits.allow_out_of_bounds {
-                                        x.value = UIFieldValue::ValueSliderFloat(f.clamp(limits.min_value, limits.max_value));
-                                    } else {
-                                        x.value = UIFieldValue::ValueSliderFloat(f);
-                                    }
-                                    true
-                                } else {
-                                    false
-                                }
-                            }
-
-                            UIFieldType::ValueSliderInteger(limits) => {
-                                if let Ok(i) = value.parse::<i32>() {
-                                    if !limits.allow_out_of_bounds {
-                                        x.value = UIFieldValue::ValueSliderInteger(i.clamp(limits.min_value, limits.max_value));
-                                    } else {
-                                        x.value = UIFieldValue::ValueSliderInteger(i);
-                                    }
-                                    true
-                                } else {
-                                    false
-                                }
-                            }
-
-                            UIFieldType::Checkbox { .. } => {
-                                if let Ok(b) = value.parse::<bool>() {
-                                    x.value = UIFieldValue::Checkbox(b);
-                                    true
-                                } else {
-                                    false
-                                }
-                            }
-
-                            UIFieldType::Color => {
-                                let mut ints = value.split(",");
-
-                                if let Some(c1) = ints.next() {
-                                    if let Ok(c1) = c1.parse::<u8>() {
-                                        if let Some(c2) = ints.next() {
-                                            if let Ok(c2) = c2.parse::<u8>() {
-                                                if let Some(c3) = ints.next() {
-                                                    if let Ok(c3) = c3.parse::<u8>() {
-                                                        if let Some(c4) = ints.next() {
-                                                            if let Ok(c4) = c4.parse::<u8>() {
-                                                                x.value = UIFieldValue::Color(c1, c2, c3, c4);
-                                                                return true;
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                false
-                            }
-
-                            UIFieldType::ImageData => {
-                                x.value = UIFieldValue::ImageData(value.clone());
-                                true
-                            }
-
-                            UIFieldType::ExistingImage => {
-                                x.value = UIFieldValue::ExistingImage(value.clone());
-                                true
-                            }
-
-                            UIFieldType::Font => {
-                                if fonts.contains(&value) {
-                                    x.value = UIFieldValue::Font(value.clone());
-                                    true
-                                } else {
-                                    false
-                                }
-                            }
-                        }
-                    }, false);
-
-                    if success {
-                        if !changes.is_empty() {
-                            let result = client.set_module_value(module_name, changes).expect("Failed to set module values");
+                        if let Some(field_value) = field_value {
+                            value.value = field_value;
+                            let result = client.set_module_value(module_name, value).expect("Failed to set component value");
 
                             match result {
-                                SetModuleValueResult::Set => {
-                                    println!("module params set: Parameter set");
-                                },
-                                _ => {}
+                                SetModuleValueResult::FailedToSet => println!("module params set: Failed to set value"),
+                                SetModuleValueResult::ModuleNotFound => println!("module params set: Module not found"),
+                                SetModuleValueResult::Set => println!("module params set: Parameter set"),
                             }
                         } else {
-                            println!("module params set: Invalid path");
+                            println!("module params set: Invalid value")
                         }
                     } else {
-                        println!("module params set: No settable parameter found at path");
+                        println!("module params set: Invalid path");
                     }
                 }
             }
@@ -374,7 +148,7 @@ pub fn module_list_params(client: ClientRef, mut args: Split<&str>) {
         match result {
             GetModuleValuesResult::ModuleNotFound => println!("module params list: Module not found"),
             GetModuleValuesResult::Values(values) => {
-                fn list_fields(items: Vec<UIValue>, path: &str, tabs_count: usize) {
+                fn list_fields(items: Vec<UIPathValue>, path: &str, tabs_count: usize) {
                     let tabs = format!("{: <w$}", "", w = tabs_count);
 
                     for item in items {

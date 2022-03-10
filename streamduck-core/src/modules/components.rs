@@ -23,7 +23,7 @@ pub struct UIField {
     pub name: String,
     pub display_name: String,
     pub ty: UIFieldType,
-    pub default_value: UIFieldValue
+    pub default_value: UIFieldValue<UIValue>
 }
 
 /// UI Value, represents what fields currently have
@@ -32,7 +32,17 @@ pub struct UIValue {
     pub name: String,
     pub display_name: String,
     pub ty: UIFieldType,
-    pub value: UIFieldValue,
+    pub value: UIFieldValue<UIValue>,
+}
+
+/// UI Path Value, represents
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct UIPathValue {
+    pub name: String,
+    pub path: String,
+    pub display_name: String,
+    pub ty: UIFieldType,
+    pub value: UIFieldValue<UIPathValue>,
 }
 
 /// UI Field Types, defines types that fields will have
@@ -68,7 +78,7 @@ pub enum UIFieldType {
     ValueSliderInteger(UIScalar<i32>),
 
     /// Collapsable submenu
-    Collapsable(Vec<UIField>),
+    Collapsable,
 
     /// Array of menus, this definition acts as a template of how to construct the array, each field will be duplicated for each item in the array like structs
     Array(Vec<UIField>),
@@ -96,7 +106,7 @@ pub enum UIFieldType {
 
 /// UI Field value, current state of the settings
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum UIFieldValue {
+pub enum UIFieldValue<V> {
     /// Displays a header for separation reasons
     Header,
 
@@ -125,10 +135,10 @@ pub enum UIFieldValue {
     ValueSliderInteger(i32),
 
     /// Collapsable submenu
-    Collapsable(Vec<UIValue>),
+    Collapsable(Vec<V>),
 
     /// Array of menus
-    Array(Vec<Vec<UIValue>>),
+    Array(Vec<Vec<V>>),
 
     /// Choice dropdown
     Choice(String),
@@ -149,7 +159,7 @@ pub enum UIFieldValue {
     Font(String),
 }
 
-impl UIFieldValue {
+impl<V> UIFieldValue<V> {
     pub fn try_into_bool(&self) -> Result<bool, String> {
         TryInto::<bool>::try_into(self)
     }
@@ -184,20 +194,20 @@ impl UIFieldValue {
 }
 
 /// From conversions
-impl Into<UIFieldValue> for Color {
-    fn into(self) -> UIFieldValue {
+impl<V> Into<UIFieldValue<V>> for Color {
+    fn into(self) -> UIFieldValue<V> {
         UIFieldValue::Color(self.0, self.1, self.2, self.3)
     }
 }
 
-impl Into<UIFieldValue> for &Color {
-    fn into(self) -> UIFieldValue {
+impl<V> Into<UIFieldValue<V>> for &Color {
+    fn into(self) -> UIFieldValue<V> {
         UIFieldValue::Color(self.0, self.1, self.2, self.3)
     }
 }
 
 /// To conversions
-impl TryInto<bool> for UIFieldValue {
+impl<V> TryInto<bool> for UIFieldValue<V> {
     type Error = String;
 
     fn try_into(self) -> Result<bool, Self::Error> {
@@ -209,7 +219,7 @@ impl TryInto<bool> for UIFieldValue {
     }
 }
 
-impl TryInto<bool> for &UIFieldValue {
+impl<V> TryInto<bool> for &UIFieldValue<V> {
     type Error = String;
 
     fn try_into(self) -> Result<bool, Self::Error> {
@@ -221,7 +231,7 @@ impl TryInto<bool> for &UIFieldValue {
     }
 }
 
-impl TryInto<f32> for UIFieldValue {
+impl<V> TryInto<f32> for UIFieldValue<V> {
     type Error = String;
 
     fn try_into(self) -> Result<f32, Self::Error> {
@@ -233,7 +243,7 @@ impl TryInto<f32> for UIFieldValue {
     }
 }
 
-impl TryInto<f32> for &UIFieldValue {
+impl<V> TryInto<f32> for &UIFieldValue<V> {
     type Error = String;
 
     fn try_into(self) -> Result<f32, Self::Error> {
@@ -245,7 +255,7 @@ impl TryInto<f32> for &UIFieldValue {
     }
 }
 
-impl TryInto<i32> for UIFieldValue {
+impl<V> TryInto<i32> for UIFieldValue<V> {
     type Error = String;
 
     fn try_into(self) -> Result<i32, Self::Error> {
@@ -257,7 +267,7 @@ impl TryInto<i32> for UIFieldValue {
     }
 }
 
-impl TryInto<i32> for &UIFieldValue {
+impl<V> TryInto<i32> for &UIFieldValue<V> {
     type Error = String;
 
     fn try_into(self) -> Result<i32, Self::Error> {
@@ -269,7 +279,7 @@ impl TryInto<i32> for &UIFieldValue {
     }
 }
 
-impl TryInto<u32> for UIFieldValue {
+impl<V> TryInto<u32> for UIFieldValue<V> {
     type Error = String;
 
     fn try_into(self) -> Result<u32, Self::Error> {
@@ -281,7 +291,7 @@ impl TryInto<u32> for UIFieldValue {
     }
 }
 
-impl TryInto<u32> for &UIFieldValue {
+impl<V> TryInto<u32> for &UIFieldValue<V> {
     type Error = String;
 
     fn try_into(self) -> Result<u32, Self::Error> {
@@ -293,7 +303,7 @@ impl TryInto<u32> for &UIFieldValue {
     }
 }
 
-impl TryInto<(f32, f32)> for UIFieldValue {
+impl<V> TryInto<(f32, f32)> for UIFieldValue<V> {
     type Error = String;
 
     fn try_into(self) -> Result<(f32, f32), Self::Error> {
@@ -305,7 +315,7 @@ impl TryInto<(f32, f32)> for UIFieldValue {
     }
 }
 
-impl TryInto<(f32, f32)> for &UIFieldValue {
+impl<V> TryInto<(f32, f32)> for &UIFieldValue<V> {
     type Error = String;
 
     fn try_into(self) -> Result<(f32, f32), Self::Error> {
@@ -317,7 +327,7 @@ impl TryInto<(f32, f32)> for &UIFieldValue {
     }
 }
 
-impl TryInto<(i32, i32)> for UIFieldValue {
+impl<V> TryInto<(i32, i32)> for UIFieldValue<V> {
     type Error = String;
 
     fn try_into(self) -> Result<(i32, i32), Self::Error> {
@@ -329,7 +339,7 @@ impl TryInto<(i32, i32)> for UIFieldValue {
     }
 }
 
-impl TryInto<(i32, i32)> for &UIFieldValue {
+impl<V> TryInto<(i32, i32)> for &UIFieldValue<V> {
     type Error = String;
 
     fn try_into(self) -> Result<(i32, i32), Self::Error> {
@@ -341,7 +351,7 @@ impl TryInto<(i32, i32)> for &UIFieldValue {
     }
 }
 
-impl TryInto<Color> for UIFieldValue {
+impl<V> TryInto<Color> for UIFieldValue<V> {
     type Error = String;
 
     fn try_into(self) -> Result<Color, Self::Error> {
@@ -353,7 +363,7 @@ impl TryInto<Color> for UIFieldValue {
     }
 }
 
-impl TryInto<Color> for &UIFieldValue {
+impl<V> TryInto<Color> for &UIFieldValue<V> {
     type Error = String;
 
     fn try_into(self) -> Result<Color, Self::Error> {
@@ -365,7 +375,7 @@ impl TryInto<Color> for &UIFieldValue {
     }
 }
 
-impl TryInto<String> for UIFieldValue {
+impl<V> TryInto<String> for UIFieldValue<V> {
     type Error = String;
 
     fn try_into(self) -> Result<String, Self::Error> {
@@ -377,7 +387,7 @@ impl TryInto<String> for UIFieldValue {
     }
 }
 
-impl TryInto<String> for &UIFieldValue {
+impl<V> TryInto<String> for &UIFieldValue<V> {
     type Error = String;
 
     fn try_into(self) -> Result<String, Self::Error> {
@@ -389,7 +399,7 @@ impl TryInto<String> for &UIFieldValue {
     }
 }
 
-impl TryInto<PathBuf> for UIFieldValue {
+impl<V> TryInto<PathBuf> for UIFieldValue<V> {
     type Error = String;
 
     fn try_into(self) -> Result<PathBuf, Self::Error> {
@@ -405,7 +415,7 @@ impl TryInto<PathBuf> for UIFieldValue {
     }
 }
 
-impl TryInto<PathBuf> for &UIFieldValue {
+impl<V> TryInto<PathBuf> for &UIFieldValue<V> {
     type Error = String;
 
     fn try_into(self) -> Result<PathBuf, Self::Error> {
@@ -417,6 +427,97 @@ impl TryInto<PathBuf> for &UIFieldValue {
             }
         } else {
             Err("Incorrect value".to_string())
+        }
+    }
+}
+
+impl From<UIFieldValue<UIValue>> for UIFieldValue<UIPathValue> {
+    fn from(val: UIFieldValue<UIValue>) -> Self {
+        match val {
+            UIFieldValue::Header => UIFieldValue::Header,
+            UIFieldValue::Label(s) => UIFieldValue::Label(s),
+            UIFieldValue::InputFieldFloat(f) => UIFieldValue::InputFieldFloat(f),
+            UIFieldValue::InputFieldInteger(i) => UIFieldValue::InputFieldInteger(i),
+            UIFieldValue::InputFieldString(s) => UIFieldValue::InputFieldString(s),
+            UIFieldValue::InputFieldFloat2(f1, f2) => UIFieldValue::InputFieldFloat2(f1, f2),
+            UIFieldValue::InputFieldInteger2(i1, i2) => UIFieldValue::InputFieldInteger2(i1, i2),
+            UIFieldValue::InputFieldUnsignedInteger(u) => UIFieldValue::InputFieldUnsignedInteger(u),
+            UIFieldValue::ValueSliderFloat(f) => UIFieldValue::ValueSliderFloat(f),
+            UIFieldValue::ValueSliderInteger(i) => UIFieldValue::ValueSliderInteger(i),
+
+            UIFieldValue::Collapsable(_) => {
+                unimplemented!();
+            }
+
+            UIFieldValue::Array(_) => {
+                unimplemented!();
+            }
+
+            UIFieldValue::Choice(c) => UIFieldValue::Choice(c),
+            UIFieldValue::Checkbox(b) => UIFieldValue::Checkbox(b),
+            UIFieldValue::Color(c1, c2, c3, c4) => UIFieldValue::Color(c1, c2, c3, c4),
+            UIFieldValue::ImageData(d) => UIFieldValue::ImageData(d),
+            UIFieldValue::ExistingImage(i) => UIFieldValue::ExistingImage(i),
+            UIFieldValue::Font(f) => UIFieldValue::Font(f),
+        }
+    }
+}
+
+impl From<UIFieldValue<UIPathValue>> for UIFieldValue<UIValue> {
+    fn from(val: UIFieldValue<UIPathValue>) -> Self {
+        match val {
+            UIFieldValue::Header => UIFieldValue::Header,
+            UIFieldValue::Label(s) => UIFieldValue::Label(s),
+            UIFieldValue::InputFieldFloat(f) => UIFieldValue::InputFieldFloat(f),
+            UIFieldValue::InputFieldInteger(i) => UIFieldValue::InputFieldInteger(i),
+            UIFieldValue::InputFieldString(s) => UIFieldValue::InputFieldString(s),
+            UIFieldValue::InputFieldFloat2(f1, f2) => UIFieldValue::InputFieldFloat2(f1, f2),
+            UIFieldValue::InputFieldInteger2(i1, i2) => UIFieldValue::InputFieldInteger2(i1, i2),
+            UIFieldValue::InputFieldUnsignedInteger(u) => UIFieldValue::InputFieldUnsignedInteger(u),
+            UIFieldValue::ValueSliderFloat(f) => UIFieldValue::ValueSliderFloat(f),
+            UIFieldValue::ValueSliderInteger(i) => UIFieldValue::ValueSliderInteger(i),
+
+            UIFieldValue::Collapsable(m) => {
+                UIFieldValue::Collapsable(m.into_iter()
+                    .map(|x| UIValue {
+                        name: x.name,
+                        display_name: x.display_name,
+                        ty: x.ty,
+                        value: x.value.into()
+                    })
+                    .collect())
+            }
+
+            UIFieldValue::Array(a) => {
+                UIFieldValue::Array(a.into_iter()
+                    .map(|x| x.into_iter()
+                        .map(|x| UIValue {
+                            name: x.name,
+                            display_name: x.display_name,
+                            ty: x.ty,
+                            value: x.value.into()
+                        })
+                        .collect())
+                    .collect())
+            }
+
+            UIFieldValue::Choice(c) => UIFieldValue::Choice(c),
+            UIFieldValue::Checkbox(b) => UIFieldValue::Checkbox(b),
+            UIFieldValue::Color(c1, c2, c3, c4) => UIFieldValue::Color(c1, c2, c3, c4),
+            UIFieldValue::ImageData(d) => UIFieldValue::ImageData(d),
+            UIFieldValue::ExistingImage(i) => UIFieldValue::ExistingImage(i),
+            UIFieldValue::Font(f) => UIFieldValue::Font(f),
+        }
+    }
+}
+
+impl From<UIPathValue> for UIValue {
+    fn from(value: UIPathValue) -> Self {
+        UIValue {
+            name: value.name,
+            display_name: value.display_name,
+            ty: value.ty,
+            value: value.value.into()
         }
     }
 }
@@ -436,14 +537,45 @@ pub struct UIScalar<T: PartialEq> {
     pub allow_out_of_bounds: bool
 }
 
+/// Converts array of values to map
 pub fn map_ui_values(values: Vec<UIValue>) -> HashMap<String, UIValue> {
     values.into_iter()
         .map(|x| (x.name.clone(), x))
         .collect()
 }
 
+/// Converts reference to array of values to map
 pub fn map_ui_values_ref(values: &Vec<UIValue>) -> HashMap<String, UIValue> {
     values.into_iter()
         .map(|x| (x.name.clone(), x.clone()))
         .collect()
+}
+
+/// Converts reference to array of path values to map
+pub fn map_ui_path_values(values: &Vec<UIPathValue>) -> HashMap<String, UIPathValue> {
+    let mut map = HashMap::new();
+
+    fn add_values_to_map(values: &Vec<UIPathValue>, map: &mut HashMap<String, UIPathValue>) {
+        values.into_iter()
+            .for_each(|x| {
+                match &x.value {
+                    UIFieldValue::Collapsable(m) => {
+                        add_values_to_map(m, map);
+                    }
+
+                    UIFieldValue::Array(a) => {
+                        a.into_iter()
+                            .for_each(|x| add_values_to_map(x, map))
+                    }
+
+                    _ => {
+                        map.insert(x.path.to_string(), x.clone());
+                    }
+                }
+            })
+    }
+
+    add_values_to_map(values, &mut map);
+
+    return map;
 }

@@ -1,8 +1,9 @@
 use std::str::Split;
-use streamduck_client::daemon::daemon_data::{GetButtonResult, GetComponentValuesResult, GetCurrentScreenResult, GetStackNamesResult};
+use streamduck_client::daemon::daemon_data::buttons::{GetButtonResult, GetComponentValuesResult};
+use streamduck_client::daemon::daemon_data::panels::{GetCurrentScreenResult, GetStackNamesResult};
 use streamduck_client::util::module_component_map_to_component_map;
 use streamduck_core::core::button::Button;
-use streamduck_core::modules::components::{ComponentDefinition, UIFieldValue, UIValue};
+use streamduck_core::modules::components::{ComponentDefinition, UIFieldValue, UIPathValue};
 use crate::helps::COMMANDS;
 use crate::prompt::ClientRef;
 use crate::prompt::utils::{print_table, print_table_with_strings};
@@ -154,7 +155,7 @@ pub fn button_info(client: ClientRef, current_sn: &str, mut args: Split<&str>) {
 
                                 let values = client.get_component_values(current_sn, key, &name).expect("Failed to get component values");
 
-                                fn print_values(values: &Vec<UIValue>, tabulation: usize) {
+                                fn print_values(values: &Vec<UIPathValue>, tabulation: usize) {
                                     for value in values {
                                         if let UIFieldValue::Array(arr) = &value.value {
                                             println!("{s: <w$}{}: {{", value.name, w = tabulation, s = "");

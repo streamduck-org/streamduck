@@ -52,8 +52,9 @@ pub fn check_packet_for_data<T: SocketData>(packet: &SocketPacket) -> bool {
     packet.ty == T::NAME
 }
 
+/// Writes bytes in chunks
 pub fn write_in_chunks(handle: SocketHandle, data: String) -> Result<(), SocketError> {
-    for chunk in data.into_bytes().chunks(50) {
+    for chunk in data.into_bytes().chunks(250) {
         handle.write(chunk)?;
     }
 

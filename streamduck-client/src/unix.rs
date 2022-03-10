@@ -9,11 +9,18 @@ use serde::de::DeserializeOwned;
 
 use streamduck_core::core::button::Button;
 use streamduck_core::core::RawButtonPanel;
-use streamduck_core::modules::components::{ComponentDefinition, UIValue};
+use streamduck_core::modules::components::{ComponentDefinition, UIPathValue};
 use streamduck_core::modules::PluginMetadata;
 use streamduck_core::versions::SOCKET_API;
 use streamduck_core::socket::{parse_packet_to_data, send_no_data_packet_with_requester, send_packet_with_requester, SocketData, SocketPacket};
-use streamduck_daemon::daemon_data::{AddComponent, AddComponentResult, AddDevice, AddDeviceResult, AddImage, AddImageResult, ClearButton, ClearButtonResult, CommitChangesToConfig, CommitChangesToConfigResult, Device, DoButtonAction, DoButtonActionResult, DropStackToRoot, DropStackToRootResult, ExportDeviceConfig, ExportDeviceConfigResult, ForciblyPopScreen, ForciblyPopScreenResult, GetButton, GetButtonImages, GetButtonImagesResult, GetButtonResult, GetComponentValues, GetComponentValuesResult, GetCurrentScreen, GetCurrentScreenResult, GetDevice, GetDeviceConfig, GetDeviceConfigResult, GetDeviceResult, GetModuleValues, GetModuleValuesResult, GetStack, GetStackNames, GetStackNamesResult, GetStackResult, ImportDeviceConfig, ImportDeviceConfigResult, ListComponents, ListDevices, ListFonts, ListImages, ListImagesResult, ListModules, NewButton, NewButtonFromComponent, NewButtonFromComponentResult, NewButtonResult, PopScreen, PopScreenResult, PushScreen, PushScreenResult, ReloadDeviceConfig, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, RemoveComponent, RemoveComponentResult, RemoveDevice, RemoveDeviceResult, RemoveImage, RemoveImageResult, ReplaceScreen, ReplaceScreenResult, ResetStack, ResetStackResult, SaveDeviceConfig, SaveDeviceConfigResult, SaveDeviceConfigsResult, SetBrightness, SetBrightnessResult, SetButton, SetButtonResult, SetComponentValue, SetComponentValueResult, SetModuleValue, SetModuleValueResult, SocketAPIVersion};
+use streamduck_daemon::daemon_data::assets::{AddImage, AddImageResult, ListFonts, ListImages, ListImagesResult, RemoveImage, RemoveImageResult};
+use streamduck_daemon::daemon_data::buttons::{AddComponent, AddComponentResult, AddComponentValue, AddComponentValueResult, ClearButton, ClearButtonResult, GetButton, GetButtonResult, GetComponentValues, GetComponentValuesResult, NewButton, NewButtonFromComponent, NewButtonFromComponentResult, NewButtonResult, RemoveComponent, RemoveComponentResult, RemoveComponentValue, RemoveComponentValueResult, SetButton, SetButtonResult, SetComponentValue, SetComponentValueResult};
+use streamduck_daemon::daemon_data::config::{ExportDeviceConfig, ExportDeviceConfigResult, GetDeviceConfig, GetDeviceConfigResult, ImportDeviceConfig, ImportDeviceConfigResult, ReloadDeviceConfig, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, SaveDeviceConfig, SaveDeviceConfigResult, SaveDeviceConfigsResult};
+use streamduck_daemon::daemon_data::devices::{AddDevice, AddDeviceResult, Device, GetDevice, GetDeviceResult, ListDevices, RemoveDevice, RemoveDeviceResult, SetBrightness, SetBrightnessResult};
+use streamduck_daemon::daemon_data::modules::{AddModuleValue, AddModuleValueResult, GetModuleValues, GetModuleValuesResult, ListComponents, ListModules, RemoveModuleValue, RemoveModuleValueResult, SetModuleValue, SetModuleValueResult};
+use streamduck_daemon::daemon_data::ops::{CommitChangesToConfig, CommitChangesToConfigResult, DoButtonAction, DoButtonActionResult};
+use streamduck_daemon::daemon_data::panels::{DropStackToRoot, DropStackToRootResult, ForciblyPopScreen, ForciblyPopScreenResult, GetButtonImages, GetButtonImagesResult, GetCurrentScreen, GetCurrentScreenResult, GetStack, GetStackNames, GetStackNamesResult, GetStackResult, PopScreen, PopScreenResult, PushScreen, PushScreenResult, ReplaceScreen, ReplaceScreenResult, ResetStack, ResetStackResult};
+use streamduck_daemon::daemon_data::SocketAPIVersion;
 
 use crate::{SDClient, SDClientError};
 
@@ -221,7 +228,26 @@ impl SDClient for UnixClient {
         Ok(response)
     }
 
-    fn set_module_value(&self, module_name: &str, value: Vec<UIValue>) -> Result<SetModuleValueResult, SDClientError> {
+    fn add_module_value(&self, module_name: &str, path: &str) -> Result<AddModuleValueResult, SDClientError> {
+        let response: AddModuleValueResult = self.process_request(&AddModuleValue {
+            module_name: module_name.to_string(),
+            path: path.to_string()
+        })?;
+
+        Ok(response)
+    }
+
+    fn remove_module_value(&self, module_name: &str, path: &str, index: usize) -> Result<RemoveModuleValueResult, SDClientError> {
+        let response: RemoveModuleValueResult = self.process_request(&RemoveModuleValue {
+            module_name: module_name.to_string(),
+            path: path.to_string(),
+            index
+        })?;
+
+        Ok(response)
+    }
+
+    fn set_module_value(&self, module_name: &str, value: UIPathValue) -> Result<SetModuleValueResult, SDClientError> {
         let response: SetModuleValueResult = self.process_request(&SetModuleValue {
             module_name: module_name.to_string(),
             value
@@ -329,7 +355,30 @@ impl SDClient for UnixClient {
         Ok(response)
     }
 
-    fn set_component_values(&self, serial_number: &str, key: u8, component_name: &str, value: Vec<UIValue>) -> Result<SetComponentValueResult, SDClientError> {
+    fn add_component_value(&self, serial_number: &str, key: u8, component_name: &str, path: &str) -> Result<AddComponentValueResult, SDClientError> {
+        let response: AddComponentValueResult = self.process_request(&AddComponentValue {
+            serial_number: serial_number.to_string(),
+            key,
+            component_name: component_name.to_string(),
+            path: path.to_string()
+        })?;
+
+        Ok(response)
+    }
+
+    fn remove_component_value(&self, serial_number: &str, key: u8, component_name: &str, path: &str, index: usize) -> Result<RemoveComponentValueResult, SDClientError> {
+        let response: RemoveComponentValueResult = self.process_request(&RemoveComponentValue {
+            serial_number: serial_number.to_string(),
+            key,
+            component_name: component_name.to_string(),
+            path: path.to_string(),
+            index
+        })?;
+
+        Ok(response)
+    }
+
+    fn set_component_value(&self, serial_number: &str, key: u8, component_name: &str, value: UIPathValue) -> Result<SetComponentValueResult, SDClientError> {
         let response: SetComponentValueResult = self.process_request(&SetComponentValue {
             serial_number: serial_number.to_string(),
             key,
