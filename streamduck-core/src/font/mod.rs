@@ -44,12 +44,17 @@ pub fn load_fonts_from_resources() {
                     }
                 }
             }
+
+            log::info!("Loaded {} fonts", counter);
         }
-        Err(e) => log::error!("Failed to locate fonts folder: {:?}", e),
+        Err(e) => {
+            if let std::io::ErrorKind::NotFound = e.kind() {
+                log::info!("Loaded no external fonts, missing fonts folder");
+            } else {
+                log::error!("Failed to locate fonts folder: {:?}", e);
+            }
+        }
     }
-
-
-    log::info!("Loaded {} fonts", counter);
 }
 
 /// Gets font reference from global collection

@@ -131,31 +131,38 @@ pub fn load_plugin<T: AsRef<OsStr>>(module_manager: Arc<ModuleManager>, socket_m
 
 pub fn load_plugins_from_folder<T: AsRef<OsStr>>(module_manager: Arc<ModuleManager>, socket_manager: Arc<SocketManager>, path: T) {
     let path = Path::new(&path);
-    if let Ok(read_dir) = fs::read_dir(path) {
-        for item in read_dir {
-            match item {
-                Ok(entry) => {
-                    if entry.path().is_file() {
-                        if let Some(file_name) = entry.path().file_name() {
-                            log::info!("Loading plugin {:?}", file_name);
-                            match load_plugin(module_manager.clone(), socket_manager.clone(), entry.path()) {
-                                Err(err) => match err {
-                                    PluginError::LoadError(err) => log::error!("Failed to load plugin: {}", err),
-                                    PluginError::WrongVersion(plugin, software) => log::error!("Failed to load plugin: Plugin is using unsupported version of '{}', software's using '{}'", plugin, software),
-                                    PluginError::TooNew(version) => log::error!("Failed to load plugin: Software doesn't support '{}', try updating the software", version),
-                                    PluginError::AlreadyExists(name) => log::error!("Failed to load plugin: Module '{}' was already defined", name),
-                                    PluginError::ComponentConflict(name, component_name) => log::error!("Failed to load plugin: Module '{}' is declaring '{}' component, but it was already previously declared by other module", name, component_name),
-                                },
-                                _ => {}
+    match fs::read_dir(path) {
+        Ok(read_dir) => {
+            for item in read_dir {
+                match item {
+                    Ok(entry) => {
+                        if entry.path().is_file() {
+                            if let Some(file_name) = entry.path().file_name() {
+                                log::info!("Loading plugin {:?}", file_name);
+                                match load_plugin(module_manager.clone(), socket_manager.clone(), entry.path()) {
+                                    Err(err) => match err {
+                                        PluginError::LoadError(err) => log::error!("Failed to load plugin: {}", err),
+                                        PluginError::WrongVersion(plugin, software) => log::error!("Failed to load plugin: Plugin is using unsupported version of '{}', software's using '{}'", plugin, software),
+                                        PluginError::TooNew(version) => log::error!("Failed to load plugin: Software doesn't support '{}', try updating the software", version),
+                                        PluginError::AlreadyExists(name) => log::error!("Failed to load plugin: Module '{}' was already defined", name),
+                                        PluginError::ComponentConflict(name, component_name) => log::error!("Failed to load plugin: Module '{}' is declaring '{}' component, but it was already previously declared by other module", name, component_name),
+                                    },
+                                    _ => {}
+                                }
                             }
                         }
                     }
+                    Err(err) => log::error!("Failed to reach entry. {}", err),
                 }
-                Err(err) => log::error!("Failed to reach entry. {}", err),
             }
         }
-    } else {
-        log::error!("Plugins folder is unreachable: {:?}", path);
+        Err(e) => {
+            if let std::io::ErrorKind::NotFound = e.kind() {
+                log::info!("Loaded no plugins, missing plugins folder")
+            } else {
+                log::error!("Plugins folder is unreachable: {:?}", path);
+            }
+        }
     }
 }
 
