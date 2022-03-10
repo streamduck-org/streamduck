@@ -117,7 +117,7 @@ pub fn module_params_set(client: ClientRef, mut args: Split<&str>) {
 
                         if let Some(field_value) = field_value {
                             value.value = field_value;
-                            let result = client.set_module_value(module_name, value).expect("Failed to set component value");
+                            let result = client.set_module_value(module_name, value).expect("Failed to set module value");
 
                             match result {
                                 SetModuleValueResult::FailedToSet => println!("module params set: Failed to set value"),
@@ -137,6 +137,49 @@ pub fn module_params_set(client: ClientRef, mut args: Split<&str>) {
         }
     } else {
         println!("module params set: Specify module name");
+    }
+
+}
+
+pub fn module_params_upload(client: ClientRef, mut args: Split<&str>) {
+    if let Some(module_name) = args.next() {
+        if let Some(path) = args.next() {
+            let result = client.get_module_values(module_name).expect("Failed to get module values");
+
+            match result {
+                GetModuleValuesResult::ModuleNotFound => println!("module params upload: Module not found"),
+                GetModuleValuesResult::Values(values) => {
+                    let values_map = map_ui_path_values(&values);
+
+                    if let Some(mut value) = values_map.get(path).cloned() {
+                        if let UIFieldType::ImageData = &value.ty {
+                            let file_path = args.collect::<Vec<&str>>().join(" ");
+
+                            if let Ok(data) = std::fs::read(&file_path) {
+                                value.value = UIFieldValue::ImageData(base64::encode(&data));
+                                let result = client.set_module_value(module_name, value).expect("Failed to set module value");
+
+                                match result {
+                                    SetModuleValueResult::FailedToSet => println!("module params upload: Failed to set value"),
+                                    SetModuleValueResult::ModuleNotFound => println!("module params upload: Module not found"),
+                                    SetModuleValueResult::Set => println!("module params upload: Uploaded image"),
+                                }
+                            } else {
+                                println!("module params upload: Failed to read file");
+                            }
+                        } else {
+                            println!("module params upload: Invalid value")
+                        }
+                    } else {
+                        println!("module params upload: Invalid path");
+                    }
+                }
+            }
+        } else {
+            println!("module params upload: Specify parameter path");
+        }
+    } else {
+        println!("module params upload: Specify module name");
     }
 
 }

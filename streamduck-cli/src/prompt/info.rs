@@ -1,9 +1,9 @@
 use std::str::Split;
-use streamduck_client::daemon::daemon_data::buttons::{GetButtonResult, GetComponentValuesResult};
+use streamduck_client::daemon::daemon_data::buttons::{GetButtonResult};
 use streamduck_client::daemon::daemon_data::panels::{GetCurrentScreenResult, GetStackNamesResult};
 use streamduck_client::util::module_component_map_to_component_map;
 use streamduck_core::core::button::Button;
-use streamduck_core::modules::components::{ComponentDefinition, UIFieldValue, UIPathValue};
+use streamduck_core::modules::components::{ComponentDefinition};
 use crate::helps::COMMANDS;
 use crate::prompt::ClientRef;
 use crate::prompt::utils::{print_table, print_table_with_strings};
@@ -152,34 +152,6 @@ pub fn button_info(client: ClientRef, current_sn: &str, mut args: Split<&str>) {
                         for name in button.component_names() {
                             if let Some(definition) = component_list.get(&name) {
                                 println!("- {} ({})", definition.display_name, name);
-
-                                let values = client.get_component_values(current_sn, key, &name).expect("Failed to get component values");
-
-                                fn print_values(values: &Vec<UIPathValue>, tabulation: usize) {
-                                    for value in values {
-                                        if let UIFieldValue::Array(arr) = &value.value {
-                                            println!("{s: <w$}{}: {{", value.name, w = tabulation, s = "");
-
-                                            for (index, item) in arr.iter().enumerate() {
-                                                println!("{s: <w$}[{}]: {{", index, w = tabulation + 2, s = "");
-
-                                                print_values(item, tabulation + 4);
-
-                                                println!("{s: <w$}}}", w = tabulation + 2, s = "");
-                                            }
-
-                                            println!("{s: <w$}}}", w = tabulation, s = "")
-                                        } else {
-                                            println!("{s: <w$}{}: {:?}", value.name, value.value, w = tabulation, s = "");
-                                        }
-                                    }
-                                }
-
-                                if let GetComponentValuesResult::Values(values) = values {
-                                    print_values(&values, 0);
-                                }
-
-                                println!()
                             }
                         }
                     }
