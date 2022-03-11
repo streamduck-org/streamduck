@@ -40,7 +40,9 @@ pub struct ExampleListener;
 
 impl SocketListener for ExampleListener {
     fn message(&self, _socket: SocketHandle, packet: SocketPacket) {
-        println!("received packet {:?}", packet);
+        if packet.ty == "set_component_value" {
+            println!("packet: {:?}", packet)
+        }
     }
 }
 
@@ -168,8 +170,8 @@ impl SDModule for ExampleModule {
         ]
     }
 
-    fn set_component_value(&self, _: CoreHandle, _: &mut Button, _: &str, _: Vec<UIValue>) {
-
+    fn set_component_value(&self, _: CoreHandle, _: &mut Button, _: &str, values: Vec<UIValue>) {
+        println!("{:?}", values);
     }
 
     fn listening_for(&self) -> Vec<String> {
@@ -179,8 +181,6 @@ impl SDModule for ExampleModule {
     }
 
     fn event(&self, _core: CoreHandle, event: SDEvent) {
-        println!("Received event: {:?}", event);
-
         match event {
             SDEvent::ButtonAction { pressed_button, .. } => {
                 if let Ok(_) = parse_unique_button_to_component::<ExampleComponent>(&pressed_button) {

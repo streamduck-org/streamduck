@@ -141,6 +141,7 @@ impl Config {
         if let Some(device) = devices.get(serial).cloned() {
             self.update_collection(&device);
             let mut path = self.device_config_path();
+            fs::create_dir_all(&path).ok();
             path.push(format!("{}.json", serial));
 
             fs::write(path, serde_json::to_string(device.read().unwrap().deref()).unwrap())?;
@@ -155,6 +156,7 @@ impl Config {
         let devices = self.loaded_configs.read().unwrap();
 
         let path = self.device_config_path();
+        fs::create_dir_all(&path).ok();
 
         for (serial, device) in devices.iter() {
             let device= device.clone();

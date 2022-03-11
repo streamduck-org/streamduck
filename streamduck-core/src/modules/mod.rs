@@ -441,7 +441,7 @@ impl SDModule for CoreModule {
                             fields.push(
                                 UIValue {
                                     name: "end_color".to_string(),
-                                    display_name: "Gradient Snd Color".to_string(),
+                                    display_name: "Gradient End Color".to_string(),
                                     ty: UIFieldType::Color,
                                     value: end_color.into()
                                 }
@@ -536,18 +536,6 @@ impl SDModule for CoreModule {
                                             disabled: false
                                         },
                                         default_value: UIFieldValue::Checkbox(false)
-                                    },
-                                    UIField {
-                                        name: "shadow_color".to_string(),
-                                        display_name: "Text Shadow Color".to_string(),
-                                        ty: UIFieldType::Color,
-                                        default_value: UIFieldValue::Color(0, 0, 0, 0)
-                                    },
-                                    UIField {
-                                        name: "shadow_offset".to_string(),
-                                        display_name: "Text Shadow Offset".to_string(),
-                                        ty: UIFieldType::InputFieldInteger2,
-                                        default_value: UIFieldValue::InputFieldInteger2(0, 0)
                                     }
                                 ]
                             ),
@@ -644,20 +632,6 @@ impl SDModule for CoreModule {
                                                 value: UIFieldValue::Checkbox(false)
                                             }
                                         );
-
-                                        values.push(UIValue {
-                                            name: "shadow_color".to_string(),
-                                            display_name: "Text Shadow Color".to_string(),
-                                            ty: UIFieldType::Color,
-                                            value: UIFieldValue::Color(0, 0, 0, 0)
-                                        });
-
-                                        values.push(UIValue {
-                                            name: "shadow_offset".to_string(),
-                                            display_name: "Text Shadow Offset".to_string(),
-                                            ty: UIFieldType::InputFieldInteger2,
-                                            value: UIFieldValue::InputFieldInteger2(0, 0)
-                                        });
                                     }
 
                                     text_objects.push(values);
@@ -711,7 +685,7 @@ impl SDModule for CoreModule {
                             match choice.as_str() {
                                 "Solid Color" => component.background = ButtonBackground::Solid((0, 0, 0, 0)),
                                 "Horizontal Gradient" => component.background = ButtonBackground::HorizontalGradient((0, 0, 0, 0), (0, 0, 0, 0)),
-                                "Vertical Gradient" => component.background = ButtonBackground::HorizontalGradient((0, 0, 0, 0), (0, 0, 0, 0)),
+                                "Vertical Gradient" => component.background = ButtonBackground::VerticalGradient((0, 0, 0, 0), (0, 0, 0, 0)),
                                 "Existing Image" => component.background = ButtonBackground::ExistingImage("".to_string()),
                                 "New Image" => component.background = ButtonBackground::NewImage("".to_string()),
 
@@ -810,13 +784,24 @@ impl SDModule for CoreModule {
                                     scale: (&map.get("scale")?.value).try_into().ok()?,
                                     alignment: TextAlignment::from_str(&map.get("alignment")?.value.try_into_string().ok()?).ok()?,
                                     padding: (&map.get("padding")?.value).try_into().ok()?,
-                                    offset: (&map.get("offset")?.value).try_into().ok()?,
+                                    offset: (&map.get("offset")?.value).try_into_f32_f32().ok()?,
                                     color: (&map.get("color")?.value).try_into().ok()?,
-                                    shadow: if map.get("shadow_enabled")?.value.try_into_bool().ok()? {
-                                        Some(ButtonTextShadow {
-                                            offset: (&map.get("shadow_offset")?.value).try_into().ok()?,
-                                            color: (&map.get("shadow_color")?.value).try_into().ok()?
-                                        })
+                                    shadow: if let Some(bool) = map.get("shadow_enabled")?.value.try_into_bool().ok() {
+                                        let get_shadow = || {
+                                            Some(ButtonTextShadow {
+                                                offset: (&map.get("shadow_offset")?.value).try_into().ok()?,
+                                                color: (&map.get("shadow_color")?.value).try_into().ok()?
+                                            })
+                                        };
+
+                                        if bool {
+                                            get_shadow().or(Some(ButtonTextShadow {
+                                                offset: (0, 0),
+                                                color: (0, 0, 0, 0)
+                                            }))
+                                        } else {
+                                            None
+                                        }
                                     } else {
                                         None
                                     }
