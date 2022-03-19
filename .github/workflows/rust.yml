@@ -20,7 +20,7 @@ jobs:
       shell: bash
       run: |
           sudo apt update
-          sudo apt-get install libusb-1.0-0-dev
+          sudo apt-get install libusb-1.0-0-dev libxdo-dev
     - name: Build
       run: cargo build --verbose
     - name: Run tests
