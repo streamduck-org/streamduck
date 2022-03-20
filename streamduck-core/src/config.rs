@@ -1,19 +1,19 @@
 //! Core and device configs
 use std::collections::HashMap;
 use std::fs;
-use std::io::Cursor;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
-use image::{DynamicImage, ImageOutputFormat};
+use image::{DynamicImage};
 use serde::{Serialize, Deserialize};
 use crate::core::RawButtonPanel;
-use image::io::Reader;
 use serde_json::Value;
 use crate::ImageCollection;
-use crate::util::hash_image;
+use crate::images::{SDImage, SDSerializedImage};
+use crate::util::{hash_image, hash_str};
 
 pub const DEFAULT_POOL_RATE: u32 = 90;
+pub const DEFAULT_FRAME_RATE: u32 = 20;
 pub const DEFAULT_RECONNECT_TIME: f32 = 1.0;
 pub const DEFAULT_CONFIG_PATH: &'static str = "devices";
 pub const DEFAULT_PLUGIN_PATH: &'static str = "plugins";
@@ -25,6 +25,8 @@ pub type UniqueDeviceConfig = Arc<RwLock<DeviceConfig>>;
 pub struct Config {
     /// Frequency of streamdeck event pooling
     pool_rate: Option<u32>,
+    /// Frequency of frame renders
+    frame_rate: Option<u32>,
     /// Frequency of checks for disconnected devices
     reconnect_rate: Option<f32>,
     /// Path to device configs
@@ -56,22 +58,27 @@ impl Config {
         }
     }
 
-    /// Pool rate, defaults to '90' if not set
+    /// Pool rate, defaults to [DEFAULT_POOL_RATE] if not set
     pub fn pool_rate(&self) -> u32 {
         self.pool_rate.unwrap_or(DEFAULT_POOL_RATE)
     }
 
-    /// Reconnect rate, defaults to 'every second' if not set
+    /// Frame rate, defaults to [DEFAULT_FRAME_RATE] if not set
+    pub fn frame_rate(&self) -> u32 {
+        self.frame_rate.unwrap_or(DEFAULT_FRAME_RATE)
+    }
+
+    /// Reconnect rate, defaults to [DEFAULT_RECONNECT_TIME] if not set
     pub fn reconnect_rate(&self) -> f32 {
         self.reconnect_rate.unwrap_or(DEFAULT_RECONNECT_TIME)
     }
 
-    /// Device config path, defaults to '/devices' if not set
+    /// Device config path, defaults to [DEFAULT_CONFIG_PATH] if not set
     pub fn device_config_path(&self) -> PathBuf {
         self.device_config_path.clone().unwrap_or(PathBuf::from(DEFAULT_CONFIG_PATH))
     }
 
-    /// Plugin folder path, defaults to '/plugins' if not set
+    /// Plugin folder path, defaults to [DEFAULT_PLUGIN_PATH] if not set
     pub fn plugin_path(&self) -> PathBuf {
         self.plugin_path.clone().unwrap_or(PathBuf::from(DEFAULT_PLUGIN_PATH))
     }
@@ -220,12 +227,17 @@ impl Config {
     pub fn add_image(&self, serial: &str, image: String) -> Option<String> {
         if let Some(config) = self.get_device_config(serial) {
             let mut config_handle = config.write().unwrap();
-            let identifier = hash_image(&image);
-            config_handle.images.insert(identifier.clone(), image);
-            drop(config_handle);
+            let identifier = hash_str(&image);
 
-            self.update_collection(&config);
-            Some(identifier)
+            if let Ok(image) = SDImage::from_base64(&image) {
+                config_handle.images.insert(identifier.clone(), image.into());
+                drop(config_handle);
+
+                self.update_collection(&config);
+                Some(identifier)
+            } else {
+                None
+            }
         } else {
             None
         }
@@ -233,28 +245,22 @@ impl Config {
 
     /// Encodes image to base64 and adds it to device config image collection
     pub fn add_image_encode(&self, serial: &str, image: DynamicImage) -> Option<String> {
-        let mut buffer: Vec<u8> = vec![];
+        if let Some(config) = self.get_device_config(serial) {
+            let mut config_handle = config.write().unwrap();
+            let serialized_image = SDImage::SingleImage(image).into();
+            let identifier = hash_image(&serialized_image);
+            config_handle.images.insert(identifier.clone(), serialized_image);
+            drop(config_handle);
 
-        if let Ok(_) = image.write_to(&mut buffer, ImageOutputFormat::Png) {
-            let base = base64::encode(&buffer);
-            drop(buffer);
-
-            if let Some(config) = self.get_device_config(serial) {
-                let mut config_handle = config.write().unwrap();
-                let identifier = hash_image(&base);
-                config_handle.images.insert(identifier.clone(), base);
-                drop(config_handle);
-
-                self.update_collection(&config);
-                return Some(identifier);
-            }
+            self.update_collection(&config);
+            return Some(identifier);
         }
 
         None
     }
 
     /// Gets images from device config
-    pub fn get_images(&self, serial: &str) -> Option<HashMap<String, String>> {
+    pub fn get_images(&self, serial: &str) -> Option<HashMap<String, SDSerializedImage>> {
         if let Some(config) = self.get_device_config(serial) {
             let config_handle = config.read().unwrap();
             Some(config_handle.images.clone())
@@ -308,13 +314,8 @@ impl Config {
             // Adding missing images from device config
             for (key, image) in &device_config.images {
                 if !collection_handle.contains_key(key) {
-                    if let Ok(decode) = base64::decode(image) {
-                        if let Ok(recognized_image) = Reader::new(Cursor::new(&decode)).with_guessed_format() {
-                            if let Ok(decoded_image) = recognized_image.decode() {
-                                collection_handle.insert(key.to_string(), decoded_image);
-                            }
-                        }
-                        drop(decode);
+                    if let Ok(image) = image.try_into() {
+                        collection_handle.insert(key.to_string(), image);
                     }
                 }
             }
@@ -322,10 +323,7 @@ impl Config {
             // Adding any images in collection to device config
             for (key, image) in collection_handle.iter() {
                 if !device_config.images.contains_key(key) {
-                    let mut buffer: Vec<u8> = vec![];
-                    image.write_to(&mut buffer, ImageOutputFormat::Png).ok();
-                    device_config.images.insert(key.to_string(), base64::encode(&buffer));
-                    drop(buffer);
+                    device_config.images.insert(key.to_string(), image.into());
                 }
             }
         }
@@ -372,7 +370,6 @@ pub struct DeviceConfig {
     pub serial: String,
     pub brightness: u8,
     pub layout: RawButtonPanel,
-    pub images: HashMap<String, String>,
+    pub images: HashMap<String, SDSerializedImage>,
     pub plugin_data: HashMap<String, Value>,
 }
-

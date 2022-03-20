@@ -25,7 +25,8 @@ use strum::VariantNames;
 use std::str::FromStr;
 use image::DynamicImage;
 use image::io::Reader;
-use crate::util::{add_array_function, change_from_path, convert_value_to_path, hash_image, remove_array_function, set_value_function};
+use crate::images::SDImage;
+use crate::util::{add_array_function, change_from_path, convert_value_to_path, hash_str, remove_array_function, set_value_function};
 
 /// Manages modules
 pub struct ModuleManager(RwLock<Vec<UniqueSDModule>>, RwLock<HashMap<String, Vec<String>>>);
@@ -742,7 +743,7 @@ impl SDModule for CoreModule {
                             ButtonBackground::NewImage(_) => {
                                 if let Ok(blob) = (&value.value).try_into_string() {
                                     fn decode_blob(blob: &String) -> Option<(String, DynamicImage)> {
-                                        let identifier = hash_image(blob);
+                                        let identifier = hash_str(blob);
                                         if let Ok(decoded_bytes) = base64::decode(blob) {
                                             if let Ok(recognized_image) = Reader::new(Cursor::new(&decoded_bytes)).with_guessed_format() {
                                                 if let Ok(decoded_image) = recognized_image.decode() {
@@ -760,7 +761,7 @@ impl SDModule for CoreModule {
                                         component.background = ButtonBackground::ExistingImage(identifier.clone());
 
                                         let mut handle = core.core.image_collection.write().unwrap();
-                                        handle.insert(identifier, resize_for_streamdeck(core.core.image_size, image));
+                                        handle.insert(identifier, SDImage::SingleImage(resize_for_streamdeck(core.core.image_size, image)));
                                     } else {
                                         component.background = ButtonBackground::NewImage(blob);
                                     }

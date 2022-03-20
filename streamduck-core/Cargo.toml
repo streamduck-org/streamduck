@@ -6,7 +6,7 @@ description = "Core library of the Streamduck project"
 edition = "2021"
 readme = "../Readme.md"
 license-file = "../LICENSE"
-repository = "https://github.com/TheJebForge/streamduck"
+repository = "https://github.com/streamduck-org/streamduck"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -27,3 +27,4 @@ dlopen = "0.1.8"
 dlopen_derive = "0.1.4"
 strum = "0.23"
 strum_macros = "0.23"
+itertools = "0.10.3"

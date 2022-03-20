@@ -178,7 +178,10 @@ pub fn button_component_params_add(client: ClientRef, current_sn: &str, mut args
                     match result {
                         AddComponentValueResult::DeviceNotFound => println!("button component params add: Device not found"),
                         AddComponentValueResult::FailedToAdd => println!("button component params add: No array at path"),
-                        AddComponentValueResult::Added => println!("button component params add: Added new element to the array"),
+                        AddComponentValueResult::Added => {
+                            client.commit_changes(current_sn).expect("Failed to commit changes");
+                            println!("button component params add: Added new element to the array")
+                        },
                     }
                 } else {
                     println!("button component params add: Specify parameter path");
@@ -206,7 +209,10 @@ pub fn button_component_params_remove(client: ClientRef, current_sn: &str, mut a
                             match result {
                                 RemoveComponentValueResult::DeviceNotFound => println!("button component params remove: Device not found"),
                                 RemoveComponentValueResult::FailedToRemove => println!("button component params remove: No array at path"),
-                                RemoveComponentValueResult::Removed => println!("button component params remove: Removed element from the array"),
+                                RemoveComponentValueResult::Removed => {
+                                    client.commit_changes(current_sn).expect("Failed to commit changes");
+                                    println!("button component params remove: Removed element from the array")
+                                },
                             }
                         } else {
                             println!("button component params remove: Input valid array index");
@@ -253,7 +259,10 @@ pub fn button_component_params_set(client: ClientRef, current_sn: &str, mut args
                                     match result {
                                         SetComponentValueResult::DeviceNotFound => println!("button component params set: Device not found"),
                                         SetComponentValueResult::FailedToSet => println!("button component params set: Failed to set value"),
-                                        SetComponentValueResult::Set => println!("button component params set: Parameter set"),
+                                        SetComponentValueResult::Set => {
+                                            client.commit_changes(current_sn).expect("Failed to commit changes");
+                                            println!("button component params set: Parameter set")
+                                        },
                                     }
                                 } else {
                                     println!("button components params set: Invalid value")
@@ -302,7 +311,10 @@ pub fn button_component_params_upload(client: ClientRef, current_sn: &str, mut a
                                         match result {
                                             SetComponentValueResult::DeviceNotFound => println!("button component params upload: Device not found"),
                                             SetComponentValueResult::FailedToSet => println!("button component params upload: Failed to upload image"),
-                                            SetComponentValueResult::Set => println!("button component params upload: Uploaded image"),
+                                            SetComponentValueResult::Set => {
+                                                client.commit_changes(current_sn).expect("Failed to commit changes");
+                                                println!("button component params upload: Uploaded image")
+                                            },
                                         }
                                     } else {
                                         println!("button component params upload: Failed to read file");

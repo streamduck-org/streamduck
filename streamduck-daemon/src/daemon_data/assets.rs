@@ -1,17 +1,21 @@
 //! Requests related to images and fonts
 use std::collections::HashMap;
-use std::io::Cursor;
 use serde::{Deserialize, Serialize};
 use streamduck_core::font::get_font_names;
-use streamduck_core::image::io::Reader;
 use streamduck_core::socket::{check_packet_for_data, parse_packet_to_data, send_packet, SocketData, SocketHandle, SocketPacket};
-use streamduck_core::util::rendering::resize_for_streamdeck;
 use crate::daemon_data::{DaemonListener, DaemonRequest};
 
 /// Request for getting all images currently saved on device
 #[derive(Serialize, Deserialize)]
 pub struct ListImages {
     pub serial_number: String
+}
+
+/// Struct that keeps information about SDImage
+#[derive(Serialize, Deserialize)]
+pub struct SocketImage {
+    pub image_blob: String,
+    pub animated: bool
 }
 
 /// Response for [ListImages] request
@@ -21,7 +25,7 @@ pub enum ListImagesResult {
     DeviceNotFound,
 
     /// Sent if successfully retrieved image list from device config
-    Images(HashMap<String, String>)
+    Images(HashMap<String, SocketImage>)
 }
 
 impl SocketData for ListImages {
@@ -36,7 +40,14 @@ impl DaemonRequest for ListImages {
     fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<ListImages>(packet) {
             if let Some(images) = listener.config.get_images(&request.serial_number) {
-                send_packet(handle, packet, &ListImagesResult::Images(images)).ok();
+                send_packet(handle, packet, &ListImagesResult::Images(
+                    images.into_iter()
+                        .map(|(id, image)| (id, SocketImage {
+                            image_blob: image.as_image_blob().unwrap_or("failed".to_string()),
+                            animated: image.is_animated()
+                        }))
+                        .collect()
+                )).ok();
             } else {
                 send_packet(handle, packet, &ListImagesResult::DeviceNotFound).ok();
             }
@@ -75,34 +86,15 @@ impl SocketData for AddImageResult {
 impl DaemonRequest for AddImage {
     fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<AddImage>(packet) {
-            // Decoding image to make sure the data is correct
-            if let Ok(byte_array) = base64::decode(request.image_data) {
-                if let Ok(recognized_image) = Reader::new(Cursor::new(&byte_array)).with_guessed_format() {
-                    if let Ok(decoded_image) = recognized_image.decode() {
-                        if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
-                            let decoded_image = resize_for_streamdeck(device.core.image_size, decoded_image);
-
-
-
-                            if let Some(identifier) = listener.config.add_image_encode(&request.serial_number, decoded_image) {
-                                send_packet(handle, packet, &AddImageResult::Added(identifier)).ok();
-                            } else {
-                                send_packet(handle, packet, &AddImageResult::DeviceNotFound).ok();
-                            }
-                        } else {
-                            send_packet(handle, packet, &AddImageResult::DeviceNotFound).ok();
-                        }
-
-                        drop(byte_array);
-
-                        return;
-                    }
+            if let Some(_) = listener.core_manager.get_device(&request.serial_number) {
+                if let Some(identifier) = listener.config.add_image(&request.serial_number, request.image_data) {
+                    send_packet(handle, packet, &AddImageResult::Added(identifier)).ok();
+                } else {
+                    send_packet(handle, packet, &AddImageResult::InvalidData).ok();
                 }
-
-                drop(byte_array);
+            } else {
+                send_packet(handle, packet, &AddImageResult::DeviceNotFound).ok();
             }
-
-            send_packet(handle, packet, &AddImageResult::InvalidData).ok();
         }
     }
 }

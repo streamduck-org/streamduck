@@ -122,13 +122,15 @@ impl From<std::io::Error> for SocketError {
 /// Manager of socket listeners
 pub struct SocketManager {
     listeners: RwLock<Vec<BoxedSocketListener>>,
+    pools: RwLock<Vec<Arc<RwLock<SocketPool>>>>
 }
 
 impl SocketManager {
     /// Creates a new socket manager
     pub fn new() -> Arc<SocketManager> {
         Arc::new(SocketManager {
-            listeners: RwLock::new(vec![])
+            listeners: Default::default(),
+            pools: Default::default()
         })
     }
 
@@ -137,10 +139,67 @@ impl SocketManager {
         self.listeners.write().unwrap().push(listener);
     }
 
-    /// Send a message event to all listeners
-    pub fn message(&self, handle: SocketHandle, packet: SocketPacket) {
+    /// Sends a message to all listeners, for socket implementation to trigger all listeners when message is received
+    pub fn received_message(&self, handle: SocketHandle, packet: SocketPacket) {
         for listener in self.listeners.read().unwrap().deref() {
             listener.message(handle, packet.clone());
         }
+    }
+
+    /// Creates a new message pool
+    pub fn get_pool(&self) -> Arc<RwLock<SocketPool>> {
+        let mut pools = self.pools.write().unwrap();
+
+        let new_pool = Arc::new(RwLock::new(SocketPool {
+            messages: vec![],
+            is_open: true
+        }));
+
+        pools.push(new_pool.clone());
+
+        new_pool
+    }
+
+    /// For listeners or modules to send messages to all active socket connections, for event purposes
+    pub fn send_message(&self, packet: SocketPacket) {
+        let mut pools = self.pools.write().unwrap();
+
+        pools.retain(|x| {
+            if let Ok(x) = x.read() {
+                x.is_open()
+            } else {
+                false
+            }
+        });
+
+        for pool in pools.iter() {
+            if let Ok(mut pool) = pool.write() {
+                pool.add_message(packet.clone())
+            }
+        }
+    }
+}
+
+/// Pool of messages for socket implementations
+pub struct SocketPool {
+    messages: Vec<SocketPacket>,
+    is_open: bool
+}
+
+impl SocketPool {
+    pub fn add_message(&mut self, message: SocketPacket) {
+        self.messages.insert(0, message);
+    }
+
+    pub fn take_message(&mut self) -> Option<SocketPacket> {
+        self.messages.pop()
+    }
+
+    pub fn is_open(&self) -> bool {
+        self.is_open
+    }
+
+    pub fn close(&mut self) {
+        self.is_open = false;
     }
 }

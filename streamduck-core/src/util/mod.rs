@@ -6,6 +6,7 @@ use serde_json::{Error, Value};
 use crate::core::button::Button;
 use crate::core::{ButtonPanel, Panel, RawButtonPanel, UniqueButton, UniqueButtonMap};
 use crate::font::get_font_names;
+use crate::images::SDSerializedImage;
 use crate::modules::components::{UIFieldType, UIFieldValue, UIPathValue, UIValue};
 
 /// Rendering utilities
@@ -68,8 +69,17 @@ pub fn button_to_raw(button: &UniqueButton) -> Button {
     button.read().unwrap().deref().clone()
 }
 
-/// Hashes image blob
-pub fn hash_image(data: &String) -> String {
+/// Hashes string
+pub fn hash_str(data: &String) -> String {
+    let mut hasher = DefaultHasher::new();
+
+    data.hash(&mut hasher);
+
+    hasher.finish().to_string()
+}
+
+/// Hashes image
+pub fn hash_image(data: &SDSerializedImage) -> String {
     let mut hasher = DefaultHasher::new();
 
     data.hash(&mut hasher);

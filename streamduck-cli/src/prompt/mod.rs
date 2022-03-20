@@ -266,6 +266,7 @@ pub fn prompt(client: Arc<Box<dyn SDClient>>) {
                                                             SetButtonResult::DeviceNotFound => println!("button paste: Device not found"),
                                                             SetButtonResult::NoScreen => println!("button paste: No screen"),
                                                             SetButtonResult::Set => {
+                                                                client.commit_changes(&current_sn).expect("Failed to commit changes");
                                                                 println!("button paste: Pasted button")
                                                             }
                                                         }

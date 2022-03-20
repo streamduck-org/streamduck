@@ -47,7 +47,7 @@ pub fn list_images(client: ClientRef, current_sn: &str, mut args: Split<&str>) {
                 for (identifier, image) in images {
                     println!("Image");
                     println!("Identifier: {}", identifier);
-                    show_image(image, size);
+                    show_image(image.image_blob, size);
                     println!()
                 }
             }

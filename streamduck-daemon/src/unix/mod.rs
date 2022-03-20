@@ -40,7 +40,7 @@ fn handle_client(stream: UnixStream, socket_manager: Arc<SocketManager>) {
 
         if let Ok(message) = String::from_utf8(message.clone()) {
             match serde_json::from_str(&message.replace("\u{0004}", "")) {
-                Ok(packet) => socket_manager.message(stream.get_mut(), packet),
+                Ok(packet) => socket_manager.received_message(stream.get_mut(), packet),
                 Err(e) => log::warn!("Invalid message in sockets: {}", e)
             }
         }

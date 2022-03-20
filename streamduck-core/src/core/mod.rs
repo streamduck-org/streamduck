@@ -93,6 +93,9 @@ pub struct SDCore {
     /// Pool rate of how often should the core read events from the device
     pub pool_rate: u32,
 
+    /// Frame rate of how often should the core update animated buttons
+    pub frame_rate: u32,
+
     /// Decides if core is dead
     pub should_close: RwLock<bool>,
 
@@ -111,12 +114,13 @@ impl SDCore {
             image_collection,
             key_count: 0,
             pool_rate: 0,
+            frame_rate: 0,
             should_close: RwLock::new(true)
         })
     }
 
     /// Creates an instance of the core over existing streamdeck connection
-    pub fn new(module_manager: Arc<ModuleManager>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, connection: StreamDeck, pool_rate: u32) -> (Arc<SDCore>, KeyHandler) {
+    pub fn new(module_manager: Arc<ModuleManager>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, connection: StreamDeck, pool_rate: u32, frame_rate: u32) -> (Arc<SDCore>, KeyHandler) {
         let (key_tx, key_rx) = channel();
 
         let core = Arc::new(SDCore {
@@ -128,6 +132,7 @@ impl SDCore {
             image_collection,
             key_count: connection.kind().keys(),
             pool_rate,
+            frame_rate,
             should_close: RwLock::new(false)
         });
 

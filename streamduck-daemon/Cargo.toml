@@ -6,7 +6,7 @@ description = "Daemon of the Streamduck project"
 edition = "2021"
 readme = "../Readme.md"
 license-file = "../LICENSE"
-repository = "https://github.com/TheJebForge/streamduck"
+repository = "https://github.com/streamduck-org/streamduck"
 
 [lib]
 name = "streamduck_daemon"
