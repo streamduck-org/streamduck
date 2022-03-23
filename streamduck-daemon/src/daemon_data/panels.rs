@@ -1,5 +1,6 @@
 //! Requests related to panels
 use std::collections::HashMap;
+use std::io::Cursor;
 use serde::{Deserialize, Serialize};
 use streamduck_core::core::methods::{CoreHandle, get_current_screen, get_root_screen, get_stack, pop_screen, push_screen, replace_screen, reset_stack};
 use streamduck_core::core::RawButtonPanel;
@@ -176,7 +177,7 @@ impl DaemonRequest for GetButtonImages {
                 let images = device.core.get_button_images().into_iter()
                     .map(|(key, image)| {
                         let mut buffer: Vec<u8> = vec![];
-                        image.write_to(&mut buffer, ImageOutputFormat::Png).ok();
+                        image.write_to(&mut Cursor::new(&mut buffer), ImageOutputFormat::Png).ok();
                         (key, base64::encode(buffer))
                     })
                     .collect();

@@ -1,10 +1,13 @@
+use std::hash::{Hash, Hasher};
 use std::io::Cursor;
-use image::{AnimationDecoder, Delay, DynamicImage, Frame, ImageFormat};
-use image::gif::GifDecoder;
+use std::time::Duration;
+use image::{AnimationDecoder, DynamicImage, Frame, ImageFormat};
+use image::codecs::gif::GifDecoder;
+use image::codecs::png::PngDecoder;
 use image::io::Reader;
-use image::png::PngDecoder;
 use itertools::Itertools;
 use serde::{Serialize, Deserialize};
+use streamdeck::{DeviceImage, ImageMode, Kind};
 use crate::util::rendering::resize_for_streamdeck;
 
 /// Enum that represents various types of images Streamduck will use
@@ -14,12 +17,12 @@ pub enum SDImage {
     SingleImage(DynamicImage),
 
     /// Animated image
-    AnimatedImage(Vec<Frame>)
+    AnimatedImage(Vec<AnimationFrame>)
 }
 
 impl SDImage {
     /// Attempts to decode base64 image to SDImage
-    pub fn from_base64(image: &str) -> Result<SDImage, ImageDeserializationError> {
+    pub fn from_base64(image: &str, size: (usize, usize)) -> Result<SDImage, ImageDeserializationError> {
         let bytes = base64::decode(image)?;
 
         let decoder = Reader::new(Cursor::new(bytes)).with_guessed_format()?;
@@ -33,39 +36,19 @@ impl SDImage {
                     if decoder.is_apng() {
                         let decoder = decoder.apng();
 
-                        Ok(SDImage::AnimatedImage(decoder.into_frames().collect_frames()?.into_iter().map(
-                            |x| {
-                                let delay = x.delay();
-                                let top = x.top();
-                                let left = x.left();
-
-                                let image = resize_for_streamdeck((100, 100), DynamicImage::ImageRgba8(x.into_buffer()));
-
-                                Frame::from_parts(image.into_rgba8(), left, top, delay)
-                            }
-                        ).collect()))
+                        Ok(SDImage::AnimatedImage(convert_frames(decoder.into_frames().collect_frames()?, size)))
                     } else {
-                        Ok(SDImage::SingleImage(resize_for_streamdeck((100, 100), DynamicImage::from_decoder(decoder)?)))
+                        Ok(SDImage::SingleImage(resize_for_streamdeck(size, DynamicImage::from_decoder(decoder)?)))
                     }
                 }
 
                 ImageFormat::Gif => {
                     let decoder = GifDecoder::new(decoder.into_inner())?;
-                    Ok(SDImage::AnimatedImage(decoder.into_frames().collect_frames()?.into_iter().map(
-                        |x| {
-                            let delay = x.delay();
-                            let top = x.top();
-                            let left = x.left();
-
-                            let image = resize_for_streamdeck((100, 100), DynamicImage::ImageRgba8(x.into_buffer()));
-
-                            Frame::from_parts(image.into_rgba8(), left, top, delay)
-                        }
-                    ).collect()))
+                    Ok(SDImage::AnimatedImage(convert_frames(decoder.into_frames().collect_frames()?, size)))
                 }
 
                 _ => {
-                    Ok(SDImage::SingleImage(resize_for_streamdeck((100, 100), decoder.decode()?)))
+                    Ok(SDImage::SingleImage(resize_for_streamdeck(size, decoder.decode()?)))
                 }
             }
         } else {
@@ -113,50 +96,73 @@ impl SDSerializedImage {
     }
 }
 
-/// Serialized version of a frame
-#[derive(Serialize, Deserialize, Hash, Clone, Debug)]
-pub struct SerializedFrame {
-    pub image: String,
-    pub width: u32,
-    pub height: u32,
-    pub delay: (u32, u32),
-    pub top: u32,
-    pub left: u32
+/// Frame of animated image
+#[derive(Clone)]
+pub struct AnimationFrame {
+    pub image: DynamicImage,
+    pub index: usize,
+    pub delay: f32,
 }
 
-impl From<Frame> for SerializedFrame {
-    fn from(frame: Frame) -> Self {
+/// Converts [Frame] vector to [AnimationFrame]
+pub fn convert_frames(frames: Vec<Frame>, size: (usize, usize)) -> Vec<AnimationFrame> {
+    frames.into_iter()
+        .enumerate()
+        .map(|(i, x)| {
+            let delay = Duration::from(x.delay()).as_secs_f32() / 1.23;
+            AnimationFrame {
+                image: resize_for_streamdeck(size, DynamicImage::from(x.into_buffer())),
+                index: i,
+                delay
+            }
+        })
+        .collect()
+}
+
+/// Serialized version of a frame
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct SerializedFrame {
+    pub image: String,
+    pub index: usize,
+    pub delay: f32,
+}
+
+impl Hash for SerializedFrame {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.image.hash(state);
+        self.index.hash(state);
+        ((self.delay * 100.0) as i32).hash(state);
+    }
+}
+
+impl From<AnimationFrame> for SerializedFrame {
+    fn from(frame: AnimationFrame) -> Self {
         SerializedFrame::from(&frame)
     }
 }
 
-impl From<&Frame> for SerializedFrame {
-    fn from(frame: &Frame) -> Self {
-        let image = DynamicImage::ImageRgba8(frame.buffer().clone());
-
+impl From<&AnimationFrame> for SerializedFrame {
+    fn from(frame: &AnimationFrame) -> Self {
         let mut buffer = vec![];
-        image.write_to(&mut buffer, ImageFormat::Png).ok();
+        frame.image.write_to(&mut Cursor::new(&mut buffer), ImageFormat::Png).ok();
 
         SerializedFrame {
             image: base64::encode(buffer),
-            width: frame.buffer().width(),
-            height: frame.buffer().height(),
-            delay: frame.delay().numer_denom_ms(),
-            top: frame.top(),
-            left: frame.left()
+            index: frame.index,
+            delay: frame.delay,
         }
     }
 }
 
-impl TryFrom<SerializedFrame> for Frame {
+impl TryFrom<SerializedFrame> for AnimationFrame {
     type Error = ImageDeserializationError;
 
     fn try_from(value: SerializedFrame) -> Result<Self, Self::Error> {
-        Frame::try_from(&value)
+        AnimationFrame::try_from(&value)
     }
 }
 
-impl TryFrom<&SerializedFrame> for Frame {
+impl TryFrom<&SerializedFrame> for AnimationFrame {
     type Error = ImageDeserializationError;
 
     fn try_from(value: &SerializedFrame) -> Result<Self, Self::Error> {
@@ -164,12 +170,11 @@ impl TryFrom<&SerializedFrame> for Frame {
 
         let image = Reader::new(Cursor::new(bytes)).with_guessed_format()?.decode()?;
 
-        Ok(Frame::from_parts(
-            image.into_rgba8(),
-            value.left,
-            value.top,
-            Delay::from_numer_denom_ms(value.delay.0, value.delay.1)
-        ))
+        Ok(AnimationFrame {
+            image,
+            index: value.index,
+            delay: value.delay
+        })
     }
 }
 
@@ -185,7 +190,7 @@ impl From<&SDImage> for SDSerializedImage {
             SDImage::SingleImage(image) => {
                 SDSerializedImage::SingleImage({
                     let mut buffer = vec![];
-                    image.write_to(&mut buffer, ImageFormat::Png).ok();
+                    image.write_to(&mut Cursor::new(&mut buffer), ImageFormat::Png).ok();
                     base64::encode(buffer)
                 })
             }
@@ -261,4 +266,16 @@ impl From<image::ImageError> for ImageDeserializationError {
     fn from(err: image::ImageError) -> Self {
         ImageDeserializationError::ImageError(err)
     }
+}
+
+/// Converts image to device image
+pub fn convert_image(kind: &Kind, image: DynamicImage) -> DeviceImage {
+    let mut buffer = vec![];
+
+    image.rotate180().write_to(&mut Cursor::new(&mut buffer), match kind.image_mode() {
+        ImageMode::Bmp => ImageFormat::Bmp,
+        ImageMode::Jpeg => ImageFormat::Jpeg,
+    }).ok();
+
+    DeviceImage::from(buffer)
 }

@@ -9,7 +9,7 @@ use serde_json::Error as JSONError;
 use crate::modules::events::SDEvent;
 use crate::modules::{features_to_vec, UniqueSDModule};
 use crate::modules::components::{UIPathValue, UIValue};
-use crate::threads::streamdeck::StreamDeckCommand;
+use crate::threads::rendering::DeviceThreadCommunication;
 use crate::versions::SUPPORTED_FEATURES;
 
 /// Handle that's given out to a module to perform actions on the core
@@ -615,7 +615,7 @@ pub fn replace_screen(core: &CoreHandle, screen: ButtonPanel) {
 /// Sets brightness of the streamdeck to specified (Range from 0 to 100)
 pub fn set_brightness(core: &CoreHandle, brightness: u8) {
     core.required_feature("core_methods");
-    core.core().send_commands(vec![StreamDeckCommand::SetBrightness(brightness)]);
+    core.core().send_commands(vec![DeviceThreadCommunication::SetBrightness(brightness)]);
 
     let core = core.core();
     let mut handle = core.device_config.write().unwrap();

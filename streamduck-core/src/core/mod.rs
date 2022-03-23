@@ -9,15 +9,14 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 use std::sync::mpsc::{channel, Receiver};
 use image::DynamicImage;
-use streamdeck::StreamDeck;
+use streamdeck::{Kind, StreamDeck};
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use crate::config::{UniqueDeviceConfig};
 use crate::core::button::Button;
 use crate::core::methods::{button_down, button_up, CoreHandle};
 use crate::modules::ModuleManager;
-use crate::threads::rendering::{ImageCollection, RendererHandle, spawn_rendering_thread};
-use crate::threads::streamdeck::{spawn_streamdeck_thread, StreamDeckCommand, StreamDeckHandle};
+use crate::threads::rendering::{ImageCollection, DeviceThreadHandle, spawn_device_thread, DeviceThreadCommunication};
 
 /// Reference counted RwLock of a button, prevents data duplication and lets you edit buttons if they're in many stacks at once
 pub type UniqueButton = Arc<RwLock<Button>>;
@@ -87,14 +86,14 @@ pub struct SDCore {
     /// Image collection to use for rendering
     pub image_collection: ImageCollection,
 
+    /// Kind of streamdeck device
+    pub kind: Kind,
+
     /// Key count of the streamdeck device
     pub key_count: u8,
 
     /// Pool rate of how often should the core read events from the device
     pub pool_rate: u32,
-
-    /// Frame rate of how often should the core update animated buttons
-    pub frame_rate: u32,
 
     /// Decides if core is dead
     pub should_close: RwLock<bool>,
@@ -112,15 +111,15 @@ impl SDCore {
             handles: Mutex::new(None),
             image_size: (0, 0),
             image_collection,
+            kind: Kind::Original,
             key_count: 0,
             pool_rate: 0,
-            frame_rate: 0,
             should_close: RwLock::new(true)
         })
     }
 
     /// Creates an instance of the core over existing streamdeck connection
-    pub fn new(module_manager: Arc<ModuleManager>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, connection: StreamDeck, pool_rate: u32, frame_rate: u32) -> (Arc<SDCore>, KeyHandler) {
+    pub fn new(module_manager: Arc<ModuleManager>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, connection: StreamDeck, pool_rate: u32) -> (Arc<SDCore>, KeyHandler) {
         let (key_tx, key_rx) = channel();
 
         let core = Arc::new(SDCore {
@@ -130,19 +129,17 @@ impl SDCore {
             handles: Mutex::new(None),
             image_size: connection.image_size(),
             image_collection,
+            kind: connection.kind(),
             key_count: connection.kind().keys(),
             pool_rate,
-            frame_rate,
             should_close: RwLock::new(false)
         });
 
-        let streamdeck = spawn_streamdeck_thread(core.clone(), connection, key_tx);
-        let renderer = spawn_rendering_thread(core.clone());
+        let renderer = spawn_device_thread(core.clone(), connection, key_tx);
 
         if let Ok(mut handles) = core.handles.lock() {
             *handles = Some(
                 ThreadHandles {
-                    streamdeck,
                     renderer
                 }
             )
@@ -172,10 +169,10 @@ impl SDCore {
     }
 
     /// Sends commands to streamdeck thread
-    pub fn send_commands(&self, commands: Vec<StreamDeckCommand>) {
+    pub fn send_commands(&self, commands: Vec<DeviceThreadCommunication>) {
         let handles = self.handles.lock().unwrap();
 
-        handles.as_ref().unwrap().streamdeck.send(commands);
+        handles.as_ref().unwrap().renderer.send(commands);
     }
 
     /// Checks if core is supposed to be closed
@@ -191,10 +188,8 @@ impl SDCore {
     }
 }
 
-#[derive(Debug)]
 struct ThreadHandles {
-    pub streamdeck: StreamDeckHandle,
-    pub renderer: RendererHandle
+    pub renderer: DeviceThreadHandle
 }
 
 /// Routine that acts as a middleman between streamdeck thread and the core, was made as a way to get around Sync restriction

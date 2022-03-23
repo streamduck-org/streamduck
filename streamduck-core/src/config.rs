@@ -8,12 +8,13 @@ use image::{DynamicImage};
 use serde::{Serialize, Deserialize};
 use crate::core::RawButtonPanel;
 use serde_json::Value;
+use streamdeck::Kind;
 use crate::ImageCollection;
 use crate::images::{SDImage, SDSerializedImage};
 use crate::util::{hash_image, hash_str};
+use crate::util::rendering::resize_for_streamdeck;
 
-pub const DEFAULT_POOL_RATE: u32 = 90;
-pub const DEFAULT_FRAME_RATE: u32 = 20;
+pub const DEFAULT_POOL_RATE: u32 = 60;
 pub const DEFAULT_RECONNECT_TIME: f32 = 1.0;
 pub const DEFAULT_CONFIG_PATH: &'static str = "devices";
 pub const DEFAULT_PLUGIN_PATH: &'static str = "plugins";
@@ -25,8 +26,6 @@ pub type UniqueDeviceConfig = Arc<RwLock<DeviceConfig>>;
 pub struct Config {
     /// Frequency of streamdeck event pooling
     pool_rate: Option<u32>,
-    /// Frequency of frame renders
-    frame_rate: Option<u32>,
     /// Frequency of checks for disconnected devices
     reconnect_rate: Option<f32>,
     /// Path to device configs
@@ -61,11 +60,6 @@ impl Config {
     /// Pool rate, defaults to [DEFAULT_POOL_RATE] if not set
     pub fn pool_rate(&self) -> u32 {
         self.pool_rate.unwrap_or(DEFAULT_POOL_RATE)
-    }
-
-    /// Frame rate, defaults to [DEFAULT_FRAME_RATE] if not set
-    pub fn frame_rate(&self) -> u32 {
-        self.frame_rate.unwrap_or(DEFAULT_FRAME_RATE)
     }
 
     /// Reconnect rate, defaults to [DEFAULT_RECONNECT_TIME] if not set
@@ -229,7 +223,7 @@ impl Config {
             let mut config_handle = config.write().unwrap();
             let identifier = hash_str(&image);
 
-            if let Ok(image) = SDImage::from_base64(&image) {
+            if let Ok(image) = SDImage::from_base64(&image, config_handle.kind().image_size()) {
                 config_handle.images.insert(identifier.clone(), image.into());
                 drop(config_handle);
 
@@ -247,7 +241,7 @@ impl Config {
     pub fn add_image_encode(&self, serial: &str, image: DynamicImage) -> Option<String> {
         if let Some(config) = self.get_device_config(serial) {
             let mut config_handle = config.write().unwrap();
-            let serialized_image = SDImage::SingleImage(image).into();
+            let serialized_image = SDImage::SingleImage(resize_for_streamdeck(config_handle.kind().image_size(), image)).into();
             let identifier = hash_image(&serialized_image);
             config_handle.images.insert(identifier.clone(), serialized_image);
             drop(config_handle);
@@ -372,4 +366,18 @@ pub struct DeviceConfig {
     pub layout: RawButtonPanel,
     pub images: HashMap<String, SDSerializedImage>,
     pub plugin_data: HashMap<String, Value>,
+}
+
+impl DeviceConfig {
+    /// Gets kind of the device
+    pub fn kind(&self) -> Kind {
+        match self.pid {
+            streamdeck::pids::ORIGINAL_V2 => Kind::OriginalV2,
+            streamdeck::pids::MINI => Kind::Mini,
+            streamdeck::pids::MK2 => Kind::Mk2,
+            streamdeck::pids::XL => Kind::Xl,
+
+            _ => Kind::Original,
+        }
+    }
 }

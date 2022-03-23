@@ -1,12 +1,14 @@
 //! Streamdeck connection thread
 //!
 //! A separate thread for interacting and pooling events from streamdeck
+use std::io::Cursor;
+use std::ops::Deref;
 use std::sync::Arc;
 use std::sync::mpsc::{channel, Sender, TryRecvError};
 use std::thread::{sleep, spawn};
 use std::time::{Duration, Instant};
-use image::DynamicImage;
-use streamdeck::{Colour, StreamDeck};
+use image::{DynamicImage, ImageFormat};
+use streamdeck::{Colour, DeviceImage, ImageMode, StreamDeck};
 use crate::core::SDCore;
 
 /// Handle for contacting streamdeck thread
@@ -74,8 +76,16 @@ pub fn spawn_streamdeck_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx
                     for command in commands {
                         match command {
                             StreamDeckCommand::SetButtonImage(key, image) => {
-                                streamdeck.set_button_image(key, image).ok();
+                                let mut buffer = vec![];
+
+                                image.write_to(&mut Cursor::new(&mut buffer), match streamdeck.kind().image_mode() {
+                                    ImageMode::Bmp => ImageFormat::Bmp,
+                                    ImageMode::Jpeg => ImageFormat::Jpeg,
+                                }).ok();
+
+                                streamdeck.write_button_image(key, &DeviceImage::from(buffer)).ok();
                             }
+
                             StreamDeckCommand::ClearButtonImage(key) => {
                                 streamdeck.set_button_rgb(key, &Colour {
                                     r: 0,
@@ -83,8 +93,13 @@ pub fn spawn_streamdeck_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx
                                     b: 0
                                 }).ok();
                             }
+
                             StreamDeckCommand::SetBrightness(brightness) => {
                                 streamdeck.set_brightness(brightness).ok();
+                            }
+
+                            StreamDeckCommand::SetButtonImageRaw(key, image) => {
+                                streamdeck.write_button_image(key, image.deref()).ok();
                             }
                         }
                     }
@@ -128,6 +143,9 @@ pub enum StreamDeckCommand {
 
     /// Sets button image to specified image
     SetButtonImage(u8, DynamicImage),
+
+    /// Sets button image to raw buffer of image
+    SetButtonImageRaw(u8, Arc<DeviceImage>),
 
     /// Clears button and sets it to black color
     ClearButtonImage(u8),
