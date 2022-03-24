@@ -109,7 +109,7 @@ pub fn convert_frames(frames: Vec<Frame>, size: (usize, usize)) -> Vec<Animation
     frames.into_iter()
         .enumerate()
         .map(|(i, x)| {
-            let delay = Duration::from(x.delay()).as_secs_f32() / 1.23;
+            let delay = Duration::from(x.delay()).as_secs_f32();
             AnimationFrame {
                 image: resize_for_streamdeck(size, DynamicImage::from(x.into_buffer())),
                 index: i,

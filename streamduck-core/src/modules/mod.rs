@@ -17,7 +17,7 @@ use crate::modules::events::SDEvent;
 use crate::modules::folders::FolderModule;
 
 use serde::{Deserialize, Serialize};
-use crate::threads::rendering::{ButtonBackground, ButtonText, ButtonTextShadow, RendererComponent};
+use crate::core::thread::{ButtonBackground, ButtonText, ButtonTextShadow, RendererComponent};
 use crate::util::rendering::{resize_for_streamdeck, TextAlignment};
 use crate::versions::CORE;
 

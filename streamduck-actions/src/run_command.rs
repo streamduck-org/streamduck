@@ -5,7 +5,7 @@ use std::thread::spawn;
 use streamduck_core::core::button::{Button, Component, parse_button_to_component, parse_unique_button_to_component};
 use streamduck_core::core::UniqueButton;
 use streamduck_core::modules::components::{ComponentDefinition, map_ui_values, map_ui_values_ref, UIField, UIFieldType, UIFieldValue, UIValue};
-use streamduck_core::threads::rendering::{ButtonBackground, ButtonText, RendererComponent};
+use streamduck_core::core::thread::{ButtonBackground, ButtonText, RendererComponent};
 use streamduck_core::util::rendering::TextAlignment;
 
 pub fn add_definition(map: &mut HashMap<String, ComponentDefinition>) {

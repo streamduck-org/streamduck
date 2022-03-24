@@ -4,19 +4,21 @@ pub mod button;
 /// Methods for interacting with the core
 pub mod methods;
 pub mod manager;
+pub mod thread;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 use std::sync::mpsc::{channel, Receiver};
 use image::DynamicImage;
 use streamdeck::{Kind, StreamDeck};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use crate::config::{UniqueDeviceConfig};
+use crate::config::UniqueDeviceConfig;
 use crate::core::button::Button;
+use crate::core::thread::{DeviceThreadCommunication, DeviceThreadHandle, spawn_device_thread};
 use crate::core::methods::{button_down, button_up, CoreHandle};
+use crate::ImageCollection;
 use crate::modules::ModuleManager;
-use crate::threads::rendering::{ImageCollection, DeviceThreadHandle, spawn_device_thread, DeviceThreadCommunication};
 
 /// Reference counted RwLock of a button, prevents data duplication and lets you edit buttons if they're in many stacks at once
 pub type UniqueButton = Arc<RwLock<Button>>;

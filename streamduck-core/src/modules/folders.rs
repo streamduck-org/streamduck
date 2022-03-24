@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::RwLock;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
@@ -9,7 +9,7 @@ use crate::core::methods::{CoreHandle, get_stack, pop_screen, push_screen};
 use crate::modules::components::{ComponentDefinition, map_ui_values, UIFieldType, UIFieldValue, UIValue};
 use crate::modules::events::SDEvent;
 use crate::modules::{PluginMetadata, SDModule};
-use crate::threads::rendering::{ButtonBackground, ButtonText, RendererComponent};
+use crate::core::thread::{ButtonBackground, ButtonText, RendererComponent};
 use crate::util::{button_to_raw, make_panel_unique};
 use crate::util::rendering::TextAlignment;
 use crate::versions::{CORE, CORE_METHODS, EVENTS, MODULE_MANAGER};
@@ -131,7 +131,7 @@ impl SDModule for FolderModule {
         match name {
             FolderComponent::NAME => {
                 if let Ok(component) = parse_button_to_component::<FolderComponent>(button) {
-                    self.delete_folder_recursively(&core, &component.id);
+                    self.delete_folder_recursively(&core, &component.id, &mut HashSet::new());
                 }
 
                 button.remove_component::<FolderComponent>();
@@ -297,7 +297,7 @@ impl SDModule for FolderModule {
                 }
 
                 if let Ok(component) = parse_unique_button_to_component::<FolderComponent>(&deleted_button) {
-                    self.delete_folder_recursively(&core, &component.id);
+                    self.delete_folder_recursively(&core, &component.id, &mut HashSet::new());
                 }
             }
 
@@ -477,11 +477,14 @@ impl FolderModule {
     }
 
     /// Deletes folder with all folders that are linked from the folder recursively
-    fn delete_folder_recursively(&self, core: &CoreHandle, folder_id: &str) {
+    fn delete_folder_recursively(&self, core: &CoreHandle, folder_id: &str, ids: &mut HashSet<String>) {
         if let Some(folder) = self.get_folder(core, folder_id) {
             for (_, button) in folder.buttons {
                 if let Ok(folder) = parse_button_to_component::<FolderComponent>(&button) {
-                    self.delete_folder_recursively(core, &folder.id);
+                    if !ids.contains(&folder.id) {
+                        ids.insert(folder.id.clone());
+                        self.delete_folder_recursively(core, &folder.id, ids);
+                    }
                 }
             }
 

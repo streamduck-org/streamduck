@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
 use serde::{Serialize, Deserialize};
-use crate::threads::rendering::{Color, RendererComponent};
+use crate::core::thread::{Color, RendererComponent};
 
 /// Component definition
 #[derive(Serialize, Deserialize, Clone, Debug)]

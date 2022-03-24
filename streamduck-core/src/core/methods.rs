@@ -9,7 +9,7 @@ use serde_json::Error as JSONError;
 use crate::modules::events::SDEvent;
 use crate::modules::{features_to_vec, UniqueSDModule};
 use crate::modules::components::{UIPathValue, UIValue};
-use crate::threads::rendering::DeviceThreadCommunication;
+use crate::core::thread::DeviceThreadCommunication;
 use crate::versions::SUPPORTED_FEATURES;
 
 /// Handle that's given out to a module to perform actions on the core

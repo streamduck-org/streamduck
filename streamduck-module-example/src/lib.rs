@@ -7,7 +7,7 @@ use serde::{Serialize, Deserialize};
 use streamduck_core::core::methods::CoreHandle;
 use streamduck_core::modules::components::{ComponentDefinition, UIFieldType, UIFieldValue, UIScalar, UIValue};
 use streamduck_core::modules::events::SDEvent;
-use streamduck_core::threads::rendering::{ButtonBackground, RendererComponent};
+use streamduck_core::core::thread::{ButtonBackground, RendererComponent};
 use streamduck_core_derive::component;
 use streamduck_core::socket::{SocketHandle, SocketListener, SocketManager, SocketPacket};
 

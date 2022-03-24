@@ -1,6 +1,6 @@
-//! Rendering thread
+//! Device Thread
 //!
-//! A separate thread for processing and rendering images on streamdeck
+//! A separate thread for processing, rendering images on streamdeck and reading buttons
 
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
@@ -62,7 +62,6 @@ pub enum DeviceThreadCommunication {
 }
 
 pub struct RendererState {
-    pub render_cache: RwLock<HashMap<u64, Arc<DeviceImage>>>,
     pub current_images: RwLock<HashMap<u8, DynamicImage>>,
 }
 
@@ -71,7 +70,6 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
     let (tx, rx) = channel::<Vec<DeviceThreadCommunication>>();
 
     let state = Arc::new(RendererState {
-        render_cache: Default::default(),
         current_images: Default::default(),
     });
 
@@ -145,6 +143,7 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
         let mut animation_counters = HashMap::new();
         let mut last_iter = Instant::now();
         let mut renderer_map = HashMap::new();
+        let mut renderer_cache: HashMap<u64, Arc<DeviceImage>> = HashMap::new();
         loop {
             if core.is_closed() {
                 break;
@@ -224,7 +223,7 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
                 }
             }
 
-            process_animations(&core, &mut streamdeck, &renderer_state, &mut animation_counters, &mut renderer_map);
+            process_animations(&core, &mut streamdeck, &mut renderer_cache, &mut animation_counters, &mut renderer_map);
 
             // Rate limiter
             let rate = 1.0 / core.pool_rate as f32;
@@ -250,51 +249,59 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
 }
 
 struct AnimationCounter {
-    frames: Vec<AnimationFrame>,
-    current_time: Instant,
+    frames: Vec<(AnimationFrame, f32)>,
+    time: Instant,
+    wakeup_time: f32,
     index: usize,
-    advanced: bool,
+    duration: f32,
+    new_frame: bool,
 }
 
 impl AnimationCounter {
     fn new(frames: Vec<AnimationFrame>) -> AnimationCounter {
+        let mut time_counter = 0.0;
+        let frames: Vec<(AnimationFrame, f32)> = frames.into_iter()
+            .map(|x| {
+                let end_time = time_counter + x.delay;
+                time_counter = end_time;
+                (x, end_time)
+            })
+            .collect();
+
+        let duration = time_counter;
+
         AnimationCounter {
             frames,
-            current_time: Instant::now(),
+            time: Instant::now(),
+            wakeup_time: 0.0,
             index: 0,
-            advanced: false
+            duration,
+            new_frame: false
         }
     }
 
     fn get_frame(&self) -> &AnimationFrame {
-        &self.frames[self.index]
-    }
-
-    fn next_frame(&mut self) {
-        if self.index < self.frames.len() - 1 {
-            self.index += 1;
-        } else {
-            self.index = 0;
-        }
+        &self.frames[self.index].0
     }
 
     fn advance_counter(&mut self) {
-        let mut missing_time = self.current_time.elapsed().as_secs_f32();
+        let time = self.time.elapsed().as_secs_f32();
 
-        if missing_time > self.get_frame().delay {
-            while missing_time > self.get_frame().delay {
-                self.next_frame();
-                missing_time -= self.get_frame().delay;
+        if time > self.wakeup_time {
+            let looped_time = time % self.duration;
+            for i in 0..self.frames.len() {
+                if looped_time < self.frames[i].1 {
+                    self.index = i;
+                    self.new_frame = true;
+                    self.wakeup_time = time + self.frames[i].0.delay;
+                    break;
+                }
             }
-            self.advanced = true;
-            self.current_time = Instant::now();
         }
     }
 }
 
-fn process_animations(core: &Arc<SDCore>, streamdeck: &mut StreamDeck, state: &Arc<RendererState>, counters: &mut HashMap<String, AnimationCounter>, renderer_map: &mut HashMap<u8, RendererComponent>) {
-    let mut cache = state.render_cache.write().unwrap();
-
+fn process_animations(core: &Arc<SDCore>, streamdeck: &mut StreamDeck, cache: &mut HashMap<u64, Arc<DeviceImage>>, counters: &mut HashMap<String, AnimationCounter>, renderer_map: &mut HashMap<u8, RendererComponent>) {
     for (key, component) in renderer_map {
         if let ButtonBackground::ExistingImage(identifier) = &component.background {
             let counter = if let Some(counter) = counters.get_mut(identifier) {
@@ -310,7 +317,7 @@ fn process_animations(core: &Arc<SDCore>, streamdeck: &mut StreamDeck, state: &A
             };
 
             if let Some(counter) = counter {
-                if counter.advanced {
+                if counter.new_frame {
                     let frame = counter.get_frame();
 
                     let mut hasher = DefaultHasher::new();
@@ -339,7 +346,7 @@ fn process_animations(core: &Arc<SDCore>, streamdeck: &mut StreamDeck, state: &A
     }
 
     for (_, counter) in counters {
-        counter.advanced = false;
+        counter.new_frame = false;
         counter.advance_counter()
     };
 }

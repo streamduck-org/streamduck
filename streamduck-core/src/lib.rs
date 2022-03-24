@@ -1,7 +1,5 @@
 //! Crate responsible for managing streamdeck devices, rendering, managing configuration and pretty much everything
 
-/// Thread code used for keeping some tedious work off main threads
-pub mod threads;
 /// Utility code for rendering and conversions
 pub mod util;
 /// Core object and button definitions
@@ -29,7 +27,7 @@ use streamdeck::StreamDeck;
 use crate::config::UniqueDeviceConfig;
 use crate::core::{KeyHandler, SDCore};
 use crate::modules::ModuleManager;
-use crate::threads::rendering::ImageCollection;
+use self::core::thread::ImageCollection;
 
 /// Attempts to connect to any detected streamdeck
 pub fn connect_any(module_manager: Arc<ModuleManager>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, hid: &HidApi, pool_rate: u32) -> Result<(Arc<SDCore>, KeyHandler), Error> {
