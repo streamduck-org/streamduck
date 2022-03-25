@@ -46,7 +46,7 @@ impl SocketData for ListComponents {
 impl DaemonRequest for ListComponents {
     fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
         if check_packet_for_data::<ListComponents>(&packet) {
-            let components = listener.module_manager.get_components_list_by_modules()
+            let components = listener.module_manager.get_module_component_map()
                 .into_iter()
                 .map(|(n, c)| (n, c.into_iter().collect()))
                 .collect();

@@ -8,7 +8,7 @@ pub mod plugins;
 
 use std::collections::HashMap;
 use std::io::Cursor;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use crate::core::button::{Button, parse_button_to_component};
 use crate::core::methods::CoreHandle;
@@ -29,25 +29,60 @@ use crate::images::SDImage;
 use crate::util::{add_array_function, change_from_path, convert_value_to_path, hash_str, remove_array_function, set_value_function};
 
 /// Manages modules
-pub struct ModuleManager(RwLock<Vec<UniqueSDModule>>, RwLock<HashMap<String, Vec<String>>>);
+#[derive(Default)]
+pub struct ModuleManager {
+    // Using a bunch of various maps to move performance cost to adding module, so getting info is as costless as possible
+
+    module_map: RwLock<HashMap<String, UniqueSDModule>>,
+    module_component_map: RwLock<HashMap<String, HashMap<String, ComponentDefinition>>>,
+    component_map: RwLock<HashMap<String, (ComponentDefinition, UniqueSDModule)>>,
+    component_listener_map: RwLock<HashMap<String, Vec<UniqueSDModule>>>
+}
 
 impl ModuleManager {
     /// Creates new module manager, used in daemon for loading plugins and base modules
     pub fn new() -> Arc<ModuleManager> {
-        Arc::new(ModuleManager(RwLock::default(), RwLock::default()))
+        Arc::new(ModuleManager::default())
     }
 
     /// Adds a new module to be used with core
     pub fn add_module(&self, module: UniqueSDModule) {
-        self.0.write().unwrap().push(module.clone());
+        let module_name = module.name();
 
-        let mut handle = self.1.write().unwrap();
-        for component in module.listening_for() {
-            if let Some(mut list) = handle.remove(&component) {
-                list.push(module.name());
-                handle.insert(component, list);
+        // Adding to module map
+        let mut module_map = self.module_map.write().unwrap();
+        module_map.insert(module_name.clone(), module.clone());
+        drop(module_map);
+
+        // Adding to module component map
+        let mut module_component_map = self.module_component_map.write().unwrap();
+        for (component, definition) in module.components() {
+            if let Some(component_map) = module_component_map.get_mut(&module_name) {
+                component_map.insert(component, definition);
             } else {
-                handle.insert(component, vec![module.name()]);
+                module_component_map.insert(module_name.clone(), {
+                    let mut map = HashMap::new();
+                    map.insert(component, definition);
+                    map
+                });
+            }
+        }
+        drop(module_component_map);
+
+        // Adding to component to module map
+        let mut component_map = self.component_map.write().unwrap();
+        for (component, definition) in module.components() {
+            component_map.insert(component, (definition, module.clone()));
+        }
+        drop(component_map);
+
+        // Adding to component listener map
+        let mut component_listener_map = self.component_listener_map.write().unwrap();
+        for listens_for in module.listening_for() {
+            if let Some(array) = component_listener_map.get_mut(&listens_for) {
+                array.push(module.clone());
+            } else {
+                component_listener_map.insert(listens_for, vec![module.clone()]);
             }
         }
     }
@@ -59,12 +94,12 @@ impl ModuleManager {
 
     /// Returns all modules in map format
     pub fn get_modules(&self) -> HashMap<String, UniqueSDModule> {
-        self.0.read().unwrap().iter().map(|x| (x.name(), x.clone())).collect()
+        self.module_map.read().unwrap().clone()
     }
 
     /// Returns all modules in vector format
     pub fn get_module_list(&self) -> Vec<UniqueSDModule> {
-        self.0.read().unwrap().clone()
+        self.module_map.read().unwrap().values().cloned().collect()
     }
 
     /// Returns modules from names provided if they exist
@@ -84,10 +119,10 @@ impl ModuleManager {
 
     /// Retrieves modules that are listening to a specified component
     pub fn get_modules_for_component(&self, component: &str) -> Vec<UniqueSDModule> {
-        let handle = self.1.read().unwrap();
+        let handle = self.component_listener_map.read().unwrap();
 
         if let Some(modules) = handle.get(component) {
-            self.get_modules_from_list(modules.as_slice())
+            modules.clone()
         } else {
             vec![]
         }
@@ -95,70 +130,67 @@ impl ModuleManager {
 
     /// Retrieves modules that are listening to specified components
     pub fn get_modules_for_components(&self, components: &[String]) -> Vec<UniqueSDModule> {
-        let handle = self.1.read().unwrap();
+        let handle = self.component_listener_map.read().unwrap();
 
-        let mut module_names = vec![];
+        let mut shared_modules = vec![];
 
         for component in components {
             if let Some(modules) = handle.get(component) {
-                module_names.extend(modules.clone());
+                shared_modules.extend(modules.clone());
             }
         }
 
-        module_names.sort();
-        module_names.dedup();
+        shared_modules.sort_by(|a, b| a.name().cmp(&b.name()));
+        shared_modules.dedup_by(|a, b| a.name() == b.name());
 
-        self.get_modules_from_list(module_names.as_slice())
+        shared_modules
     }
 
     /// Retrieves components that module defined
     pub fn get_components_of_module(&self, module_name: &str) -> Option<HashMap<String, ComponentDefinition>> {
-        let handle = self.0.read().unwrap();
+        let handle = self.module_map.read().unwrap();
 
-        for module in handle.iter() {
-            if module.name() == module_name {
-                return Some(module.components())
-            }
+        if let Some(module) = handle.get(module_name) {
+            Some(module.components())
+        } else {
+            None
         }
-
-        None
     }
 
     /// Retrieves all components that all modules define
-    pub fn get_components_list_by_modules(&self) -> Vec<(String, Vec<(String, ComponentDefinition)>)> {
-        let handle = self.0.read().unwrap();
-        let mut result = vec![];
-
-        for module in handle.iter() {
-            let mut components: Vec<(String, ComponentDefinition)> = module.components()
-                .iter()
-                .map(|(name, def)| (name.clone(), def.clone()))
-                .collect();
-
-            components.sort_by(|(a, ..), (b, ..)| {
-                a.cmp(b)
-            });
-
-            result.push((module.name(), components))
-        }
-
-        result.sort_by(|(a, ..), (b, ..)| {
-            a.cmp(b)
-        });
-
-        result
+    pub fn get_components(&self) -> HashMap<String, (ComponentDefinition, UniqueSDModule)> {
+        self.component_map.read().unwrap().clone()
     }
 
-    pub fn get_component(&self, component_name: &str) -> Option<ComponentDefinition> {
-        let handle = self.0.read().unwrap();
+    /// Retrieves all components that all modules define, but in module to component map format
+    pub fn get_module_component_map(&self) -> HashMap<String, HashMap<String, ComponentDefinition>> {
+        self.module_component_map.read().unwrap().clone()
+    }
 
-        for module in handle.iter() {
-            if let Some(definition) = module.components().remove(component_name) {
-                return Some(definition);
-            }
-        }
 
-        None
+    /// Retrieves component if it exists
+    pub fn get_component(&self, component_name: &str) -> Option<(ComponentDefinition, UniqueSDModule)> {
+        self.component_map.read().unwrap().get(component_name).cloned()
+    }
+
+    /// Returns module map read lock
+    pub fn read_module_map(&self) -> RwLockReadGuard<HashMap<String, UniqueSDModule>> {
+        self.module_map.read().unwrap()
+    }
+
+    /// Returns component map read lock
+    pub fn read_component_map(&self) -> RwLockReadGuard<HashMap<String, (ComponentDefinition, UniqueSDModule)>> {
+        self.component_map.read().unwrap()
+    }
+
+    /// Returns module component map read lock
+    pub fn read_module_component_map(&self) -> RwLockReadGuard<HashMap<String, HashMap<String, ComponentDefinition>>> {
+        self.module_component_map.read().unwrap()
+    }
+
+    /// Returns component listener map read lock
+    pub fn read_component_listener_map(&self) -> RwLockReadGuard<HashMap<String, Vec<UniqueSDModule>>> {
+        self.component_listener_map.read().unwrap()
     }
 }
 

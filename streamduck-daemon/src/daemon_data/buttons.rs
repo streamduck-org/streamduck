@@ -230,27 +230,23 @@ impl DaemonRequest for NewButtonFromComponent {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                let map = listener.module_manager.get_components_list_by_modules();
+                let map = listener.module_manager.read_component_map();
 
-                for (module_name, component_list) in map {
-                    for (component_name, definition) in component_list {
-                        if request.component_name == component_name {
-                            let module = listener.module_manager.get_module(&module_name).unwrap();
+                if let Some((definition, module)) = map.get(&request.component_name).cloned() {
+                    drop(map);
 
-                            let mut button = Button::new();
-                            button.insert_component(definition.default_looks).ok();
+                    let mut button = Button::new();
+                    button.insert_component(definition.default_looks).ok();
 
-                            module.add_component(wrapped_core.clone_for(&module), &mut button, &component_name);
+                    module.add_component(wrapped_core.clone_for(&module), &mut button, &request.component_name);
 
-                            if set_button(&wrapped_core, request.key, make_button_unique(button)) {
-                                send_packet(handle, packet, &NewButtonFromComponentResult::Created).ok();
-                            } else {
-                                send_packet(handle, packet, &NewButtonFromComponentResult::FailedToCreate).ok();
-                            }
-
-                            return;
-                        }
+                    if set_button(&wrapped_core, request.key, make_button_unique(button)) {
+                        send_packet(handle, packet, &NewButtonFromComponentResult::Created).ok();
+                    } else {
+                        send_packet(handle, packet, &NewButtonFromComponentResult::FailedToCreate).ok();
                     }
+
+                    return;
                 }
 
                 send_packet(handle, packet, &NewButtonFromComponentResult::ComponentNotFound).ok();

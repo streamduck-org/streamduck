@@ -178,6 +178,9 @@ pub fn clear_button(core: &CoreHandle, key: u8) -> bool {
 /// Adds component onto a button, returns success boolean
 pub fn add_component(core: &CoreHandle, key: u8, component_name: &str) -> bool {
     core.required_feature("core_methods");
+
+    let module_manager = core.module_manager();
+
     if let Some(screen) = get_current_screen(&core) {
         let handle = screen.read().unwrap();
         if let Some(button) = handle.buttons.get(&key).cloned() {
@@ -187,35 +190,30 @@ pub fn add_component(core: &CoreHandle, key: u8, component_name: &str) -> bool {
             drop(handle);
 
             if !button_handle.component_names().contains(&component_name.to_string()) {
-                let components = core.module_manager().get_components_list_by_modules();
+                let components = module_manager.read_component_map();
 
-                for (module, component_list) in components {
-                    for (component, _) in component_list {
-                        if component == component_name {
-                            let module = core.module_manager().get_module(&module).unwrap();
+                if let Some((_, module)) = components.get(component_name) {
+                    module.add_component(core.clone_for(&module), button_handle.deref_mut(), component_name);
 
-                            module.add_component(core.clone_for(&module), button_handle.deref_mut(), &component);
+                    core.core.mark_for_redraw();
 
-                            core.core.mark_for_redraw();
+                    drop(button_handle);
+                    drop(components);
 
-                            drop(button_handle);
-
-                            for module in core.module_manager().get_module_list() {
-                                if module.name() == core.module_name {
-                                    continue;
-                                }
-
-                                module.event(core.clone_for(&module), SDEvent::ButtonUpdated {
-                                    key,
-                                    panel: screen.clone(),
-                                    new_button: button.clone(),
-                                    old_button: previous.clone()
-                                });
-                            }
-
-                            return true;
+                    for module in core.module_manager().get_module_list() {
+                        if module.name() == core.module_name {
+                            continue;
                         }
+
+                        module.event(core.clone_for(&module), SDEvent::ButtonUpdated {
+                            key,
+                            panel: screen.clone(),
+                            new_button: button.clone(),
+                            old_button: previous.clone()
+                        });
                     }
+
+                    return true;
                 }
             }
         }
@@ -227,6 +225,9 @@ pub fn add_component(core: &CoreHandle, key: u8, component_name: &str) -> bool {
 /// Gets component values from a component on a button
 pub fn get_component_values(core: &CoreHandle, key: u8, component_name: &str) -> Option<Vec<UIValue>> {
     core.required_feature("core_methods");
+
+    let module_manager = core.module_manager();
+
     if let Some(screen) = get_current_screen(&core) {
         let handle = screen.read().unwrap();
         if let Some(button) = handle.buttons.get(&key).cloned() {
@@ -234,16 +235,10 @@ pub fn get_component_values(core: &CoreHandle, key: u8, component_name: &str) ->
             drop(handle);
 
             if button_handle.component_names().contains(&component_name.to_string()) {
-                let components = core.module_manager().get_components_list_by_modules();
+                let components = module_manager.read_component_map();
 
-                for (module, component_list) in components {
-                    for (component, _) in component_list {
-                        if component == component_name {
-                            let module = core.module_manager().get_module(&module).unwrap();
-
-                            return Some(module.component_values(core.clone_for(&module), button_handle.deref_mut(), &component));
-                        }
-                    }
+                if let Some((_, module)) = components.get(component_name) {
+                    return Some(module.component_values(core.clone_for(&module), button_handle.deref_mut(), component_name));
                 }
             }
         }
@@ -264,6 +259,9 @@ pub fn get_component_values_with_paths(core: &CoreHandle, key: u8, component_nam
 /// Sets component values based on changes for component on a button
 pub fn set_component_value(core: &CoreHandle, key: u8, component_name: &str, value: Vec<UIValue>) -> bool {
     core.required_feature("core_methods");
+
+    let module_manager = core.module_manager();
+
     if let Some(screen) = get_current_screen(&core) {
         let handle = screen.read().unwrap();
         if let Some(button) = handle.buttons.get(&key).cloned() {
@@ -273,33 +271,29 @@ pub fn set_component_value(core: &CoreHandle, key: u8, component_name: &str, val
             drop(handle);
 
             if button_handle.component_names().contains(&component_name.to_string()) {
-                let components = core.module_manager().get_components_list_by_modules();
+                let components = module_manager.read_component_map();
 
-                for (module, component_list) in components {
-                    for (component, _) in component_list {
-                        if component == component_name {
-                            let module = core.module_manager().get_module(&module).unwrap();
-                            module.set_component_value(core.clone_for(&module), button_handle.deref_mut(), &component, value);
-                            drop(button_handle);
+                if let Some((_, module)) = components.get(component_name) {
+                    module.set_component_value(core.clone_for(&module), button_handle.deref_mut(), component_name, value);
+                    drop(button_handle);
+                    drop(components);
 
-                            core.core.mark_for_redraw();
+                    core.core.mark_for_redraw();
 
-                            for module in core.module_manager().get_module_list() {
-                                if module.name() == core.module_name {
-                                    continue;
-                                }
-
-                                module.event(core.clone_for(&module), SDEvent::ButtonUpdated {
-                                    key,
-                                    panel: screen.clone(),
-                                    new_button: button.clone(),
-                                    old_button: previous.clone()
-                                });
-                            }
-
-                            return true;
+                    for module in core.module_manager().get_module_list() {
+                        if module.name() == core.module_name {
+                            continue;
                         }
+
+                        module.event(core.clone_for(&module), SDEvent::ButtonUpdated {
+                            key,
+                            panel: screen.clone(),
+                            new_button: button.clone(),
+                            old_button: previous.clone()
+                        });
                     }
+
+                    return true;
                 }
             }
         }
@@ -368,6 +362,9 @@ pub fn set_component_value_by_path(core: &CoreHandle, key: u8, component_name: &
 /// Removes component from a button
 pub fn remove_component(core: &CoreHandle, key: u8, component_name: &str) -> bool {
     core.required_feature("core_methods");
+
+    let module_manager = core.module_manager();
+
     if let Some(screen) = get_current_screen(&core) {
         let handle = screen.read().unwrap();
         if let Some(button) = handle.buttons.get(&key).cloned() {
@@ -377,35 +374,30 @@ pub fn remove_component(core: &CoreHandle, key: u8, component_name: &str) -> boo
             drop(handle);
 
             if button_handle.component_names().contains(&component_name.to_string()) {
-                let components = core.module_manager().get_components_list_by_modules();
+                let components = module_manager.read_component_map();
 
-                for (module, component_list) in components {
-                    for (component, _) in component_list {
-                        if component == component_name {
-                            let module = core.module_manager().get_module(&module).unwrap();
+                if let Some((_, module)) = components.get(component_name) {
+                    module.remove_component(core.clone_for(&module), button_handle.deref_mut(), component_name);
 
-                            module.remove_component(core.clone_for(&module), button_handle.deref_mut(), &component);
+                    drop(button_handle);
+                    drop(components);
 
-                            drop(button_handle);
+                    core.core.mark_for_redraw();
 
-                            core.core.mark_for_redraw();
-
-                            for module in core.module_manager().get_module_list() {
-                                if module.name() == core.module_name {
-                                    continue;
-                                }
-
-                                module.event(core.clone_for(&module), SDEvent::ButtonUpdated {
-                                    key,
-                                    panel: screen.clone(),
-                                    new_button: button.clone(),
-                                    old_button: previous.clone()
-                                });
-                            }
-
-                            return true;
+                    for module in core.module_manager().get_module_list() {
+                        if module.name() == core.module_name {
+                            continue;
                         }
+
+                        module.event(core.clone_for(&module), SDEvent::ButtonUpdated {
+                            key,
+                            panel: screen.clone(),
+                            new_button: button.clone(),
+                            old_button: previous.clone()
+                        });
                     }
+
+                    return true;
                 }
             }
         }

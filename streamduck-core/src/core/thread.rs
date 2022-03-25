@@ -155,11 +155,17 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
                     for (key, value) in buttons.iter().enumerate() {
                         if let Some(last_value) = last_buttons.get(key) {
                             if last_value != value {
-                                key_tx.send((key as u8, *last_value == 0)).ok();
+                                if key_tx.send((key as u8, *last_value == 0)).is_err() {
+                                    log::error!("Key Handler thread crashed, killing connection...");
+                                    core.close();
+                                }
                             }
                         } else {
                             if *value > 0 {
-                                key_tx.send((key as u8, true)).ok();
+                                if key_tx.send((key as u8, true)).is_err() {
+                                    log::error!("Key Handler thread crashed, killing connection...");
+                                    core.close();
+                                }
                             }
                         }
                     }
@@ -482,7 +488,6 @@ fn redraw(core: Arc<SDCore>, streamdeck: &mut StreamDeck, state: &RendererState,
         } else {
             renderer_map.remove(&i);
 
-            current_images.insert(i, image_from_solid(core.image_size, Rgba([0, 0, 0, 255])));
             streamdeck.set_button_rgb(i, &Colour { r: 0, g: 0, b: 0 }).ok();
         }
     }
