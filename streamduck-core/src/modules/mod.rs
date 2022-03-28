@@ -7,11 +7,12 @@ pub mod events;
 pub mod plugins;
 
 use std::collections::HashMap;
+use std::hash::Hasher;
 use std::io::Cursor;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use crate::core::button::{Button, parse_button_to_component};
-use crate::core::methods::CoreHandle;
+use crate::core::methods::{check_feature_list_for_feature, CoreHandle};
 use crate::modules::components::{ComponentDefinition, map_ui_values, map_ui_values_ref, UIField, UIFieldType, UIFieldValue, UIPathValue, UIValue};
 use crate::modules::events::SDEvent;
 use crate::modules::folders::FolderModule;
@@ -25,6 +26,7 @@ use strum::VariantNames;
 use std::str::FromStr;
 use image::DynamicImage;
 use image::io::Reader;
+use crate::core::UniqueButton;
 use crate::images::SDImage;
 use crate::util::{add_array_function, change_from_path, convert_value_to_path, hash_str, remove_array_function, set_value_function};
 
@@ -36,7 +38,10 @@ pub struct ModuleManager {
     module_map: RwLock<HashMap<String, UniqueSDModule>>,
     module_component_map: RwLock<HashMap<String, HashMap<String, ComponentDefinition>>>,
     component_map: RwLock<HashMap<String, (ComponentDefinition, UniqueSDModule)>>,
-    component_listener_map: RwLock<HashMap<String, Vec<UniqueSDModule>>>
+    component_listener_map: RwLock<HashMap<String, Vec<UniqueSDModule>>>,
+
+    /// Separate list of modules that can render things
+    rendering_modules: RwLock<HashMap<String, UniqueSDModule>>,
 }
 
 impl ModuleManager {
@@ -85,6 +90,14 @@ impl ModuleManager {
                 component_listener_map.insert(listens_for, vec![module.clone()]);
             }
         }
+        drop(component_listener_map);
+
+        // Adding rendering modules to rendering map
+        let mut rendering_modules = self.rendering_modules.write().unwrap();
+        if check_feature_list_for_feature(&module.metadata().used_features, "rendering") {
+            rendering_modules.insert(module_name.clone(), module.clone());
+        }
+        drop(rendering_modules);
     }
 
     /// Attempts to get module with specified name
@@ -167,6 +180,11 @@ impl ModuleManager {
         self.module_component_map.read().unwrap().clone()
     }
 
+    /// Retrieves all modules that can render things
+    pub fn get_rendering_module_map(&self) -> HashMap<String, UniqueSDModule> {
+        self.rendering_modules.read().unwrap().clone()
+    }
+
 
     /// Retrieves component if it exists
     pub fn get_component(&self, component_name: &str) -> Option<(ComponentDefinition, UniqueSDModule)> {
@@ -191,6 +209,11 @@ impl ModuleManager {
     /// Returns component listener map read lock
     pub fn read_component_listener_map(&self) -> RwLockReadGuard<HashMap<String, Vec<UniqueSDModule>>> {
         self.component_listener_map.read().unwrap()
+    }
+
+    /// Returns rendering modules map read lock
+    pub fn read_rendering_modules_map(&self) -> RwLockReadGuard<HashMap<String, UniqueSDModule>> {
+        self.rendering_modules.read().unwrap()
     }
 }
 
@@ -243,6 +266,15 @@ pub trait SDModule: Send + Sync {
 
     /// Method for handling core events, add EVENTS feature to the plugin metadata to receive events
     fn event(&self, core: CoreHandle, event: SDEvent);
+
+    /// Method renderer will run for rendering additional information on a button if RENDERING feature was specified
+    fn render(&self, core: CoreHandle, button: &UniqueButton, frame: &mut DynamicImage) {}
+
+    /// Method for telling renderer if anything changed
+    ///
+    /// Changing state of the hash in anyway will cause renderer to either rerender, or use previous cache.
+    /// This method will also called very frequently, so keep code in here fast
+    fn render_hash(&self, core: CoreHandle, button: &UniqueButton, hash: &mut Box<dyn Hasher>) {}
 
     /// Metadata of the module, auto-implemented for plugins from plugin metadata
     fn metadata(&self) -> PluginMetadata {

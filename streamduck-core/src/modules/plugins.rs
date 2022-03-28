@@ -1,14 +1,17 @@
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fs;
+use std::hash::Hasher;
 use std::path::Path;
 use std::sync::Arc;
 use dlopen::Error;
 use crate::modules::{BoxedSDModule, ModuleManager, PluginMetadata, SDModule, SDModulePointer, UniqueSDModule};
 use dlopen::wrapper::{Container, WrapperApi};
 use dlopen_derive::WrapperApi;
+use image::DynamicImage;
 use crate::core::button::Button;
 use crate::core::methods::{CoreHandle, warn_for_feature};
+use crate::core::UniqueButton;
 use crate::modules::components::{ComponentDefinition, UIValue};
 use crate::modules::events::SDEvent;
 use crate::socket::SocketManager;
@@ -57,9 +60,29 @@ impl SDModule for PluginProxy {
         self.plugin.listening_for()
     }
 
+    fn settings(&self) -> Vec<UIValue> {
+        self.plugin.settings()
+    }
+
+    fn set_setting(&self, value: Vec<UIValue>) {
+        self.plugin.set_setting(value)
+    }
+
     fn event(&self, core: CoreHandle, event: SDEvent) {
         if core.check_for_feature("events") {
             self.plugin.event(core, event)
+        }
+    }
+
+    fn render(&self, core: CoreHandle, button: &UniqueButton, frame: &mut DynamicImage) {
+        if core.check_for_feature("rendering") {
+            self.plugin.render(core, button, frame)
+        }
+    }
+
+    fn render_hash(&self, core: CoreHandle, button: &UniqueButton, hash: &mut Box<dyn Hasher>) {
+        if core.check_for_feature("rendering") {
+            self.plugin.render_hash(core, button, hash)
         }
     }
 

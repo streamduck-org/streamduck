@@ -177,7 +177,7 @@ pub fn action(button: &UniqueButton) {
 }
 
 
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Hash, Default, Debug)]
 pub struct RunCommandComponent {
     pub simple_command: String,
     pub advanced_command: Vec<String>,

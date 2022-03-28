@@ -21,6 +21,8 @@ pub const MODULE_MANAGER: (&str, &str) = ("module_manager", "0.1");
 pub const EVENTS: (&str, &str) = ("events", "0.1");
 /// Socket API of daemon, mostly used for socket communication, will be updated everytime there's changes to existing requests or a request was removed
 pub const SOCKET_API: (&str, &str) = ("socket_api", "0.1");
+/// Rendering version, will be updated everytime there's changes to existing rendering API for plugins
+pub const RENDERING: (&str, &str) = ("rendering", "0.1");
 
 /// Constant array of currently supported features, can also be used for plugin to specify using all of the features
 pub const SUPPORTED_FEATURES: &[(&str, &str)] = &[

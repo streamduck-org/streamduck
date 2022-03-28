@@ -32,7 +32,7 @@ impl Button {
 }
 
 /// Component trait, simply provides name for component generic methods
-pub trait Component: Default {
+pub trait Component {
     const NAME: &'static str;
 }
 

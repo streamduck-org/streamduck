@@ -6,7 +6,7 @@ Software for managing Stream Deck devices with folders and actions
 
 *Project that will perhaps be better than streamdeck-ui*
 
-### Currently still in heavy development, and is not usable
+### Currently in heavy development, and is not user-ready
 
 # Features
 ## Currently supported:
@@ -22,9 +22,12 @@ Software for managing Stream Deck devices with folders and actions
 * **Lua support for plugins** - for simple plugins to be made that utilize streamduck API
 * **Support for plugins to render custom images** - will allow much greater flexibility for plugins, you could potentially run games on streamdeck screen
 * **Windows support** for those who would prefer using open source software on Windows
-* **Button animation system** with flexibility of having plugins define custom animations
-* **Built-in OBS Websocket integration**
+* **OBS Websocket plugin**
 * **Electron-based GUI** (will have equal functionality with cli version) (alternative GUI applications can be made)
+## Maybe in the future:
+* **Button animation system** with flexibility of having plugins define custom animations
+* **Plugin store** for easy way to browse and install plugins
+* **Support for official SDK plugins on Windows**
 ## NodeJS module
 Client for interacting with Streamduck daemon on NodeJS<br>
 [Repository](https://github.com/TheJebForge/streamduck-node-client)

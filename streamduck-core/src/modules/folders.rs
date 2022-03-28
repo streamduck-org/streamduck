@@ -1,25 +1,40 @@
 use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 use std::sync::RwLock;
+use std::time::Instant;
+use image::DynamicImage;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
+use rusttype::{Point, Scale};
 use serde::{Serialize, Deserialize};
 use crate::core::button::{Button, Component, parse_button_to_component, parse_unique_button_to_component};
-use crate::core::{ButtonPanel, RawButtonPanel};
+use crate::core::{ButtonPanel, RawButtonPanel, UniqueButton};
 use crate::core::methods::{CoreHandle, get_stack, pop_screen, push_screen};
 use crate::modules::components::{ComponentDefinition, map_ui_values, UIFieldType, UIFieldValue, UIValue};
 use crate::modules::events::SDEvent;
 use crate::modules::{PluginMetadata, SDModule};
 use crate::core::thread::{ButtonBackground, ButtonText, RendererComponent};
 use crate::util::{button_to_raw, make_panel_unique};
-use crate::util::rendering::TextAlignment;
-use crate::versions::{CORE, CORE_METHODS, EVENTS, MODULE_MANAGER};
+use crate::util::rendering::{render_box_on_image, TextAlignment};
+use crate::versions::{CORE, CORE_METHODS, EVENTS, MODULE_MANAGER, RENDERING};
 
 const MODULE_NAME: &str = "core/folder";
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct FolderModule {
     folder_stack: RwLock<Vec<String>>,
-    folder_references: RwLock<HashMap<String, ButtonPanel>>
+    folder_references: RwLock<HashMap<String, ButtonPanel>>,
+    time: Instant,
+}
+
+impl Default for FolderModule {
+    fn default() -> Self {
+        Self {
+            folder_stack: Default::default(),
+            folder_references: Default::default(),
+            time: Instant::now()
+        }
+    }
 }
 
 impl SDModule for FolderModule {
@@ -358,6 +373,15 @@ impl SDModule for FolderModule {
         }
     }
 
+    fn render(&self, _: CoreHandle, _: &UniqueButton, frame: &mut DynamicImage) {
+        render_box_on_image(frame, Scale::uniform(10.0), Point { x: (self.time.elapsed().as_secs_f32() * 10.0) % 50.0, y: 10.0 }, (255, 0, 0, 255))
+    }
+
+    fn render_hash(&self, _: CoreHandle, _: &UniqueButton, hash: &mut Box<dyn Hasher>) {
+        let x = (self.time.elapsed().as_secs_f32() * 10.0) as u64 % 50;
+        x.hash(hash);
+    }
+
     fn metadata(&self) -> PluginMetadata {
         PluginMetadata::from_literals(
             MODULE_NAME,
@@ -368,7 +392,8 @@ impl SDModule for FolderModule {
                 CORE,
                 CORE_METHODS,
                 MODULE_MANAGER,
-                EVENTS
+                EVENTS,
+                RENDERING
             ]
         )
     }
@@ -494,7 +519,7 @@ impl FolderModule {
 }
 
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize)]
 pub struct FolderComponent {
     #[serde(default)]
     pub id: String,
@@ -505,7 +530,7 @@ impl Component for FolderComponent {
     const NAME: &'static str = "folder";
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize)]
 pub struct FolderLinkComponent {
     #[serde(default)]
     pub id: String
@@ -515,7 +540,7 @@ impl Component for FolderLinkComponent {
     const NAME: &'static str = "folder_link";
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize)]
 pub struct FolderUpComponent {}
 
 impl Component for FolderUpComponent {
