@@ -38,7 +38,6 @@ impl DaemonRequest for ReloadDeviceConfigsResult {
                                 let wrapped_core = CoreHandle::wrap(device.core);
 
                                 reset_stack(&wrapped_core, make_panel_unique(handle.layout.clone()));
-                                wrapped_core.core().mark_for_redraw()
                             }
                         }
                     }
@@ -93,7 +92,6 @@ impl DaemonRequest for ReloadDeviceConfig {
                                 let wrapped_core = CoreHandle::wrap(device.core);
 
                                 reset_stack(&wrapped_core, make_panel_unique(handle.layout.clone()));
-                                wrapped_core.core().mark_for_redraw();
                             }
                         }
                     }
@@ -330,7 +328,6 @@ impl DaemonRequest for ImportDeviceConfig {
 
                                     reset_stack(&wrapped_core, make_panel_unique(config.layout));
                                     set_brightness(&wrapped_core, config.brightness);
-                                    wrapped_core.core().mark_for_redraw();
 
                                     send_packet(handle, packet, &ImportDeviceConfigResult::Imported).ok();
                                 }

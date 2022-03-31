@@ -109,8 +109,6 @@ pub fn set_button(core: &CoreHandle, key: u8, button: UniqueButton) -> bool {
 
         drop(handle);
 
-        core.core.mark_for_redraw();
-
         if let Some(previous_button) = previous_button {
             for module in core.module_manager().get_module_list() {
                 if module.name() == core.module_name {
@@ -152,8 +150,6 @@ pub fn clear_button(core: &CoreHandle, key: u8) -> bool {
         if let Some(button) = handle.buttons.remove(&key) {
             drop(handle);
 
-            core.core.mark_for_redraw();
-
             for module in core.module_manager().get_module_list() {
                 if module.name() == core.module_name {
                     continue;
@@ -194,8 +190,6 @@ pub fn add_component(core: &CoreHandle, key: u8, component_name: &str) -> bool {
 
                 if let Some((_, module)) = components.get(component_name) {
                     module.add_component(core.clone_for(&module), button_handle.deref_mut(), component_name);
-
-                    core.core.mark_for_redraw();
 
                     drop(button_handle);
                     drop(components);
@@ -277,8 +271,6 @@ pub fn set_component_value(core: &CoreHandle, key: u8, component_name: &str, val
                     module.set_component_value(core.clone_for(&module), button_handle.deref_mut(), component_name, value);
                     drop(button_handle);
                     drop(components);
-
-                    core.core.mark_for_redraw();
 
                     for module in core.module_manager().get_module_list() {
                         if module.name() == core.module_name {
@@ -382,8 +374,6 @@ pub fn remove_component(core: &CoreHandle, key: u8, component_name: &str) -> boo
                     drop(button_handle);
                     drop(components);
 
-                    core.core.mark_for_redraw();
-
                     for module in core.module_manager().get_module_list() {
                         if module.name() == core.module_name {
                             continue;
@@ -423,8 +413,6 @@ pub fn push_screen(core: &CoreHandle, screen: ButtonPanel) {
             new_panel: screen.clone()
         });
     }
-
-    core.core().mark_for_redraw();
 }
 
 /// Pops panel from stack
@@ -446,8 +434,6 @@ pub fn pop_screen(core: &CoreHandle) {
             })
         }
     }
-
-    core.core().mark_for_redraw();
 }
 
 /// Returns first panel of the stack for saving purposes
@@ -488,8 +474,6 @@ pub fn reset_stack(core: &CoreHandle, panel: ButtonPanel) {
             new_panel: panel.clone()
         });
     }
-
-    core.core().mark_for_redraw();
 }
 
 /// Clears the stack, attempts to deserialize provided panel value into an actual panel and then pushes it into the stack
@@ -512,8 +496,6 @@ pub fn load_panels_from_value(core: &CoreHandle, panels: Value) -> Result<(), JS
                     new_panel: panel.clone()
                 });
             }
-
-            core.core().mark_for_redraw();
 
             Ok(())
         }
@@ -601,7 +583,6 @@ pub fn replace_screen(core: &CoreHandle, screen: ButtonPanel) {
     let mut stack = core.current_stack().unwrap();
     stack.pop();
     stack.push(screen);
-    core.core().mark_for_redraw();
 }
 
 /// Sets brightness of the streamdeck to specified (Range from 0 to 100)

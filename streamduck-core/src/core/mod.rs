@@ -153,13 +153,6 @@ impl SDCore {
         })
     }
 
-    /// Tells renderer's thread it's time to redraw
-    pub fn mark_for_redraw(&self) {
-        let handles = self.handles.lock().unwrap();
-
-        handles.as_ref().unwrap().renderer.redraw();
-    }
-
     /// Gets current images rendered on streamdeck
     pub fn get_button_images(&self) -> HashMap<u8, DynamicImage> {
         let handles = self.handles.lock().unwrap();
@@ -186,7 +179,6 @@ impl SDCore {
     pub fn close(&self) {
         let mut lock = self.should_close.write().unwrap();
         *lock = true;
-        self.mark_for_redraw();
     }
 }
 

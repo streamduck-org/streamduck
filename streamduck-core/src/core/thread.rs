@@ -33,11 +33,6 @@ pub struct DeviceThreadHandle {
 }
 
 impl DeviceThreadHandle {
-    /// Asks rendering thread to redraw current screen
-    pub fn redraw(&self) {
-        self.tx.send(vec![DeviceThreadCommunication::Redraw]).ok();
-    }
-
     pub fn send(&self, commands: Vec<DeviceThreadCommunication>) {
         self.tx.send(commands).ok();
     }
@@ -45,8 +40,8 @@ impl DeviceThreadHandle {
 
 #[allow(dead_code)]
 pub enum DeviceThreadCommunication {
-    /// Triggers redraw
-    Redraw,
+    /// Tells renderer that screen should be updated
+    RefreshScreen,
 
     /// Sets streamdeck brightness to provided value
     SetBrightness(u8),
@@ -145,6 +140,7 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
         let mut renderer_map = HashMap::new();
         let mut animation_cache: HashMap<u64, Arc<DeviceImage>> = HashMap::new();
         let mut renderer_cache: HashMap<u64, DynamicImage> = HashMap::new();
+        let mut previous_state: HashMap<u8, u64> = HashMap::new();
         loop {
             if core.core.is_closed() {
                 break;
@@ -191,8 +187,6 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
                 Ok(com) => {
                     for com in com {
                         match com {
-                            DeviceThreadCommunication::Redraw => redraw(&core, &mut streamdeck, &renderer_state, &missing, &mut renderer_cache, &mut renderer_map, &mut animation_counters),
-
                             DeviceThreadCommunication::SetBrightness(brightness) => {
                                 streamdeck.set_brightness(brightness).ok();
                             }
@@ -219,6 +213,25 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
                                     b: 0
                                 }).ok();
                             }
+
+                            DeviceThreadCommunication::RefreshScreen => {
+                                let current_screen = get_current_screen(&core);
+
+                                if current_screen.is_none() {
+                                    return;
+                                }
+
+                                let current_screen = current_screen.unwrap();
+                                let screen_handle = current_screen.read().unwrap();
+                                let current_screen = screen_handle.buttons.clone();
+                                drop(screen_handle);
+
+                                renderer_map.extend(
+                                    current_screen.into_iter()
+                                        .filter(|(key, button)| button.read().unwrap().0.contains_key(RendererComponent::NAME))
+                                        .map(|(key, x)| (key, (parse_unique_button_to_component::<RendererComponent>(&x).unwrap(), x)))
+                                )
+                            }
                         }
                     }
                 }
@@ -230,7 +243,7 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
                 }
             }
 
-            process_animations(&core, &mut streamdeck, &mut animation_cache, &mut animation_counters, &mut renderer_map);
+            process_animations(&core, &mut streamdeck, &mut animation_cache, &mut animation_counters,  &mut renderer_map, &mut previous_state, &missing);
 
             // Rate limiter
             let rate = 1.0 / core.core.pool_rate as f32;
@@ -246,8 +259,6 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
 
         log::trace!("rendering closed");
     });
-
-    tx.send(vec![DeviceThreadCommunication::Redraw]).ok();
 
     DeviceThreadHandle {
         tx,
@@ -308,8 +319,18 @@ impl AnimationCounter {
     }
 }
 
-fn process_animations(core: &CoreHandle, streamdeck: &mut StreamDeck, cache: &mut HashMap<u64, Arc<DeviceImage>>, counters: &mut HashMap<String, AnimationCounter>, renderer_map: &mut HashMap<u8, (UniqueButton, RendererComponent)>) {
-    for (key, (button, component)) in renderer_map {
+fn process_animations(
+    core: &CoreHandle,
+    streamdeck: &mut StreamDeck,
+    cache: &mut HashMap<u64, Arc<DeviceImage>>,
+    counters: &mut HashMap<String, AnimationCounter>,
+    renderer_map: &mut HashMap<u8, (RendererComponent, UniqueButton)>,
+    previous_state: &mut HashMap<u8, u64>,
+    missing: &DynamicImage
+) {
+
+
+    for (key, (component, button)) in renderer_map {
         if let ButtonBackground::ExistingImage(identifier) = &component.background {
             let counter = if let Some(counter) = counters.get_mut(identifier) {
                 Some(counter)
@@ -333,7 +354,7 @@ fn process_animations(core: &CoreHandle, streamdeck: &mut StreamDeck, cache: &mu
                     frame.index.hash(&mut hasher);
 
                     for (_, module) in core.core.module_manager.read_rendering_modules_map().deref() {
-                        module.render_hash(core.clone_for(module), button, &mut hasher);
+                        module.render_hash(core.clone_for(module), &button, &mut hasher);
                     }
 
                     let hash = hasher.finish();
@@ -341,8 +362,13 @@ fn process_animations(core: &CoreHandle, streamdeck: &mut StreamDeck, cache: &mu
                     let variant = cache.get(&hash);
 
                     if component.to_cache && variant.is_some() {
-                        // TODO: Check previous cache and if equal, skip this
-                        streamdeck.write_button_image(*key, variant.unwrap().deref()).ok();
+                        if let Some(previous) = previous_state.get(&key) {
+                            if hash != *previous {
+                                streamdeck.write_button_image(*key, variant.unwrap().deref()).ok();
+                            }
+                        } else {
+                            streamdeck.write_button_image(*key, variant.unwrap().deref()).ok();
+                        }
                     } else {
                         let mut buffer = vec![];
 
@@ -355,14 +381,57 @@ fn process_animations(core: &CoreHandle, streamdeck: &mut StreamDeck, cache: &mu
 
                         if component.to_cache {
                             cache.insert(hash, arc.clone());
-                            println!("caching: {}", hash);
                         }
 
                         streamdeck.write_button_image(*key, arc.deref()).ok();
                     }
+
+                    previous_state.insert(*key, hash);
                 }
+
+                // Skipping anything else if we already processed an animated image
+                continue;
             }
         }
+
+        // If not animated, continuing with normal process of rendering a button
+        let mut hasher: Box<dyn Hasher> = Box::new(DefaultHasher::new());
+
+        component.hash(&mut hasher);
+        for (_, module) in core.core.module_manager.read_rendering_modules_map().deref() {
+            module.render_hash(core.clone_for(module), &button, &mut hasher);
+        }
+
+        let hash = hasher.finish();
+
+        let variant = cache.get(&hash);
+
+        if component.to_cache && variant.is_some() {
+            if let Some(previous) = previous_state.get(&key) {
+                if hash != *previous {
+                    streamdeck.write_button_image(*key, variant.unwrap().deref()).ok();
+                }
+            } else {
+                streamdeck.write_button_image(*key, variant.unwrap().deref()).ok();
+            }
+        } else {
+            let mut buffer = vec![];
+
+            draw_foreground(&component, &button, draw_background(component, core, missing, counters), core).rotate180().write_to(&mut Cursor::new(&mut buffer), match core.core.kind.image_mode() {
+                ImageMode::Bmp => ImageFormat::Bmp,
+                ImageMode::Jpeg => ImageFormat::Jpeg,
+            }).ok();
+
+            let arc = Arc::new(DeviceImage::from(buffer));
+
+            if component.to_cache {
+                cache.insert(hash, arc.clone());
+            }
+
+            streamdeck.write_button_image(*key, arc.deref()).ok();
+        }
+
+        previous_state.insert(*key, hash);
     }
 
     for (_, counter) in counters {
@@ -474,73 +543,6 @@ fn draw_foreground(renderer: &RendererComponent, button: &UniqueButton, mut back
     }
 
     background
-}
-
-// TODO: Get rid of this, instead use process_animations, just add difference tracking and only update images with streamdeck when necessary
-fn redraw(core: &CoreHandle, streamdeck: &mut StreamDeck, state: &RendererState, missing: &DynamicImage, cache: &mut HashMap<u64, DynamicImage>, renderer_map: &mut HashMap<u8, (UniqueButton, RendererComponent)>, counters: &mut HashMap<String, AnimationCounter>) {
-    let current_screen = get_current_screen(&core);
-
-    if current_screen.is_none() {
-        return;
-    }
-
-    let current_screen = current_screen.unwrap();
-    let screen_handle = current_screen.read().unwrap();
-    let current_screen = screen_handle.buttons.clone();
-    drop(screen_handle);
-
-    let mut current_images = HashMap::new();
-
-    for i in 0..core.core.key_count {
-        if let Some(button) = current_screen.get(&i) {
-            if let Ok(component) = parse_unique_button_to_component::<RendererComponent>(&button) {
-                renderer_map.insert(i, (button.clone(), component.clone()));
-
-                // Cancel caching if image is animated
-                if let ButtonBackground::ExistingImage(identifier) = &component.background {
-                    if let Some(SDImage::AnimatedImage(frames)) = core.core.image_collection.read().unwrap().get(identifier) {
-                        current_images.insert(i, frames[0].image.clone());
-                        continue;
-                    }
-                }
-
-                // Caching if image is just like any other
-                let mut hasher: Box<dyn Hasher> = Box::new(DefaultHasher::new());
-
-                hash_renderer(&component).hash(&mut hasher);
-                for (_, module) in core.core.module_manager.read_rendering_modules_map().deref() {
-                    module.render_hash(core.clone_for(module), button, &mut hasher);
-                }
-
-                let hash = hasher.finish();
-
-                if let Some(image) = cache.get(&hash) {
-                    current_images.insert(i, image.clone());
-                    streamdeck.write_button_image(i, &convert_image(&streamdeck.kind(), image.clone())).ok();
-                } else {
-                    let image = draw_foreground(&component, button, draw_background(&component, &core, missing, counters), &core);
-
-                    cache.insert(hash, image.clone());
-
-                    current_images.insert(i, image.clone());
-                    streamdeck.write_button_image(i, &convert_image(&streamdeck.kind(), image)).ok();
-                }
-            } else {
-                renderer_map.remove(&i);
-
-                current_images.insert(i, image_from_solid(core.core.image_size, Rgba([0, 0, 0, 255])));
-                streamdeck.set_button_rgb(i, &Colour { r: 0, g: 0, b: 0 }).ok();
-            }
-        } else {
-            renderer_map.remove(&i);
-
-            streamdeck.set_button_rgb(i, &Colour { r: 0, g: 0, b: 0 }).ok();
-        }
-    }
-
-    {
-        *state.current_images.write().unwrap() = current_images;
-    }
 }
 
 /// Definition for color format
