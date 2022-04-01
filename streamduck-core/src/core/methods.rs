@@ -591,7 +591,9 @@ pub fn get_button_images(core: &CoreHandle) -> Option<HashMap<u8, DynamicImage>>
         .filter_map(|(key, button)| {
             if let Ok(component) = parse_unique_button_to_component::<RendererComponent>(&button) {
                 let modules = core.module_manager().get_modules_for_rendering(&button.read().unwrap().component_names());
-                let modules = modules.into_values().collect::<Vec<UniqueSDModule>>();
+                let modules = modules.into_values()
+                    .filter(|x| !component.plugin_blacklist.contains(&x.name()))
+                    .collect::<Vec<UniqueSDModule>>();
 
                 Some((key, draw_foreground(
                     &component,

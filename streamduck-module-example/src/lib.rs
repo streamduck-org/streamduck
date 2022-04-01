@@ -63,6 +63,7 @@ impl SDModule for ExampleModule {
             default_looks: RendererComponent {
                 background: ButtonBackground::Solid((255, 0, 255, 255)),
                 text: vec![],
+                plugin_blacklist: vec![],
                 to_cache: true
             }
         });

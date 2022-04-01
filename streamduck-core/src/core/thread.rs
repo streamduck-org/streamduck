@@ -165,9 +165,13 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
                                         .filter(|(_, button)| button.read().unwrap().0.contains_key(RendererComponent::NAME))
                                         .map(|(key, x)| {
                                             let names = x.read().unwrap().component_names();
-                                            let modules = core.module_manager().get_modules_for_rendering(&names);
+                                            let mut modules = core.module_manager().get_modules_for_rendering(&names);
 
-                                            (key, (parse_unique_button_to_component::<RendererComponent>(&x).unwrap(), x, modules.into_values().collect::<Vec<UniqueSDModule>>()))
+                                            let component = parse_unique_button_to_component::<RendererComponent>(&x).unwrap();
+
+                                            modules.retain(|x, _| !component.plugin_blacklist.contains(x));
+
+                                            (key, (component, x, modules.into_values().collect::<Vec<UniqueSDModule>>()))
                                         })
                                 )
                             }
@@ -596,6 +600,8 @@ pub struct RendererComponent {
     pub background: ButtonBackground,
     #[serde(default)]
     pub text: Vec<ButtonText>,
+    #[serde(default)]
+    pub plugin_blacklist: Vec<String>,
     #[serde(default = "make_true")]
     pub to_cache: bool,
 }
@@ -607,6 +613,7 @@ impl Default for RendererComponent {
         Self {
             background: ButtonBackground::Solid((255, 255, 255, 255)),
             text: vec![],
+            plugin_blacklist: vec![],
             to_cache: true,
         }
     }

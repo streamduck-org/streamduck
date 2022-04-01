@@ -26,6 +26,7 @@ pub fn add_definition(map: &mut HashMap<String, ComponentDefinition>) {
                     shadow: None
                 }
             ],
+            plugin_blacklist: vec![],
             to_cache: true
         }
     });

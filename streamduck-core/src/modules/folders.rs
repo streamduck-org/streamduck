@@ -12,7 +12,7 @@ use crate::modules::{PluginMetadata, SDModule};
 use crate::core::thread::{ButtonBackground, ButtonText, RendererComponent};
 use crate::util::{button_to_raw, make_panel_unique};
 use crate::util::rendering::TextAlignment;
-use crate::versions::{CORE, CORE_METHODS, EVENTS, MODULE_MANAGER, RENDERING};
+use crate::versions::{CORE, CORE_METHODS, EVENTS, MODULE_MANAGER};
 
 const MODULE_NAME: &str = "core/folder";
 
@@ -56,6 +56,7 @@ impl SDModule for FolderModule {
                         shadow: None
                     }
                 ],
+                plugin_blacklist: vec![],
                 to_cache: true
             }
         });
@@ -77,6 +78,7 @@ impl SDModule for FolderModule {
                         shadow: None
                     }
                 ],
+                plugin_blacklist: vec![],
                 to_cache: true
             }
         });
@@ -98,6 +100,7 @@ impl SDModule for FolderModule {
                         shadow: None
                     }
                 ],
+                plugin_blacklist: vec![],
                 to_cache: true
             }
         });
@@ -377,8 +380,7 @@ impl SDModule for FolderModule {
                 CORE,
                 CORE_METHODS,
                 MODULE_MANAGER,
-                EVENTS,
-                RENDERING
+                EVENTS
             ]
         )
     }
