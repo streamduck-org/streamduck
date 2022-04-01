@@ -29,6 +29,11 @@ impl Button {
     pub fn component_names(&self) -> Vec<String> {
         self.0.keys().map(|x| x.clone()).collect()
     }
+
+    /// Checks if button contains specified component name
+    pub fn contains(&self, name: &str) -> bool {
+        self.0.contains_key(name)
+    }
 }
 
 /// Component trait, simply provides name for component generic methods

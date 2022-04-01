@@ -87,7 +87,7 @@ impl DaemonRequest for GetModuleValues {
         if let Ok(request) = parse_packet_to_data::<GetModuleValues>(packet) {
             for module in listener.module_manager.get_module_list() {
                 if module.name() == request.module_name {
-                    let values = module.settings()
+                    let values = module.settings(listener.core_manager.clone())
                         .into_iter()
                         .map(|x| convert_value_to_path(x, ""))
                         .collect();
@@ -135,7 +135,7 @@ impl DaemonRequest for AddModuleValue {
         if let Ok(request) = parse_packet_to_data::<AddModuleValue>(packet) {
             for module in listener.module_manager.get_module_list() {
                 if module.name() == request.module_name {
-                    if add_element_module_setting(&module, &request.path) {
+                    if add_element_module_setting(listener.core_manager.clone(), &module, &request.path) {
                         send_packet(handle, packet, &AddModuleValueResult::Added).ok();
                     } else {
                         send_packet(handle, packet, &AddModuleValueResult::FailedToAdd).ok();
@@ -184,7 +184,7 @@ impl DaemonRequest for RemoveModuleValue {
         if let Ok(request) = parse_packet_to_data::<RemoveModuleValue>(packet) {
             for module in listener.module_manager.get_module_list() {
                 if module.name() == request.module_name {
-                    if remove_element_module_setting(&module, &request.path, request.index) {
+                    if remove_element_module_setting(listener.core_manager.clone(), &module, &request.path, request.index) {
                         send_packet(handle, packet, &RemoveModuleValueResult::Removed).ok();
                     } else {
                         send_packet(handle, packet, &RemoveModuleValueResult::FailedToRemove).ok();
@@ -232,7 +232,7 @@ impl DaemonRequest for SetModuleValue {
         if let Ok(request) = parse_packet_to_data::<SetModuleValue>(packet) {
             for module in listener.module_manager.get_module_list() {
                 if module.name() == request.module_name {
-                    if set_module_setting(&module, request.value) {
+                    if set_module_setting(listener.core_manager.clone(), &module, request.value) {
                         send_packet(handle, packet, &SetModuleValueResult::Set).ok();
                     } else {
                         send_packet(handle, packet, &SetModuleValueResult::FailedToSet).ok();

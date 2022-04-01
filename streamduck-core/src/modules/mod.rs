@@ -26,6 +26,7 @@ use strum::VariantNames;
 use std::str::FromStr;
 use image::DynamicImage;
 use image::io::Reader;
+use crate::core::manager::CoreManager;
 use crate::core::UniqueButton;
 use crate::images::SDImage;
 use crate::util::{add_array_function, change_from_path, convert_value_to_path, hash_str, remove_array_function, set_value_function};
@@ -259,10 +260,10 @@ pub trait SDModule: Send + Sync {
     fn listening_for(&self) -> Vec<String>;
 
     /// Current settings state of the plugin
-    fn settings(&self) -> Vec<UIValue> { vec![] }
+    fn settings(&self, core_manager: Arc<CoreManager>) -> Vec<UIValue> { vec![] }
 
     /// Method for updating plugin settings from UI
-    fn set_setting(&self, value: Vec<UIValue>) { }
+    fn set_setting(&self, core_manager: Arc<CoreManager>, value: Vec<UIValue>) { }
 
     /// Method for handling core events, add EVENTS feature to the plugin metadata to receive events
     fn event(&self, core: CoreHandle, event: SDEvent);
@@ -315,20 +316,20 @@ impl PluginMetadata {
 }
 
 /// Retrieves module settings in array of UIPathValue
-pub fn get_module_settings(module: &UniqueSDModule) -> Vec<UIPathValue> {
-    module.settings()
+pub fn get_module_settings(core_manager: Arc<CoreManager>, module: &UniqueSDModule) -> Vec<UIPathValue> {
+    module.settings(core_manager)
         .into_iter()
         .map(|x| convert_value_to_path(x, ""))
         .collect()
 }
 
 /// Adds new element into module setting's array
-pub fn add_element_module_setting(module: &UniqueSDModule, path: &str) -> bool {
-    let (changes, success) = change_from_path(path, module.settings(), &add_array_function(), false);
+pub fn add_element_module_setting(core_manager: Arc<CoreManager>, module: &UniqueSDModule, path: &str) -> bool {
+    let (changes, success) = change_from_path(path, module.settings(core_manager.clone()), &add_array_function(), false);
 
     if success {
         if !changes.is_empty() {
-            module.set_setting(changes);
+            module.set_setting(core_manager, changes);
             true
         } else {
             false
@@ -339,12 +340,12 @@ pub fn add_element_module_setting(module: &UniqueSDModule, path: &str) -> bool {
 }
 
 /// Removes an element from module setting's array
-pub fn remove_element_module_setting(module: &UniqueSDModule, path: &str, index: usize) -> bool {
-    let (changes, success) = change_from_path(path, module.settings(), &remove_array_function(index), false);
+pub fn remove_element_module_setting(core_manager: Arc<CoreManager>, module: &UniqueSDModule, path: &str, index: usize) -> bool {
+    let (changes, success) = change_from_path(path, module.settings(core_manager.clone()), &remove_array_function(index), false);
 
     if success {
         if !changes.is_empty() {
-            module.set_setting(changes);
+            module.set_setting(core_manager, changes);
             true
         } else {
             false
@@ -355,12 +356,12 @@ pub fn remove_element_module_setting(module: &UniqueSDModule, path: &str, index:
 }
 
 /// Sets value into module's setting
-pub fn set_module_setting(module: &UniqueSDModule, value: UIPathValue) -> bool {
-    let (changes, success) = change_from_path(&value.path, module.settings(), &set_value_function(value.clone()), false);
+pub fn set_module_setting(core_manager: Arc<CoreManager>, module: &UniqueSDModule, value: UIPathValue) -> bool {
+    let (changes, success) = change_from_path(&value.path, module.settings(core_manager.clone()), &set_value_function(value.clone()), false);
 
     if success {
         if !changes.is_empty() {
-            module.set_setting(changes);
+            module.set_setting(core_manager, changes);
             true
         } else {
             false
@@ -408,7 +409,7 @@ impl SDModule for CoreModule {
         map
     }
 
-    fn add_component(&self, core: CoreHandle, button: &mut Button, name: &str) {
+    fn add_component(&self, _: CoreHandle, button: &mut Button, name: &str) {
         match name {
             "renderer" => {
                 button.insert_component(RendererComponent::default()).ok();
@@ -417,7 +418,7 @@ impl SDModule for CoreModule {
         }
     }
 
-    fn remove_component(&self, core: CoreHandle, button: &mut Button, name: &str) {
+    fn remove_component(&self, _: CoreHandle, button: &mut Button, name: &str) {
         match name {
             "renderer" => {
                 button.remove_component::<RendererComponent>();

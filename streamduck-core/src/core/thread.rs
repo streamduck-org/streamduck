@@ -14,25 +14,24 @@ use std::thread::{sleep, spawn};
 use std::time::{Duration, Instant};
 use image::{DynamicImage, ImageFormat, Rgba, RgbaImage};
 use image::imageops::{FilterType, tile};
-use image::io::Reader;
 use rusttype::Scale;
 use streamdeck::{Colour, DeviceImage, ImageMode, StreamDeck};
 use crate::core::{SDCore, UniqueButton};
 use crate::core::button::{Component, parse_unique_button_to_component};
 use crate::core::methods::{CoreHandle, get_current_screen};
 use crate::font::get_font_from_collection;
-use crate::images::{AnimationFrame, convert_image, SDImage};
+use crate::images::{AnimationFrame, SDImage};
 use crate::util::rendering::{image_from_horiz_gradient, image_from_solid, image_from_vert_gradient, render_aligned_shadowed_text_on_image, render_aligned_text_on_image, TextAlignment};
 
 pub type ImageCollection = Arc<RwLock<HashMap<String, SDImage>>>;
 
 /// Handle for contacting renderer thread
 pub struct DeviceThreadHandle {
-    tx: Sender<Vec<DeviceThreadCommunication>>,
-    pub state: Arc<RendererState>,
+    tx: Sender<Vec<DeviceThreadCommunication>>
 }
 
 impl DeviceThreadHandle {
+    /// Sends commands to device thread
     pub fn send(&self, commands: Vec<DeviceThreadCommunication>) {
         self.tx.send(commands).ok();
     }
@@ -56,19 +55,10 @@ pub enum DeviceThreadCommunication {
     ClearButtonImage(u8),
 }
 
-pub struct RendererState {
-    pub current_images: RwLock<HashMap<u8, DynamicImage>>,
-}
-
 /// Spawns device thread from a core reference
 pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Sender<(u8, bool)>) -> DeviceThreadHandle {
     let (tx, rx) = channel::<Vec<DeviceThreadCommunication>>();
 
-    let state = Arc::new(RendererState {
-        current_images: Default::default(),
-    });
-
-    let renderer_state = state.clone();
     spawn(move || {
         let core = CoreHandle::wrap(core.clone());
         let mut streamdeck = streamdeck;
@@ -76,70 +66,12 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
 
         streamdeck.set_blocking(false).ok();
 
-        let mut pattern = RgbaImage::new(16, 16);
-
-        for x in 0..16 {
-            for y in 0..16 {
-                let color = if y < 8 {
-                    if x < 8 {
-                        Rgba([255, 0, 255, 255])
-                    } else {
-                        Rgba([0, 0, 0, 255])
-                    }
-                } else {
-                    if x >= 8 {
-                        Rgba([255, 0, 255, 255])
-                    } else {
-                        Rgba([0, 0, 0, 255])
-                    }
-                };
-
-                pattern.put_pixel(x, y, color);
-            }
-        }
-
-        let (iw, ih) = core.core.image_size;
-        let mut frame = RgbaImage::new(iw as u32, ih as u32);
-
-        tile(&mut frame, &pattern);
-
-        let mut missing = DynamicImage::ImageRgba8(frame);
-
-        if let Some(font) = get_font_from_collection("default") {
-            render_aligned_shadowed_text_on_image(
-                (iw, ih),
-                &mut missing,
-                &font,
-                "ГДЕ",
-                Scale { x: 30.0, y: 30.0 },
-                TextAlignment::Center,
-                0,
-                (0.0, -13.0),
-                (255, 0, 255, 255),
-                (2, 2),
-                (0, 0, 0, 255),
-            );
-
-            render_aligned_shadowed_text_on_image(
-                (iw, ih),
-                &mut missing,
-                &font,
-                "Where",
-                Scale { x: 25.0, y: 25.0 },
-                TextAlignment::Center,
-                0,
-                (0.0, 8.0),
-                (255, 0, 255, 255),
-                (1, 1),
-                (0, 0, 0, 255),
-            );
-        }
+        let missing = draw_missing_texture(core.core.image_size);
 
         let mut animation_counters = HashMap::new();
         let mut last_iter = Instant::now();
         let mut renderer_map = HashMap::new();
         let mut animation_cache: HashMap<u64, Arc<DeviceImage>> = HashMap::new();
-        let mut renderer_cache: HashMap<u64, DynamicImage> = HashMap::new();
         let mut previous_state: HashMap<u8, u64> = HashMap::new();
         loop {
             if core.core.is_closed() {
@@ -226,9 +158,10 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
                                 let current_screen = screen_handle.buttons.clone();
                                 drop(screen_handle);
 
+                                renderer_map.clear();
                                 renderer_map.extend(
                                     current_screen.into_iter()
-                                        .filter(|(key, button)| button.read().unwrap().0.contains_key(RendererComponent::NAME))
+                                        .filter(|(_, button)| button.read().unwrap().0.contains_key(RendererComponent::NAME))
                                         .map(|(key, x)| (key, (parse_unique_button_to_component::<RendererComponent>(&x).unwrap(), x)))
                                 )
                             }
@@ -261,8 +194,7 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
     });
 
     DeviceThreadHandle {
-        tx,
-        state,
+        tx
     }
 }
 
@@ -329,109 +261,114 @@ fn process_animations(
     missing: &DynamicImage
 ) {
 
-
-    for (key, (component, button)) in renderer_map {
-        if let ButtonBackground::ExistingImage(identifier) = &component.background {
-            let counter = if let Some(counter) = counters.get_mut(identifier) {
-                Some(counter)
-            } else {
-                if let Some(SDImage::AnimatedImage(frames)) = core.core.image_collection.read().unwrap().get(identifier).cloned() {
-                    let counter = AnimationCounter::new(frames);
-                    counters.insert(identifier.clone(), counter);
-                    Some(counters.get_mut(identifier).unwrap())
+    for key in 0..core.core.key_count {
+        if let Some((component, button)) = renderer_map.get(&key) {
+            if let ButtonBackground::ExistingImage(identifier) = &component.background {
+                let counter = if let Some(counter) = counters.get_mut(identifier) {
+                    Some(counter)
                 } else {
-                    None
-                }
-            };
-
-            if let Some(counter) = counter {
-                if counter.new_frame {
-                    let frame = counter.get_frame();
-
-                    let mut hasher: Box<dyn Hasher> = Box::new(DefaultHasher::new());
-
-                    component.hash(&mut hasher);
-                    frame.index.hash(&mut hasher);
-
-                    for (_, module) in core.core.module_manager.read_rendering_modules_map().deref() {
-                        module.render_hash(core.clone_for(module), &button, &mut hasher);
+                    if let Some(SDImage::AnimatedImage(frames)) = core.core.image_collection.read().unwrap().get(identifier).cloned() {
+                        let counter = AnimationCounter::new(frames);
+                        counters.insert(identifier.clone(), counter);
+                        Some(counters.get_mut(identifier).unwrap())
+                    } else {
+                        None
                     }
+                };
 
-                    let hash = hasher.finish();
+                if let Some(counter) = counter {
+                    if counter.new_frame {
+                        let frame = counter.get_frame();
 
-                    let variant = cache.get(&hash);
+                        let mut hasher: Box<dyn Hasher> = Box::new(DefaultHasher::new());
 
-                    if component.to_cache && variant.is_some() {
-                        if let Some(previous) = previous_state.get(&key) {
+                        component.hash(&mut hasher);
+                        frame.index.hash(&mut hasher);
+
+                        for (_, module) in core.core.module_manager.read_rendering_modules_map().deref() {
+                            module.render_hash(core.clone_for(module), &button, &mut hasher);
+                        }
+
+                        let hash = hasher.finish();
+
+                        let variant = cache.get(&hash);
+
+                        if component.to_cache && variant.is_some() {
+                            let previous = previous_state.get(&key).unwrap_or(&0);
                             if hash != *previous {
-                                streamdeck.write_button_image(*key, variant.unwrap().deref()).ok();
+                                streamdeck.write_button_image(key, variant.unwrap().deref()).ok();
                             }
                         } else {
-                            streamdeck.write_button_image(*key, variant.unwrap().deref()).ok();
+                            let mut buffer = vec![];
+
+                            draw_foreground(&component, &button, frame.image.clone(), core).rotate180().write_to(&mut Cursor::new(&mut buffer), match core.core.kind.image_mode() {
+                                ImageMode::Bmp => ImageFormat::Bmp,
+                                ImageMode::Jpeg => ImageFormat::Jpeg,
+                            }).ok();
+
+                            let arc = Arc::new(DeviceImage::from(buffer));
+
+                            if component.to_cache {
+                                cache.insert(hash, arc.clone());
+                            }
+
+                            streamdeck.write_button_image(key, arc.deref()).ok();
                         }
-                    } else {
-                        let mut buffer = vec![];
 
-                        draw_foreground(&component, &button, frame.image.clone(), core).rotate180().write_to(&mut Cursor::new(&mut buffer), match core.core.kind.image_mode() {
-                            ImageMode::Bmp => ImageFormat::Bmp,
-                            ImageMode::Jpeg => ImageFormat::Jpeg,
-                        }).ok();
-
-                        let arc = Arc::new(DeviceImage::from(buffer));
-
-                        if component.to_cache {
-                            cache.insert(hash, arc.clone());
-                        }
-
-                        streamdeck.write_button_image(*key, arc.deref()).ok();
+                        previous_state.insert(key, hash);
                     }
 
-                    previous_state.insert(*key, hash);
+                    // Skipping anything else if we already processed an animated image
+                    continue;
                 }
-
-                // Skipping anything else if we already processed an animated image
-                continue;
             }
-        }
 
-        // If not animated, continuing with normal process of rendering a button
-        let mut hasher: Box<dyn Hasher> = Box::new(DefaultHasher::new());
+            // If not animated, continuing with normal process of rendering a button
+            let mut hasher: Box<dyn Hasher> = Box::new(DefaultHasher::new());
 
-        component.hash(&mut hasher);
-        for (_, module) in core.core.module_manager.read_rendering_modules_map().deref() {
-            module.render_hash(core.clone_for(module), &button, &mut hasher);
-        }
+            component.hash(&mut hasher);
+            for (_, module) in core.core.module_manager.read_rendering_modules_map().deref() {
+                module.render_hash(core.clone_for(module), &button, &mut hasher);
+            }
 
-        let hash = hasher.finish();
+            let hash = hasher.finish();
 
-        let variant = cache.get(&hash);
+            let variant = cache.get(&hash);
 
-        if component.to_cache && variant.is_some() {
-            if let Some(previous) = previous_state.get(&key) {
+            if component.to_cache && variant.is_some() {
+                let previous = previous_state.get(&key).unwrap_or(&0);
                 if hash != *previous {
-                    streamdeck.write_button_image(*key, variant.unwrap().deref()).ok();
+                    streamdeck.write_button_image(key, variant.unwrap().deref()).ok();
                 }
             } else {
-                streamdeck.write_button_image(*key, variant.unwrap().deref()).ok();
+                let mut buffer = vec![];
+
+                draw_foreground(&component, &button, draw_background(component, core, missing), core).rotate180().write_to(&mut Cursor::new(&mut buffer), match core.core.kind.image_mode() {
+                    ImageMode::Bmp => ImageFormat::Bmp,
+                    ImageMode::Jpeg => ImageFormat::Jpeg,
+                }).ok();
+
+                let arc = Arc::new(DeviceImage::from(buffer));
+
+                if component.to_cache {
+                    cache.insert(hash, arc.clone());
+                }
+
+                streamdeck.write_button_image(key, arc.deref()).ok();
             }
+
+            previous_state.insert(key, hash);
         } else {
-            let mut buffer = vec![];
+            let previous = previous_state.get(&key).unwrap_or(&0);
 
-            draw_foreground(&component, &button, draw_background(component, core, missing, counters), core).rotate180().write_to(&mut Cursor::new(&mut buffer), match core.core.kind.image_mode() {
-                ImageMode::Bmp => ImageFormat::Bmp,
-                ImageMode::Jpeg => ImageFormat::Jpeg,
-            }).ok();
-
-            let arc = Arc::new(DeviceImage::from(buffer));
-
-            if component.to_cache {
-                cache.insert(hash, arc.clone());
+            if *previous != 0 {
+                streamdeck.set_button_rgb(key, &streamdeck::Colour {
+                    r: 0,
+                    g: 0,
+                    b: 0
+                }).ok();
             }
-
-            streamdeck.write_button_image(*key, arc.deref()).ok();
         }
-
-        previous_state.insert(*key, hash);
     }
 
     for (_, counter) in counters {
@@ -440,7 +377,7 @@ fn process_animations(
     };
 }
 
-fn draw_background(renderer: &RendererComponent, core: &CoreHandle, missing: &DynamicImage, counters: &mut HashMap<String, AnimationCounter>) -> DynamicImage {
+pub fn draw_background(renderer: &RendererComponent, core: &CoreHandle, missing: &DynamicImage) -> DynamicImage {
     match &renderer.background {
         ButtonBackground::Solid(color) => {
             image_from_solid(core.core.image_size, Rgba([color.0, color.1, color.2, 255]))
@@ -461,12 +398,8 @@ fn draw_background(renderer: &RendererComponent, core: &CoreHandle, missing: &Dy
                         image.resize_to_fill(core.core.image_size.0 as u32, core.core.image_size.1 as u32, FilterType::Triangle)
                     }
 
-                    SDImage::AnimatedImage(_) => {
-                        if let Some(counter) = counters.get(identifier) {
-                            counter.get_frame().image.clone()
-                        } else {
-                            image_from_solid(core.core.image_size, Rgba([0, 0, 0, 0]))
-                        }
+                    SDImage::AnimatedImage(frames) => {
+                        frames[0].image.clone().resize_to_fill(core.core.image_size.0 as u32, core.core.image_size.1 as u32, FilterType::Triangle)
                     }
                 }
             } else {
@@ -475,20 +408,8 @@ fn draw_background(renderer: &RendererComponent, core: &CoreHandle, missing: &Dy
         }
 
         ButtonBackground::NewImage(blob) => {
-            fn get_image(blob: String) -> Option<DynamicImage> {
-                if let Ok(byte_array) = base64::decode(blob) {
-                    if let Ok(recognized_image) = Reader::new(Cursor::new(byte_array)).with_guessed_format() {
-                        if let Ok(decoded_image) = recognized_image.decode() {
-                            return Some(decoded_image);
-                        }
-                    }
-                }
-
-                None
-            }
-
-            if let Some(image) = get_image(blob.to_string()) {
-                image.resize_to_fill(core.core.image_size.0 as u32, core.core.image_size.1 as u32, FilterType::Triangle)
+            if let Ok(image) = SDImage::from_base64(blob, core.core.image_size) {
+                image.get_image()
             } else {
                 missing.clone()
             }
@@ -496,7 +417,7 @@ fn draw_background(renderer: &RendererComponent, core: &CoreHandle, missing: &Dy
     }
 }
 
-fn draw_foreground(renderer: &RendererComponent, button: &UniqueButton, mut background: DynamicImage, core: &CoreHandle) -> DynamicImage {
+pub fn draw_foreground(renderer: &RendererComponent, button: &UniqueButton, mut background: DynamicImage, core: &CoreHandle) -> DynamicImage {
     // Render any additional things plugins want displayed
     for (_, module) in core.core.module_manager.read_rendering_modules_map().deref() {
         module.render(core.clone_for(module), button, &mut background);
@@ -543,6 +464,69 @@ fn draw_foreground(renderer: &RendererComponent, button: &UniqueButton, mut back
     }
 
     background
+}
+
+pub fn draw_missing_texture(size: (usize, usize)) -> DynamicImage {
+    let mut pattern = RgbaImage::new(16, 16);
+
+    for x in 0..16 {
+        for y in 0..16 {
+            let color = if y < 8 {
+                if x < 8 {
+                    Rgba([255, 0, 255, 255])
+                } else {
+                    Rgba([0, 0, 0, 255])
+                }
+            } else {
+                if x >= 8 {
+                    Rgba([255, 0, 255, 255])
+                } else {
+                    Rgba([0, 0, 0, 255])
+                }
+            };
+
+            pattern.put_pixel(x, y, color);
+        }
+    }
+
+    let (iw, ih) = size;
+    let mut frame = RgbaImage::new(iw as u32, ih as u32);
+
+    tile(&mut frame, &pattern);
+
+    let mut missing = DynamicImage::ImageRgba8(frame);
+
+    if let Some(font) = get_font_from_collection("default") {
+        render_aligned_shadowed_text_on_image(
+            (iw, ih),
+            &mut missing,
+            &font,
+            "ГДЕ",
+            Scale { x: 30.0, y: 30.0 },
+            TextAlignment::Center,
+            0,
+            (0.0, -13.0),
+            (255, 0, 255, 255),
+            (2, 2),
+            (0, 0, 0, 255),
+        );
+
+        render_aligned_shadowed_text_on_image(
+            (iw, ih),
+            &mut missing,
+            &font,
+            "Where",
+            Scale { x: 25.0, y: 25.0 },
+            TextAlignment::Center,
+            0,
+            (0.0, 8.0),
+            (255, 0, 255, 255),
+            (1, 1),
+            (0, 0, 0, 255),
+        );
+    }
+
+    missing
 }
 
 /// Definition for color format

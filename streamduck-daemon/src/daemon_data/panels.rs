@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 use std::io::Cursor;
 use serde::{Deserialize, Serialize};
-use streamduck_core::core::methods::{CoreHandle, get_current_screen, get_root_screen, get_stack, pop_screen, push_screen, replace_screen, reset_stack};
+use streamduck_core::core::methods::{CoreHandle, get_button_images, get_current_screen, get_root_screen, get_stack, pop_screen, push_screen, replace_screen, reset_stack};
 use streamduck_core::core::RawButtonPanel;
 use streamduck_core::image::ImageOutputFormat;
 use streamduck_core::socket::{parse_packet_to_data, send_packet, SocketData, SocketHandle, SocketPacket};
@@ -174,18 +174,23 @@ impl DaemonRequest for GetButtonImages {
     fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<GetButtonImages>(packet) {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
-                let images = device.core.get_button_images().into_iter()
-                    .map(|(key, image)| {
-                        let mut buffer: Vec<u8> = vec![];
-                        image.write_to(&mut Cursor::new(&mut buffer), ImageOutputFormat::Png).ok();
-                        (key, base64::encode(buffer))
-                    })
-                    .collect();
+                let wrapped_core = CoreHandle::wrap(device.core);
 
-                send_packet(handle, packet, &GetButtonImagesResult::Images(images)).ok();
-            } else {
-                send_packet(handle, packet, &GetButtonImagesResult::DeviceNotFound).ok();
+                if let Some(images) = get_button_images(&wrapped_core) {
+                    let images = images.into_iter()
+                        .map(|(key, image)| {
+                            let mut buffer: Vec<u8> = vec![];
+                            image.write_to(&mut Cursor::new(&mut buffer), ImageOutputFormat::Png).ok();
+                            (key, base64::encode(buffer))
+                        })
+                        .collect();
+
+                    send_packet(handle, packet, &GetButtonImagesResult::Images(images)).ok();
+                    return;
+                }
             }
+
+            send_packet(handle, packet, &GetButtonImagesResult::DeviceNotFound).ok();
         }
     }
 }

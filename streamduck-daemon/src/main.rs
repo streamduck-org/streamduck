@@ -78,8 +78,6 @@ fn main() {
     // Loading device configs
     config.reload_device_configs().ok();
 
-
-
     // Adding devices from config
     core_manager.add_devices_from_config();
 

@@ -9,7 +9,6 @@ pub mod thread;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 use std::sync::mpsc::{channel, Receiver};
-use image::DynamicImage;
 use streamdeck::{Kind, StreamDeck};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -151,16 +150,6 @@ impl SDCore {
             core: CoreHandle::wrap(core.clone()),
             receiver: key_rx
         })
-    }
-
-    /// Gets current images rendered on streamdeck
-    pub fn get_button_images(&self) -> HashMap<u8, DynamicImage> {
-        let handles = self.handles.lock().unwrap();
-
-        let handle_ref = handles.as_ref().unwrap();
-        let images_lock = handle_ref.renderer.state.current_images.read().unwrap();
-
-        images_lock.clone()
     }
 
     /// Sends commands to streamdeck thread

@@ -1,15 +1,18 @@
+use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::sync::{Arc, LockResult, MutexGuard};
+use image::DynamicImage;
 use serde_json::{Map, Value};
 use crate::core::{ButtonPanel, UniqueButton};
 use crate::{ModuleManager, SDCore};
 use crate::util::{add_array_function, button_to_raw, change_from_path, convert_value_to_path, deserialize_panel, make_button_unique, panel_to_raw, remove_array_function, serialize_panel, set_value_function};
 use serde::de::Error as DeError;
 use serde_json::Error as JSONError;
+use crate::core::button::parse_unique_button_to_component;
 use crate::modules::events::SDEvent;
 use crate::modules::{features_to_vec, UniqueSDModule};
 use crate::modules::components::{UIPathValue, UIValue};
-use crate::core::thread::DeviceThreadCommunication;
+use crate::core::thread::{DeviceThreadCommunication, draw_background, draw_foreground, draw_missing_texture, RendererComponent};
 use crate::versions::SUPPORTED_FEATURES;
 
 /// Handle that's given out to a module to perform actions on the core
@@ -575,6 +578,33 @@ pub fn get_current_screen(core: &CoreHandle) -> Option<ButtonPanel> {
     } else {
         None
     }
+}
+
+pub fn get_button_images(core: &CoreHandle) -> Option<HashMap<u8, DynamicImage>> {
+    let missing = draw_missing_texture(core.core.image_size);
+
+    let panel = get_current_screen(core)?;
+    let current_screen = panel.read().unwrap();
+    let buttons = current_screen.buttons.clone();
+
+    Some(buttons.into_iter()
+        .filter_map(|(key, button)| {
+            if let Ok(component) = parse_unique_button_to_component::<RendererComponent>(&button) {
+                Some((key, draw_foreground(
+                    &component,
+                    &button,
+                    draw_background(
+                        &component,
+                        core,
+                        &missing
+                    ),
+                    core
+                )))
+            } else {
+                None
+            }
+        })
+        .collect())
 }
 
 /// Replaces current screen with specified one

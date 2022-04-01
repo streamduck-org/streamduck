@@ -10,6 +10,7 @@ use dlopen::wrapper::{Container, WrapperApi};
 use dlopen_derive::WrapperApi;
 use image::DynamicImage;
 use crate::core::button::Button;
+use crate::core::manager::CoreManager;
 use crate::core::methods::{CoreHandle, warn_for_feature};
 use crate::core::UniqueButton;
 use crate::modules::components::{ComponentDefinition, UIValue};
@@ -60,12 +61,12 @@ impl SDModule for PluginProxy {
         self.plugin.listening_for()
     }
 
-    fn settings(&self) -> Vec<UIValue> {
-        self.plugin.settings()
+    fn settings(&self, core: Arc<CoreManager>) -> Vec<UIValue> {
+        self.plugin.settings(core)
     }
 
-    fn set_setting(&self, value: Vec<UIValue>) {
-        self.plugin.set_setting(value)
+    fn set_setting(&self, core: Arc<CoreManager>, value: Vec<UIValue>) {
+        self.plugin.set_setting(core, value)
     }
 
     fn event(&self, core: CoreHandle, event: SDEvent) {

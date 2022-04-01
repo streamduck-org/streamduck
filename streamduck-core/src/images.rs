@@ -63,6 +63,14 @@ impl SDImage {
             SDImage::AnimatedImage(_) => true,
         }
     }
+
+    /// Retrieves image or first frame
+    pub fn get_image(&self) -> DynamicImage {
+        match self {
+            SDImage::SingleImage(img) => img.clone(),
+            SDImage::AnimatedImage(frames) => frames[0].image.clone()
+        }
+    }
 }
 
 /// Enum that represents serialized variant of [SDImage]
