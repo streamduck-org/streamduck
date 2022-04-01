@@ -590,9 +590,13 @@ pub fn get_button_images(core: &CoreHandle) -> Option<HashMap<u8, DynamicImage>>
     Some(buttons.into_iter()
         .filter_map(|(key, button)| {
             if let Ok(component) = parse_unique_button_to_component::<RendererComponent>(&button) {
+                let modules = core.module_manager().get_modules_for_rendering(&button.read().unwrap().component_names());
+                let modules = modules.into_values().collect::<Vec<UniqueSDModule>>();
+
                 Some((key, draw_foreground(
                     &component,
                     &button,
+                    &modules,
                     draw_background(
                         &component,
                         core,

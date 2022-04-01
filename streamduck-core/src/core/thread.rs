@@ -21,6 +21,7 @@ use crate::core::button::{Component, parse_unique_button_to_component};
 use crate::core::methods::{CoreHandle, get_current_screen};
 use crate::font::get_font_from_collection;
 use crate::images::{AnimationFrame, SDImage};
+use crate::modules::UniqueSDModule;
 use crate::util::rendering::{image_from_horiz_gradient, image_from_solid, image_from_vert_gradient, render_aligned_shadowed_text_on_image, render_aligned_text_on_image, TextAlignment};
 
 pub type ImageCollection = Arc<RwLock<HashMap<String, SDImage>>>;
@@ -162,7 +163,12 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
                                 renderer_map.extend(
                                     current_screen.into_iter()
                                         .filter(|(_, button)| button.read().unwrap().0.contains_key(RendererComponent::NAME))
-                                        .map(|(key, x)| (key, (parse_unique_button_to_component::<RendererComponent>(&x).unwrap(), x)))
+                                        .map(|(key, x)| {
+                                            let names = x.read().unwrap().component_names();
+                                            let modules = core.module_manager().get_modules_for_rendering(&names);
+
+                                            (key, (parse_unique_button_to_component::<RendererComponent>(&x).unwrap(), x, modules.into_values().collect::<Vec<UniqueSDModule>>()))
+                                        })
                                 )
                             }
                         }
@@ -176,7 +182,7 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
                 }
             }
 
-            process_animations(&core, &mut streamdeck, &mut animation_cache, &mut animation_counters,  &mut renderer_map, &mut previous_state, &missing);
+            process_animations(&core, &mut streamdeck, &mut animation_cache, &mut animation_counters, &mut renderer_map, &mut previous_state, &missing);
 
             // Rate limiter
             let rate = 1.0 / core.core.pool_rate as f32;
@@ -256,13 +262,13 @@ fn process_animations(
     streamdeck: &mut StreamDeck,
     cache: &mut HashMap<u64, Arc<DeviceImage>>,
     counters: &mut HashMap<String, AnimationCounter>,
-    renderer_map: &mut HashMap<u8, (RendererComponent, UniqueButton)>,
+    renderer_map: &mut HashMap<u8, (RendererComponent, UniqueButton, Vec<UniqueSDModule>)>,
     previous_state: &mut HashMap<u8, u64>,
     missing: &DynamicImage
 ) {
 
     for key in 0..core.core.key_count {
-        if let Some((component, button)) = renderer_map.get(&key) {
+        if let Some((component, button, modules)) = renderer_map.get(&key) {
             if let ButtonBackground::ExistingImage(identifier) = &component.background {
                 let counter = if let Some(counter) = counters.get_mut(identifier) {
                     Some(counter)
@@ -285,7 +291,7 @@ fn process_animations(
                         component.hash(&mut hasher);
                         frame.index.hash(&mut hasher);
 
-                        for (_, module) in core.core.module_manager.read_rendering_modules_map().deref() {
+                        for module in modules {
                             module.render_hash(core.clone_for(module), &button, &mut hasher);
                         }
 
@@ -301,7 +307,7 @@ fn process_animations(
                         } else {
                             let mut buffer = vec![];
 
-                            draw_foreground(&component, &button, frame.image.clone(), core).rotate180().write_to(&mut Cursor::new(&mut buffer), match core.core.kind.image_mode() {
+                            draw_foreground(&component, &button, modules,frame.image.clone(), core).rotate180().write_to(&mut Cursor::new(&mut buffer), match core.core.kind.image_mode() {
                                 ImageMode::Bmp => ImageFormat::Bmp,
                                 ImageMode::Jpeg => ImageFormat::Jpeg,
                             }).ok();
@@ -327,7 +333,7 @@ fn process_animations(
             let mut hasher: Box<dyn Hasher> = Box::new(DefaultHasher::new());
 
             component.hash(&mut hasher);
-            for (_, module) in core.core.module_manager.read_rendering_modules_map().deref() {
+            for module in modules {
                 module.render_hash(core.clone_for(module), &button, &mut hasher);
             }
 
@@ -343,7 +349,7 @@ fn process_animations(
             } else {
                 let mut buffer = vec![];
 
-                draw_foreground(&component, &button, draw_background(component, core, missing), core).rotate180().write_to(&mut Cursor::new(&mut buffer), match core.core.kind.image_mode() {
+                draw_foreground(&component, &button, modules, draw_background(component, core, missing), core).rotate180().write_to(&mut Cursor::new(&mut buffer), match core.core.kind.image_mode() {
                     ImageMode::Bmp => ImageFormat::Bmp,
                     ImageMode::Jpeg => ImageFormat::Jpeg,
                 }).ok();
@@ -417,9 +423,9 @@ pub fn draw_background(renderer: &RendererComponent, core: &CoreHandle, missing:
     }
 }
 
-pub fn draw_foreground(renderer: &RendererComponent, button: &UniqueButton, mut background: DynamicImage, core: &CoreHandle) -> DynamicImage {
+pub fn draw_foreground(renderer: &RendererComponent, button: &UniqueButton, modules: &Vec<UniqueSDModule>, mut background: DynamicImage, core: &CoreHandle) -> DynamicImage {
     // Render any additional things plugins want displayed
-    for (_, module) in core.core.module_manager.read_rendering_modules_map().deref() {
+    for module in modules {
         module.render(core.clone_for(module), button, &mut background);
     }
 

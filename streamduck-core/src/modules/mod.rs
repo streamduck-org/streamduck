@@ -42,7 +42,7 @@ pub struct ModuleManager {
     component_listener_map: RwLock<HashMap<String, Vec<UniqueSDModule>>>,
 
     /// Separate list of modules that can render things
-    rendering_modules: RwLock<HashMap<String, UniqueSDModule>>,
+    rendering_modules: RwLock<HashMap<String, HashMap<String, UniqueSDModule>>>,
 }
 
 impl ModuleManager {
@@ -96,7 +96,19 @@ impl ModuleManager {
         // Adding rendering modules to rendering map
         let mut rendering_modules = self.rendering_modules.write().unwrap();
         if check_feature_list_for_feature(&module.metadata().used_features, "rendering") {
-            rendering_modules.insert(module_name.clone(), module.clone());
+            for component in module.listening_for() {
+                if let Some(map) = rendering_modules.get_mut(&component) {
+                    map.insert(module.name(), module.clone());
+                } else {
+                    rendering_modules.insert(component, {
+                        let mut map = HashMap::new();
+
+                        map.insert(module.name(), module.clone());
+
+                        map
+                    });
+                }
+            }
         }
         drop(rendering_modules);
     }
@@ -182,8 +194,23 @@ impl ModuleManager {
     }
 
     /// Retrieves all modules that can render things
-    pub fn get_rendering_module_map(&self) -> HashMap<String, UniqueSDModule> {
+    pub fn get_rendering_module_map(&self) -> HashMap<String, HashMap<String, UniqueSDModule>> {
         self.rendering_modules.read().unwrap().clone()
+    }
+
+    /// Retrieves all modules that should be able to render according to list of component names
+    pub fn get_modules_for_rendering(&self, names: &Vec<String>) -> HashMap<String, UniqueSDModule> {
+        let rendering_map = self.rendering_modules.read().unwrap();
+
+        let mut map = HashMap::new();
+
+        for name in names {
+            if let Some(modules) = rendering_map.get(name) {
+                map.extend(modules.clone())
+            }
+        }
+
+        map
     }
 
 
@@ -213,7 +240,7 @@ impl ModuleManager {
     }
 
     /// Returns rendering modules map read lock
-    pub fn read_rendering_modules_map(&self) -> RwLockReadGuard<HashMap<String, UniqueSDModule>> {
+    pub fn read_rendering_modules_map(&self) -> RwLockReadGuard<HashMap<String, HashMap<String, UniqueSDModule>>> {
         self.rendering_modules.read().unwrap()
     }
 }
