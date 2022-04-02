@@ -32,5 +32,6 @@ pub const SUPPORTED_FEATURES: &[(&str, &str)] = &[
     CORE_METHODS,
     MODULE_MANAGER,
     EVENTS,
+    RENDERING,
     SOCKET_API
 ];

@@ -1,15 +1,20 @@
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use streamduck_core::core::button::{Button, parse_unique_button_to_component};
 use streamduck_core::modules::{PluginMetadata, SDModule, SDModulePointer};
-use streamduck_core::versions::{EVENTS, PLUGIN_API, SDMODULE_TRAIT};
+use streamduck_core::versions::{EVENTS, PLUGIN_API, RENDERING, SDMODULE_TRAIT};
 use serde::{Serialize, Deserialize};
 use streamduck_core::core::methods::CoreHandle;
 use streamduck_core::modules::components::{ComponentDefinition, UIFieldType, UIFieldValue, UIScalar, UIValue};
 use streamduck_core::modules::events::SDEvent;
 use streamduck_core::core::thread::{ButtonBackground, RendererComponent};
+use streamduck_core::core::UniqueButton;
+use streamduck_core::image::DynamicImage;
 use streamduck_core_derive::component;
 use streamduck_core::socket::{SocketHandle, SocketListener, SocketManager, SocketPacket};
+use streamduck_core::util::rendering::render_box_on_image;
+use streamduck_core::util::rusttype::{Point, Scale};
 
 #[no_mangle]
 pub fn get_metadata() -> PluginMetadata {
@@ -21,7 +26,8 @@ pub fn get_metadata() -> PluginMetadata {
         &[
             PLUGIN_API,
             SDMODULE_TRAIT,
-            EVENTS
+            EVENTS,
+            RENDERING
         ]
     )
 }
@@ -191,6 +197,14 @@ impl SDModule for ExampleModule {
 
             _ => {}
         }
+    }
+
+    fn render(&self, core: CoreHandle, button: &UniqueButton, frame: &mut DynamicImage) {
+        render_box_on_image(frame, Scale::uniform(15.0), Point {x: 10.0, y: 25.0}, (255, 0, 0, 255));
+    }
+
+    fn render_hash(&self, core: CoreHandle, button: &UniqueButton, hash: &mut Box<dyn Hasher>) {
+        0.hash(hash);
     }
 }
 

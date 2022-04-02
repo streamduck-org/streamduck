@@ -9,6 +9,8 @@ use crate::font::get_font_names;
 use crate::images::SDSerializedImage;
 use crate::modules::components::{UIFieldType, UIFieldValue, UIPathValue, UIValue};
 
+pub use rusttype;
+
 /// Rendering utilities
 pub mod rendering;
 
