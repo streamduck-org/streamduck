@@ -139,6 +139,8 @@ pub fn set_button(core: &CoreHandle, key: u8, button: UniqueButton) -> bool {
             }
         }
 
+        core.core.mark_for_redraw();
+
         true
     } else {
         false
@@ -164,6 +166,8 @@ pub fn clear_button(core: &CoreHandle, key: u8) -> bool {
                     deleted_button: button.clone()
                 });
             }
+
+            core.core.mark_for_redraw();
 
             true
         } else {
@@ -209,6 +213,8 @@ pub fn add_component(core: &CoreHandle, key: u8, component_name: &str) -> bool {
                             old_button: previous.clone()
                         });
                     }
+
+                    core.core.mark_for_redraw();
 
                     return true;
                 }
@@ -287,6 +293,8 @@ pub fn set_component_value(core: &CoreHandle, key: u8, component_name: &str, val
                             old_button: previous.clone()
                         });
                     }
+
+                    core.core.mark_for_redraw();
 
                     return true;
                 }
@@ -390,6 +398,8 @@ pub fn remove_component(core: &CoreHandle, key: u8, component_name: &str) -> boo
                         });
                     }
 
+                    core.core.mark_for_redraw();
+
                     return true;
                 }
             }
@@ -416,6 +426,8 @@ pub fn push_screen(core: &CoreHandle, screen: ButtonPanel) {
             new_panel: screen.clone()
         });
     }
+
+    core.core.mark_for_redraw();
 }
 
 /// Pops panel from stack
@@ -437,6 +449,8 @@ pub fn pop_screen(core: &CoreHandle) {
             })
         }
     }
+
+    core.core.mark_for_redraw();
 }
 
 /// Returns first panel of the stack for saving purposes
@@ -477,6 +491,8 @@ pub fn reset_stack(core: &CoreHandle, panel: ButtonPanel) {
             new_panel: panel.clone()
         });
     }
+
+    core.core.mark_for_redraw();
 }
 
 /// Clears the stack, attempts to deserialize provided panel value into an actual panel and then pushes it into the stack
@@ -499,6 +515,8 @@ pub fn load_panels_from_value(core: &CoreHandle, panels: Value) -> Result<(), JS
                     new_panel: panel.clone()
                 });
             }
+
+            core.core.mark_for_redraw();
 
             Ok(())
         }
@@ -556,6 +574,8 @@ pub fn button_action(core: &CoreHandle, key: u8) {
                     pressed_button: button.clone()
                 })
             }
+
+            core.core.mark_for_redraw();
         }
     }
 }
@@ -619,6 +639,7 @@ pub fn replace_screen(core: &CoreHandle, screen: ButtonPanel) {
     let mut stack = core.current_stack().unwrap();
     stack.pop();
     stack.push(screen);
+    core.core.mark_for_redraw();
 }
 
 /// Sets brightness of the streamdeck to specified (Range from 0 to 100)

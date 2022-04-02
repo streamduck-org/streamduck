@@ -152,6 +152,13 @@ impl SDCore {
         })
     }
 
+    /// Tells device thread to refresh screen
+    pub fn mark_for_redraw(&self) {
+        let handles = self.handles.lock().unwrap();
+
+        handles.as_ref().unwrap().renderer.send(vec![DeviceThreadCommunication::RefreshScreen]);
+    }
+
     /// Sends commands to streamdeck thread
     pub fn send_commands(&self, commands: Vec<DeviceThreadCommunication>) {
         let handles = self.handles.lock().unwrap();

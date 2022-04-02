@@ -287,20 +287,20 @@ fn process_animations(
                 };
 
                 if let Some(counter) = counter {
-                    if counter.new_frame {
-                        let frame = counter.get_frame();
+                    let frame = counter.get_frame();
 
-                        let mut hasher: Box<dyn Hasher> = Box::new(DefaultHasher::new());
+                    let mut hasher: Box<dyn Hasher> = Box::new(DefaultHasher::new());
 
-                        component.hash(&mut hasher);
-                        frame.index.hash(&mut hasher);
+                    component.hash(&mut hasher);
+                    frame.index.hash(&mut hasher);
 
-                        for module in modules {
-                            module.render_hash(core.clone_for(module), &button, &mut hasher);
-                        }
+                    for module in modules {
+                        module.render_hash(core.clone_for(module), &button, &mut hasher);
+                    }
 
-                        let hash = hasher.finish();
+                    let hash = hasher.finish();
 
+                    if counter.new_frame || (hash != *previous_state.get(&key).unwrap_or(&0)) {
                         let variant = cache.get(&hash);
 
                         if component.to_cache && variant.is_some() {
@@ -372,6 +372,7 @@ fn process_animations(
             let previous = previous_state.get(&key).unwrap_or(&0);
 
             if *previous != 0 {
+                previous_state.insert(key, 0);
                 streamdeck.set_button_rgb(key, &streamdeck::Colour {
                     r: 0,
                     g: 0,

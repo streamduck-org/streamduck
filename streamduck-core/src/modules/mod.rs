@@ -18,7 +18,7 @@ use crate::modules::events::SDEvent;
 use crate::modules::folders::FolderModule;
 
 use serde::{Deserialize, Serialize};
-use crate::core::thread::{ButtonBackground, ButtonText, ButtonTextShadow, DeviceThreadCommunication, RendererComponent};
+use crate::core::thread::{ButtonBackground, ButtonText, ButtonTextShadow, RendererComponent};
 use crate::util::rendering::{resize_for_streamdeck, TextAlignment};
 use crate::versions::{CORE, MODULE_MANAGER};
 
@@ -293,7 +293,7 @@ pub trait SDModule: Send + Sync {
     fn set_setting(&self, core_manager: Arc<CoreManager>, value: Vec<UIValue>) { }
 
     /// Method for handling core events, add EVENTS feature to the plugin metadata to receive events
-    fn event(&self, core: CoreHandle, event: SDEvent);
+    fn event(&self, core: CoreHandle, event: SDEvent) {}
 
     /// Method renderer will run for rendering additional information on a button if RENDERING feature was specified
     fn render(&self, core: CoreHandle, button: &UniqueButton, frame: &mut DynamicImage) {}
@@ -965,6 +965,8 @@ impl SDModule for CoreModule {
 
                     // Apply changes to button
                     button.insert_component(component).ok();
+
+                    core.core.mark_for_redraw();
                 }
             }
 
@@ -976,19 +978,8 @@ impl SDModule for CoreModule {
         vec![]
     }
 
-    fn event(&self, core: CoreHandle, event: SDEvent) {
-        match event {
-            SDEvent::ButtonAdded { .. } |
-            SDEvent::ButtonUpdated { .. } |
-            SDEvent::ButtonDeleted { .. } |
-            SDEvent::ButtonAction { .. } |
-            SDEvent::PanelPushed { .. } |
-            SDEvent::PanelPopped { .. } |
-            SDEvent::StackReset { .. } => {
-                core.core.send_commands(vec![DeviceThreadCommunication::RefreshScreen])
-            }
-            _ => {}
-        }
+    fn event(&self, _: CoreHandle, _: SDEvent) {
+
     }
 
     fn metadata(&self) -> PluginMetadata {
