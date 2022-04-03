@@ -88,6 +88,9 @@ pub enum UIFieldType {
 
     /// Checkbox
     Checkbox {
+        /// If checkbox should appear disabled in UI
+        ///
+        /// Note: Doesn't actually prevent setting the checkbox, so do internal checks if value should be changed
         disabled: bool
     },
 

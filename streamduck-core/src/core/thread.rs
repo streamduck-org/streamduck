@@ -21,6 +21,7 @@ use crate::core::button::{Component, parse_unique_button_to_component};
 use crate::core::methods::{CoreHandle, get_current_screen};
 use crate::font::get_font_from_collection;
 use crate::images::{AnimationFrame, SDImage};
+use crate::modules::core_module::CoreSettings;
 use crate::modules::UniqueSDModule;
 use crate::util::rendering::{image_from_horiz_gradient, image_from_solid, image_from_vert_gradient, render_aligned_shadowed_text_on_image, render_aligned_text_on_image, TextAlignment};
 
@@ -159,6 +160,8 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
                                 let current_screen = screen_handle.buttons.clone();
                                 drop(screen_handle);
 
+                                let core_settings: CoreSettings = core.config().get_plugin_settings().unwrap_or_default();
+
                                 renderer_map.clear();
                                 renderer_map.extend(
                                     current_screen.into_iter()
@@ -170,6 +173,7 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
                                             let component = parse_unique_button_to_component::<RendererComponent>(&x).unwrap();
 
                                             modules.retain(|x, _| !component.plugin_blacklist.contains(x));
+                                            modules.retain(|x, _| !core_settings.renderer.plugin_blacklist.contains(x));
 
                                             (key, (component, x, modules.into_values().collect::<Vec<UniqueSDModule>>()))
                                         })
@@ -622,6 +626,12 @@ impl Default for RendererComponent {
 
 impl Component for RendererComponent {
     const NAME: &'static str = "renderer";
+}
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct RendererSettings {
+    /// Blacklist of plugins that aren't allowed to render
+    pub plugin_blacklist: Vec<String>
 }
 
 #[allow(dead_code)]

@@ -15,9 +15,9 @@ use crate::util::{make_panel_unique};
 /// Core manager struct
 pub struct CoreManager {
     hid: RwLock<HidApi>,
-    config: Arc<Config>,
+    pub config: Arc<Config>,
     devices: RwLock<HashMap<String, DeviceData>>,
-    module_manager: Arc<ModuleManager>,
+    pub module_manager: Arc<ModuleManager>,
 }
 
 #[allow(dead_code)]
