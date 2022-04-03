@@ -12,6 +12,7 @@ use streamduck_core::core::thread::{ButtonBackground, RendererComponent};
 use streamduck_core::core::UniqueButton;
 use streamduck_core::image::DynamicImage;
 use streamduck_core_derive::component;
+use streamduck_core_derive::plugin_config;
 use streamduck_core::socket::{SocketHandle, SocketListener, SocketManager, SocketPacket};
 use streamduck_core::util::rendering::render_box_on_image;
 use streamduck_core::util::rusttype::{Point, Scale};
@@ -33,13 +34,9 @@ pub fn get_metadata() -> PluginMetadata {
 }
 
 #[no_mangle]
-pub fn get_module() -> SDModulePointer {
+pub fn get_module(socket_manager: Arc<SocketManager>) -> SDModulePointer {
+    socket_manager.add_listener(Box::new(ExampleListener));
     Box::into_raw(Box::new(ExampleModule))
-}
-
-#[no_mangle]
-pub fn register(socket_manager: Arc<SocketManager>) {
-    socket_manager.add_listener(Box::new(ExampleListener))
 }
 
 pub struct ExampleListener;
@@ -187,10 +184,16 @@ impl SDModule for ExampleModule {
         ]
     }
 
-    fn event(&self, _core: CoreHandle, event: SDEvent) {
+    fn event(&self, core: CoreHandle, event: SDEvent) {
         match event {
             SDEvent::ButtonAction { pressed_button, .. } => {
                 if let Ok(_) = parse_unique_button_to_component::<ExampleComponent>(&pressed_button) {
+                    let config = core.config();
+
+                    let mut my_config: ExampleSettings = config.get_plugin_settings().unwrap_or_default();
+                    my_config.test += 1;
+                    config.set_plugin_settings(my_config);
+
                     println!("Example button pressed");
                 }
             }
@@ -212,4 +215,10 @@ impl SDModule for ExampleModule {
 #[derive(Serialize, Deserialize, Default)]
 pub struct ExampleComponent {
 
+}
+
+#[plugin_config("example")]
+#[derive(Serialize, Deserialize, Default)]
+pub struct ExampleSettings {
+    test: i64
 }

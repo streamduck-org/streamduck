@@ -21,8 +21,7 @@ use crate::versions::SUPPORTED_FEATURES;
 #[derive(WrapperApi)]
 struct PluginApi {
     get_metadata: extern fn() -> PluginMetadata,
-    get_module: extern fn() -> SDModulePointer,
-    register: extern fn(socket_manager: Arc<SocketManager>),
+    get_module: extern fn(socket_manager: Arc<SocketManager>) -> SDModulePointer,
 }
 
 #[allow(dead_code)]
@@ -126,11 +125,8 @@ pub fn load_plugin<T: AsRef<OsStr>>(module_manager: Arc<ModuleManager>, socket_m
     let metadata = wrapper.get_metadata();
     compare_plugin_versions(&metadata.used_features)?;
 
-    // Running register function, so plugin can hook their listeners to various parts of the daemon
-    wrapper.register(socket_manager);
-
     // Attempting to get module from the plugin
-    let module: BoxedSDModule = unsafe { Box::from_raw(wrapper.get_module()) };
+    let module: BoxedSDModule = unsafe { Box::from_raw(wrapper.get_module(socket_manager)) };
 
     // Wrapping plugin's module into a wrapper that contains loaded library
     let module_proxy: UniqueSDModule = Arc::new(Box::new(PluginProxy { wrapper, metadata, plugin: module }));

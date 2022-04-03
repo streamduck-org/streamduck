@@ -4,7 +4,7 @@ use std::sync::{Arc, LockResult, MutexGuard};
 use image::DynamicImage;
 use serde_json::{Map, Value};
 use crate::core::{ButtonPanel, UniqueButton};
-use crate::{ModuleManager, SDCore};
+use crate::{Config, ModuleManager, SDCore};
 use crate::util::{add_array_function, button_to_raw, change_from_path, convert_value_to_path, deserialize_panel, make_button_unique, panel_to_raw, remove_array_function, serialize_panel, set_value_function};
 use serde::de::Error as DeError;
 use serde_json::Error as JSONError;
@@ -74,6 +74,12 @@ impl CoreHandle {
     pub fn core(&self) -> Arc<SDCore> {
         self.required_feature("core");
         self.core.clone()
+    }
+
+    /// Returns config reference
+    pub fn config(&self) -> Arc<Config> {
+        self.required_feature("config");
+        self.core.config.clone()
     }
 
     /// Returns module manager reference

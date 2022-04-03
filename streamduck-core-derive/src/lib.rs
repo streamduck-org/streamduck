@@ -39,6 +39,11 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
+pub fn plugin_config(attr: TokenStream, item: TokenStream) -> TokenStream {
+    add_trait(attr, item, "::streamduck_core::config::PluginConfig")
+}
+
+#[proc_macro_attribute]
 pub fn socket_data(attr: TokenStream, item: TokenStream) -> TokenStream {
-    add_trait(attr, item, "::streamduck_daemon::SocketData")
+    add_trait(attr, item, "::streamduck_core::socket::SocketData")
 }

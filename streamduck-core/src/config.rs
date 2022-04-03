@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 use image::{DynamicImage};
 use serde::{Serialize, Deserialize};
+use serde::de::DeserializeOwned;
 use crate::core::RawButtonPanel;
 use serde_json::Value;
 use streamdeck::Kind;
@@ -18,6 +19,7 @@ pub const DEFAULT_POOL_RATE: u32 = 150;
 pub const DEFAULT_RECONNECT_TIME: f32 = 1.0;
 pub const DEFAULT_CONFIG_PATH: &'static str = "devices";
 pub const DEFAULT_PLUGIN_PATH: &'static str = "plugins";
+pub const DEFAULT_PLUGIN_SETTINGS_PATH: &'static str = "global.json";
 
 pub type UniqueDeviceConfig = Arc<RwLock<DeviceConfig>>;
 
@@ -32,6 +34,11 @@ pub struct Config {
     device_config_path: Option<PathBuf>,
     /// Path to plugins
     plugin_path: Option<PathBuf>,
+    /// Path to plugin settings json
+    plugin_settings_path: Option<PathBuf>,
+
+    #[serde(skip)]
+    pub plugin_settings: RwLock<HashMap<String, Value>>,
 
     /// Currently loaded device configs
     #[serde(skip)]
@@ -46,7 +53,7 @@ pub struct Config {
 impl Config {
     /// Reads config and retrieves config struct
     pub fn get() -> Config {
-        if let Ok(content) = fs::read_to_string("config.toml") {
+        let config: Config = if let Ok(content) = fs::read_to_string("config.toml") {
             if let Ok(config) = toml::from_str(&content) {
                 config
             } else {
@@ -54,7 +61,11 @@ impl Config {
             }
         } else {
             Default::default()
-        }
+        };
+
+        config.load_plugin_settings();
+
+        config
     }
 
     /// Pool rate, defaults to [DEFAULT_POOL_RATE] if not set
@@ -75,6 +86,46 @@ impl Config {
     /// Plugin folder path, defaults to [DEFAULT_PLUGIN_PATH] if not set
     pub fn plugin_path(&self) -> PathBuf {
         self.plugin_path.clone().unwrap_or(PathBuf::from(DEFAULT_PLUGIN_PATH))
+    }
+
+    /// Global config path, defaults to [DEFAULT_PLUGIN_SETTINGS_PATH] if not set
+    pub fn plugin_settings_path(&self) -> PathBuf {
+        self.plugin_settings_path.clone().unwrap_or(PathBuf::from(DEFAULT_PLUGIN_SETTINGS_PATH))
+    }
+
+    /// Loads plugin settings from file
+    pub fn load_plugin_settings(&self) {
+        if let Ok(settings) = fs::read_to_string(self.plugin_settings_path()) {
+            let mut lock = self.plugin_settings.write().unwrap();
+
+            match serde_json::from_str(&settings) {
+                Ok(vals) => *lock = vals,
+                Err(err) => log::error!("Failed to parse plugin settings: {:?}", err),
+            }
+        }
+    }
+
+    /// Retrieves plugin settings if it exists
+    pub fn get_plugin_settings<T: PluginConfig + DeserializeOwned>(&self) -> Option<T> {
+        let lock = self.plugin_settings.read().unwrap();
+        Some(serde_json::from_value(lock.get(T::NAME)?.clone()).ok()?)
+    }
+
+    /// Sets plugin settings
+    pub fn set_plugin_settings<T: PluginConfig + Serialize>(&self, value: T) {
+        let mut lock = self.plugin_settings.write().unwrap();
+        lock.insert(T::NAME.to_string(), serde_json::to_value(value).unwrap());
+        drop(lock);
+
+        self.write_plugin_settings();
+    }
+
+    /// Writes plugin settings to file
+    pub fn write_plugin_settings(&self) {
+        let lock = self.plugin_settings.read().unwrap();
+        if let Err(err) = fs::write(self.plugin_settings_path(), serde_json::to_string(lock.deref()).unwrap()) {
+            log::error!("Failed to write plugin settings: {:?}", err);
+        }
     }
 
     /// Reloads device config for specified serial
@@ -334,7 +385,10 @@ impl Config {
     }
 }
 
-
+/// Plugin Config trait for serialization and deserialization methods
+pub trait PluginConfig {
+    const NAME: &'static str;
+}
 
 /// Error enum for various errors while loading and parsing configs
 #[derive(Debug)]

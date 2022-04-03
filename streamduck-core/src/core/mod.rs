@@ -12,7 +12,7 @@ use std::sync::mpsc::{channel, Receiver};
 use streamdeck::{Kind, StreamDeck};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use crate::config::UniqueDeviceConfig;
+use crate::config::{Config, UniqueDeviceConfig};
 use crate::core::button::Button;
 use crate::core::thread::{DeviceThreadCommunication, DeviceThreadHandle, spawn_device_thread};
 use crate::core::methods::{button_down, button_up, CoreHandle};
@@ -75,6 +75,9 @@ pub struct SDCore {
     /// Module manager
     pub module_manager: Arc<ModuleManager>,
 
+    /// Config
+    pub config: Arc<Config>,
+
     /// Device config associated with the device
     pub device_config: UniqueDeviceConfig,
 
@@ -104,9 +107,10 @@ pub struct SDCore {
 
 impl SDCore {
     /// Creates an instance of core that is already dead
-    pub fn blank(module_manager: Arc<ModuleManager>, device_config: UniqueDeviceConfig, image_collection: ImageCollection) -> Arc<SDCore> {
+    pub fn blank(module_manager: Arc<ModuleManager>, config: Arc<Config>, device_config: UniqueDeviceConfig, image_collection: ImageCollection) -> Arc<SDCore> {
         Arc::new(SDCore {
             module_manager,
+            config,
             device_config,
             current_stack: Mutex::new(vec![]),
             handles: Mutex::new(None),
@@ -120,11 +124,12 @@ impl SDCore {
     }
 
     /// Creates an instance of the core over existing streamdeck connection
-    pub fn new(module_manager: Arc<ModuleManager>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, connection: StreamDeck, pool_rate: u32) -> (Arc<SDCore>, KeyHandler) {
+    pub fn new(module_manager: Arc<ModuleManager>, config: Arc<Config>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, connection: StreamDeck, pool_rate: u32) -> (Arc<SDCore>, KeyHandler) {
         let (key_tx, key_rx) = channel();
 
         let core = Arc::new(SDCore {
             module_manager,
+            config,
             device_config,
             current_stack: Mutex::new(vec![]),
             handles: Mutex::new(None),

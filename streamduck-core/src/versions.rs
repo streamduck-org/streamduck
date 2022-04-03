@@ -15,6 +15,8 @@ pub const SDMODULE_TRAIT: (&str, &str) = ("sdmodule_trait", "0.1");
 pub const CORE: (&str, &str) = ("core", "0.1");
 /// Core methods version, will be updated everytime there's changes to existing functions or functions get deleted
 pub const CORE_METHODS: (&str, &str) = ("core_methods", "0.1");
+/// Config, will be updated everytime there's changes to existing functions or functions get deleted
+pub const CONFIG: (&str, &str) = ("config", "0.1");
 /// Module manager, will be updated everytime there's changes to existing functions or functions get deleted
 pub const MODULE_MANAGER: (&str, &str) = ("module_manager", "0.1");
 /// Events, will be updated everytime there's changes to existing events or an event was removed
@@ -30,6 +32,7 @@ pub const SUPPORTED_FEATURES: &[(&str, &str)] = &[
     SDMODULE_TRAIT,
     CORE,
     CORE_METHODS,
+    CONFIG,
     MODULE_MANAGER,
     EVENTS,
     RENDERING,

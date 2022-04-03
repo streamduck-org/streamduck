@@ -24,14 +24,14 @@ use std::sync::Arc;
 use hidapi::HidApi;
 use streamdeck::pids;
 use streamdeck::StreamDeck;
-use crate::config::UniqueDeviceConfig;
+use crate::config::{Config, UniqueDeviceConfig};
 use crate::core::{KeyHandler, SDCore};
 use crate::modules::ModuleManager;
 use self::core::thread::ImageCollection;
 
 /// Attempts to connect to any detected streamdeck
-pub fn connect_any(module_manager: Arc<ModuleManager>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, hid: &HidApi, pool_rate: u32) -> Result<(Arc<SDCore>, KeyHandler), Error> {
-    Ok(SDCore::new(module_manager, device_config, image_collection, attempt_connection_to_any(hid)?, pool_rate))
+pub fn connect_any(module_manager: Arc<ModuleManager>, config: Arc<Config>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, hid: &HidApi, pool_rate: u32) -> Result<(Arc<SDCore>, KeyHandler), Error> {
+    Ok(SDCore::new(module_manager, config, device_config, image_collection, attempt_connection_to_any(hid)?, pool_rate))
 }
 
 fn attempt_connection_to_any(hid: &HidApi) -> Result<StreamDeck, Error> {
@@ -48,8 +48,8 @@ fn attempt_connection_to_any(hid: &HidApi) -> Result<StreamDeck, Error> {
 }
 
 /// Attempts to connect to specified device as a streamdeck
-pub fn connect(module_manager: Arc<ModuleManager>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, hid: &HidApi, vid: u16, pid: u16, serial: &str, pool_rate: u32) -> Result<(Arc<SDCore>, KeyHandler), Error> {
-    Ok(SDCore::new(module_manager, device_config, image_collection, attempt_connection(hid, vid, pid, serial)?, pool_rate))
+pub fn connect(module_manager: Arc<ModuleManager>, config: Arc<Config>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, hid: &HidApi, vid: u16, pid: u16, serial: &str, pool_rate: u32) -> Result<(Arc<SDCore>, KeyHandler), Error> {
+    Ok(SDCore::new(module_manager, config, device_config, image_collection, attempt_connection(hid, vid, pid, serial)?, pool_rate))
 }
 
 fn attempt_connection(hid: &HidApi, vid: u16, pid: u16, serial: &str) -> Result<StreamDeck, Error> {

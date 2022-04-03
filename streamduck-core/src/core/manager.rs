@@ -61,7 +61,7 @@ impl CoreManager {
 
         if !handle.contains_key(serial) {
             let data = DeviceData {
-                core: SDCore::blank(self.module_manager.clone(), Default::default(), Default::default()),
+                core: SDCore::blank(self.module_manager.clone(), self.config.clone(), Default::default(), Default::default()),
                 vid,
                 pid,
                 serial: serial.to_string()
@@ -98,7 +98,7 @@ impl CoreManager {
             self.config.get_device_config(serial).unwrap()
         };
 
-        if let Ok((core, handler)) = connect(self.module_manager.clone(), config.clone(), collection,&hid_handle, vid, pid, serial, self.config.pool_rate()) {
+        if let Ok((core, handler)) = connect(self.module_manager.clone(), self.config.clone(), config.clone(), collection,&hid_handle, vid, pid, serial, self.config.pool_rate()) {
             spawn(move || {
                 handler.run_loop();
                 log::trace!("key handler closed");
