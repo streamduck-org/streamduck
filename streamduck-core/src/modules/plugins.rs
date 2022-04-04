@@ -1,3 +1,5 @@
+//! Plugin API for loading dynamic library files
+
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fs;
@@ -15,13 +17,14 @@ use crate::core::methods::{CoreHandle, warn_for_feature};
 use crate::core::UniqueButton;
 use crate::modules::components::{ComponentDefinition, UIValue};
 use crate::modules::events::SDEvent;
+use crate::RenderingManager;
 use crate::socket::SocketManager;
 use crate::versions::SUPPORTED_FEATURES;
 
 #[derive(WrapperApi)]
 struct PluginApi {
     get_metadata: extern fn() -> PluginMetadata,
-    get_module: extern fn(socket_manager: Arc<SocketManager>) -> SDModulePointer,
+    get_module: extern fn(socket_manager: Arc<SocketManager>, render_manager: Arc<RenderingManager>) -> SDModulePointer,
 }
 
 #[allow(dead_code)]
@@ -91,6 +94,7 @@ impl SDModule for PluginProxy {
     }
 }
 
+/// Returns error if plugin is incompatible
 pub fn compare_plugin_versions(versions: &Vec<(String, String)>) -> Result<(), PluginError> {
     let core_versions = SUPPORTED_FEATURES.clone().into_iter()
         .map(|(n, v)| (*n, *v))
@@ -109,6 +113,7 @@ pub fn compare_plugin_versions(versions: &Vec<(String, String)>) -> Result<(), P
     Ok(())
 }
 
+/// Warns about essential features
 pub fn warn_about_essential_features(module: UniqueSDModule) {
     let name = &module.name();
     let features = module.metadata().used_features;
@@ -117,7 +122,8 @@ pub fn warn_about_essential_features(module: UniqueSDModule) {
     warn_for_feature(name, &features, "sdmodule_trait");
 }
 
-pub fn load_plugin<T: AsRef<OsStr>>(module_manager: Arc<ModuleManager>, socket_manager: Arc<SocketManager>, path: T) -> Result<(), PluginError> {
+/// Loads a plugin into module manager
+pub fn load_plugin<T: AsRef<OsStr>>(module_manager: Arc<ModuleManager>, socket_manager: Arc<SocketManager>, render_manager: Arc<RenderingManager>, path: T) -> Result<(), PluginError> {
     // Loading file as a library, error if cannot load
     let wrapper: Container<PluginApi> = unsafe { Container::load(path) }?;
 
@@ -126,7 +132,7 @@ pub fn load_plugin<T: AsRef<OsStr>>(module_manager: Arc<ModuleManager>, socket_m
     compare_plugin_versions(&metadata.used_features)?;
 
     // Attempting to get module from the plugin
-    let module: BoxedSDModule = unsafe { Box::from_raw(wrapper.get_module(socket_manager)) };
+    let module: BoxedSDModule = unsafe { Box::from_raw(wrapper.get_module(socket_manager, render_manager)) };
 
     // Wrapping plugin's module into a wrapper that contains loaded library
     let module_proxy: UniqueSDModule = Arc::new(Box::new(PluginProxy { wrapper, metadata, plugin: module }));
@@ -149,7 +155,8 @@ pub fn load_plugin<T: AsRef<OsStr>>(module_manager: Arc<ModuleManager>, socket_m
     }
 }
 
-pub fn load_plugins_from_folder<T: AsRef<OsStr>>(module_manager: Arc<ModuleManager>, socket_manager: Arc<SocketManager>, path: T) {
+/// Loads plugins into module manager from path
+pub fn load_plugins_from_folder<T: AsRef<OsStr>>(module_manager: Arc<ModuleManager>, socket_manager: Arc<SocketManager>, render_manager: Arc<RenderingManager>, path: T) {
     let path = Path::new(&path);
     match fs::read_dir(path) {
         Ok(read_dir) => {
@@ -159,7 +166,7 @@ pub fn load_plugins_from_folder<T: AsRef<OsStr>>(module_manager: Arc<ModuleManag
                         if entry.path().is_file() {
                             if let Some(file_name) = entry.path().file_name() {
                                 log::info!("Loading plugin {:?}", file_name);
-                                match load_plugin(module_manager.clone(), socket_manager.clone(), entry.path()) {
+                                match load_plugin(module_manager.clone(), socket_manager.clone(), render_manager.clone(), entry.path()) {
                                     Err(err) => match err {
                                         PluginError::LoadError(err) => log::error!("Failed to load plugin: {}", err),
                                         PluginError::WrongVersion(plugin, software) => log::error!("Failed to load plugin: Plugin is using unsupported version of '{}', software's using '{}'", plugin, software),
@@ -186,6 +193,7 @@ pub fn load_plugins_from_folder<T: AsRef<OsStr>>(module_manager: Arc<ModuleManag
     }
 }
 
+/// Enum for anything wrong that might happen during plugin loading
 #[derive(Debug)]
 pub enum PluginError {
     LoadError(dlopen::Error),

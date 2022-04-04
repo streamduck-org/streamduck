@@ -1,218 +1,33 @@
-//! Device Thread
-//!
-//! A separate thread for processing, rendering images on streamdeck and reading buttons
+//! Rendering functions that represent default Streamduck renderer
 
-use std::collections::hash_map::DefaultHasher;
-use std::collections::HashMap;
+pub mod custom;
+pub mod component_values;
+
 use std::hash::{Hash, Hasher};
-use std::io::{Cursor};
+use image::{DynamicImage, ImageFormat, Rgba, RgbaImage};
+use rusttype::Scale;
+use image::imageops::{FilterType, tile};
+use streamdeck::{DeviceImage, ImageMode, StreamDeck};
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::collections::hash_map::DefaultHasher;
+use std::io::Cursor;
+use std::time::Instant;
 use std::ops::Deref;
 use serde::{Serialize, Deserialize};
-use std::sync::{Arc, RwLock};
-use std::sync::mpsc::{channel, Sender, TryRecvError};
-use std::thread::{sleep, spawn};
-use std::time::{Duration, Instant};
-use image::{DynamicImage, ImageFormat, Rgba, RgbaImage};
-use image::imageops::{FilterType, tile};
-use rusttype::Scale;
-use streamdeck::{Colour, DeviceImage, ImageMode, StreamDeck};
-use crate::core::{SDCore, UniqueButton};
-use crate::core::button::{Component, parse_unique_button_to_component};
-use crate::core::methods::{CoreHandle, get_current_screen};
+use serde_json::Value;
+use crate::core::button::Component;
+use crate::core::methods::CoreHandle;
+use crate::core::UniqueButton;
 use crate::font::get_font_from_collection;
 use crate::images::{AnimationFrame, SDImage};
-use crate::modules::core_module::CoreSettings;
 use crate::modules::UniqueSDModule;
-use crate::util::rendering::{image_from_horiz_gradient, image_from_solid, image_from_vert_gradient, render_aligned_shadowed_text_on_image, render_aligned_text_on_image, TextAlignment};
+use crate::thread::rendering::custom::DeviceReference;
+use crate::thread::util::{image_from_horiz_gradient, image_from_solid, image_from_vert_gradient, render_aligned_shadowed_text_on_image, render_aligned_text_on_image, TextAlignment};
+use crate::util::hash_value;
 
-pub type ImageCollection = Arc<RwLock<HashMap<String, SDImage>>>;
-
-/// Handle for contacting renderer thread
-pub struct DeviceThreadHandle {
-    tx: Sender<Vec<DeviceThreadCommunication>>
-}
-
-impl DeviceThreadHandle {
-    /// Sends commands to device thread
-    pub fn send(&self, commands: Vec<DeviceThreadCommunication>) {
-        self.tx.send(commands).ok();
-    }
-}
-
-#[allow(dead_code)]
-pub enum DeviceThreadCommunication {
-    /// Tells renderer that screen should be updated
-    RefreshScreen,
-
-    /// Sets streamdeck brightness to provided value
-    SetBrightness(u8),
-
-    /// Sets button image to specified image
-    SetButtonImage(u8, DynamicImage),
-
-    /// Sets button image to raw buffer of image
-    SetButtonImageRaw(u8, Arc<DeviceImage>),
-
-    /// Clears button and sets it to black color
-    ClearButtonImage(u8),
-}
-
-/// Spawns device thread from a core reference
-pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Sender<(u8, bool)>) -> DeviceThreadHandle {
-    let (tx, rx) = channel::<Vec<DeviceThreadCommunication>>();
-
-    spawn(move || {
-        let core = CoreHandle::wrap(core.clone());
-        let mut streamdeck = streamdeck;
-        let mut last_buttons = Vec::new();
-
-        streamdeck.set_blocking(false).ok();
-
-        let missing = draw_missing_texture(core.core.image_size);
-
-        let mut animation_counters = HashMap::new();
-        let mut last_iter = Instant::now();
-        let mut renderer_map = HashMap::new();
-        let mut animation_cache: HashMap<u64, Arc<DeviceImage>> = HashMap::new();
-        let mut previous_state: HashMap<u8, u64> = HashMap::new();
-        loop {
-            if core.core.is_closed() {
-                break;
-            }
-
-            // Reading buttons
-            match streamdeck.read_buttons(None) {
-                Ok(buttons) => {
-                    for (key, value) in buttons.iter().enumerate() {
-                        if let Some(last_value) = last_buttons.get(key) {
-                            if last_value != value {
-                                if key_tx.send((key as u8, *last_value == 0)).is_err() {
-                                    log::error!("Key Handler thread crashed, killing connection...");
-                                    core.core.close();
-                                }
-                            }
-                        } else {
-                            if *value > 0 {
-                                if key_tx.send((key as u8, true)).is_err() {
-                                    log::error!("Key Handler thread crashed, killing connection...");
-                                    core.core.close();
-                                }
-                            }
-                        }
-                    }
-                    last_buttons = buttons;
-                }
-                Err(err) => {
-                    match err {
-                        streamdeck::Error::NoData => {}
-                        streamdeck::Error::Hid(_) => {
-                            log::trace!("hid connection failed");
-                            core.core.close()
-                        }
-                        _ => {
-                            panic!("Error on streamdeck thread: {:?}", err);
-                        }
-                    }
-                }
-            }
-
-            // Reading commands
-            match rx.try_recv() {
-                Ok(com) => {
-                    for com in com {
-                        match com {
-                            DeviceThreadCommunication::SetBrightness(brightness) => {
-                                streamdeck.set_brightness(brightness).ok();
-                            }
-
-                            DeviceThreadCommunication::SetButtonImage(key, image) => {
-                                let mut buffer = vec![];
-
-                                image.write_to(&mut Cursor::new(&mut buffer), match streamdeck.kind().image_mode() {
-                                    ImageMode::Bmp => ImageFormat::Bmp,
-                                    ImageMode::Jpeg => ImageFormat::Jpeg,
-                                }).ok();
-
-                                streamdeck.write_button_image(key, &DeviceImage::from(buffer)).ok();
-                            }
-
-                            DeviceThreadCommunication::SetButtonImageRaw(key, image) => {
-                                streamdeck.write_button_image(key, image.deref()).ok();
-                            }
-
-                            DeviceThreadCommunication::ClearButtonImage(key) => {
-                                streamdeck.set_button_rgb(key, &Colour {
-                                    r: 0,
-                                    g: 0,
-                                    b: 0
-                                }).ok();
-                            }
-
-                            DeviceThreadCommunication::RefreshScreen => {
-                                let current_screen = get_current_screen(&core);
-
-                                if current_screen.is_none() {
-                                    return;
-                                }
-
-                                let current_screen = current_screen.unwrap();
-                                let screen_handle = current_screen.read().unwrap();
-                                let current_screen = screen_handle.buttons.clone();
-                                drop(screen_handle);
-
-                                let core_settings: CoreSettings = core.config().get_plugin_settings().unwrap_or_default();
-
-                                renderer_map.clear();
-                                renderer_map.extend(
-                                    current_screen.into_iter()
-                                        .filter(|(_, button)| button.read().unwrap().0.contains_key(RendererComponent::NAME))
-                                        .map(|(key, x)| {
-                                            let names = x.read().unwrap().component_names();
-                                            let mut modules = core.module_manager().get_modules_for_rendering(&names);
-
-                                            let component = parse_unique_button_to_component::<RendererComponent>(&x).unwrap();
-
-                                            modules.retain(|x, _| !component.plugin_blacklist.contains(x));
-                                            modules.retain(|x, _| !core_settings.renderer.plugin_blacklist.contains(x));
-
-                                            (key, (component, x, modules.into_values().collect::<Vec<UniqueSDModule>>()))
-                                        })
-                                )
-                            }
-                        }
-                    }
-                }
-                Err(err) => {
-                    match err {
-                        TryRecvError::Empty => {}
-                        TryRecvError::Disconnected => break,
-                    }
-                }
-            }
-
-            process_animations(&core, &mut streamdeck, &mut animation_cache, &mut animation_counters, &mut renderer_map, &mut previous_state, &missing);
-
-            // Rate limiter
-            let rate = 1.0 / core.core.pool_rate as f32;
-            let time_since_last = last_iter.elapsed().as_secs_f32();
-
-            let to_wait = rate - time_since_last;
-            if to_wait > 0.0 {
-                sleep(Duration::from_secs_f32(to_wait));
-            }
-
-            last_iter = Instant::now();
-        }
-
-        log::trace!("rendering closed");
-    });
-
-    DeviceThreadHandle {
-        tx
-    }
-}
-
-struct AnimationCounter {
+/// Animation counter that counts frames for animated images
+pub struct AnimationCounter {
     frames: Vec<(AnimationFrame, f32)>,
     time: Instant,
     wakeup_time: f32,
@@ -265,7 +80,8 @@ impl AnimationCounter {
     }
 }
 
-fn process_animations(
+/// Rendering code that's being called every loop
+pub fn process_frame(
     core: &CoreHandle,
     streamdeck: &mut StreamDeck,
     cache: &mut HashMap<u64, Arc<DeviceImage>>,
@@ -277,6 +93,19 @@ fn process_animations(
 
     for key in 0..core.core.key_count {
         if let Some((component, button, modules)) = renderer_map.get(&key) {
+            if !component.renderer.is_empty() {
+                // Custom renderer detected
+                let lock = core.core.render_manager.read_renderers();
+
+                if let Some(renderer) = lock.get(&component.renderer) {
+                    // Stopping any further process if custom renderer is found
+                    renderer.render(key, button, core, &mut DeviceReference::new(streamdeck, key));
+                    previous_state.insert(key, 1);
+                    continue;
+                }
+            }
+
+
             if let ButtonBackground::ExistingImage(identifier) = &component.background {
                 let counter = if let Some(counter) = counters.get_mut(identifier) {
                     Some(counter)
@@ -392,6 +221,7 @@ fn process_animations(
     };
 }
 
+/// Draws background for static images
 pub fn draw_background(renderer: &RendererComponent, core: &CoreHandle, missing: &DynamicImage) -> DynamicImage {
     match &renderer.background {
         ButtonBackground::Solid(color) => {
@@ -432,6 +262,7 @@ pub fn draw_background(renderer: &RendererComponent, core: &CoreHandle, missing:
     }
 }
 
+/// Draws foreground of a button (text, plugin layers)
 pub fn draw_foreground(renderer: &RendererComponent, button: &UniqueButton, modules: &Vec<UniqueSDModule>, mut background: DynamicImage, core: &CoreHandle) -> DynamicImage {
     // Render any additional things plugins want displayed
     for module in modules {
@@ -481,6 +312,7 @@ pub fn draw_foreground(renderer: &RendererComponent, button: &UniqueButton, modu
     background
 }
 
+/// Draws missing texture from HL2
 pub fn draw_missing_texture(size: (usize, usize)) -> DynamicImage {
     let mut pattern = RgbaImage::new(16, 16);
 
@@ -599,8 +431,11 @@ pub struct ButtonTextShadow {
 }
 
 /// Renderer component that contains button background and array of text structs
-#[derive(Serialize, Deserialize, Clone, Hash, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RendererComponent {
+    /// Uses default renderer if empty
+    #[serde(default)]
+    pub renderer: String,
     #[serde(default)]
     pub background: ButtonBackground,
     #[serde(default)]
@@ -609,6 +444,9 @@ pub struct RendererComponent {
     pub plugin_blacklist: Vec<String>,
     #[serde(default = "make_true")]
     pub to_cache: bool,
+    /// Anything that custom renderers might want to remember
+    #[serde(default)]
+    pub custom_data: Value,
 }
 
 fn make_true() -> bool { true }
@@ -616,11 +454,24 @@ fn make_true() -> bool { true }
 impl Default for RendererComponent {
     fn default() -> Self {
         Self {
+            renderer: "".to_string(),
             background: ButtonBackground::Solid((255, 255, 255, 255)),
             text: vec![],
             plugin_blacklist: vec![],
             to_cache: true,
+            custom_data: Default::default()
         }
+    }
+}
+
+impl Hash for RendererComponent {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.renderer.hash(state);
+        self.plugin_blacklist.hash(state);
+        self.text.hash(state);
+        self.to_cache.hash(state);
+        self.background.hash(state);
+        hash_value(&self.custom_data, state);
     }
 }
 
@@ -628,6 +479,56 @@ impl Component for RendererComponent {
     const NAME: &'static str = "renderer";
 }
 
+/// Builder for renderer component
+#[derive(Default)]
+pub struct RendererComponentBuilder {
+    component: RendererComponent
+}
+
+impl RendererComponentBuilder {
+    /// Creates new builder
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Sets custom renderer
+    pub fn renderer(mut self, renderer: &str) -> Self {
+        self.component.renderer = renderer.to_string(); self
+    }
+
+    /// Sets background
+    pub fn background(mut self, background: ButtonBackground) -> Self {
+        self.component.background = background; self
+    }
+
+    /// Adds a text object
+    pub fn add_text(mut self, text: ButtonText) -> Self {
+        self.component.text.push(text); self
+    }
+
+    /// Adds a plugin to rendering blacklist for the component
+    pub fn add_to_blacklist(mut self, plugin: &str) -> Self {
+        self.component.plugin_blacklist.push(plugin.to_string()); self
+    }
+
+    /// Sets caching state
+    pub fn caching(mut self, cache: bool) -> Self {
+        self.component.to_cache = cache; self
+    }
+
+    /// Builds the component
+    pub fn build(self) -> RendererComponent {
+        self.into()
+    }
+}
+
+impl From<RendererComponentBuilder> for RendererComponent {
+    fn from(builder: RendererComponentBuilder) -> Self {
+        builder.component
+    }
+}
+
+/// Renderer settings
 #[derive(Serialize, Deserialize, Default)]
 pub struct RendererSettings {
     /// Blacklist of plugins that aren't allowed to render

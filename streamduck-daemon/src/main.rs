@@ -11,6 +11,7 @@ use streamduck_core::config::Config;
 use streamduck_core::core::manager::CoreManager;
 use streamduck_core::socket::SocketManager;
 use streamduck_core::modules::plugins::load_plugins_from_folder;
+use streamduck_core::thread::rendering::custom::RenderingManager;
 use streamduck_daemon::daemon_data::DaemonListener;
 
 fn logging_format(
@@ -43,6 +44,9 @@ fn main() {
     // Initializing module manager
     let module_manager = ModuleManager::new();
 
+    // Initializing rendering manager
+    let render_manager = RenderingManager::new();
+
     // Reading config
     let config = Arc::new(Config::get());
 
@@ -58,7 +62,7 @@ fn main() {
     let socket_manager = SocketManager::new();
 
     // Initializing core manager
-    let core_manager = CoreManager::new(module_manager.clone(), config.clone());
+    let core_manager = CoreManager::new(module_manager.clone(), render_manager.clone(), config.clone());
 
     // Adding daemon listener
     socket_manager.add_listener(Box::new(DaemonListener {
@@ -68,7 +72,7 @@ fn main() {
     }));
 
     // Loading plugins
-    load_plugins_from_folder(module_manager.clone(), socket_manager.clone(), config.plugin_path());
+    load_plugins_from_folder(module_manager.clone(), socket_manager.clone(), render_manager.clone(), config.plugin_path());
 
     // Announcing loaded modules
     for (module_name, _) in module_manager.get_modules() {

@@ -2,16 +2,16 @@ use std::collections::{HashMap, HashSet};
 use std::sync::RwLock;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use crate::core::button::{Button, Component, parse_button_to_component, parse_unique_button_to_component};
 use crate::core::{ButtonPanel, RawButtonPanel};
 use crate::core::methods::{CoreHandle, get_stack, pop_screen, push_screen};
 use crate::modules::components::{ComponentDefinition, map_ui_values, UIFieldType, UIFieldValue, UIValue};
 use crate::modules::events::SDEvent;
 use crate::modules::{PluginMetadata, SDModule};
-use crate::core::thread::{ButtonBackground, ButtonText, RendererComponent};
+use crate::thread::rendering::{ButtonBackground, ButtonText, RendererComponentBuilder};
 use crate::util::{button_to_raw, make_panel_unique};
-use crate::util::rendering::TextAlignment;
+use crate::thread::util::TextAlignment;
 use crate::versions::{CORE, CORE_METHODS, EVENTS, MODULE_MANAGER};
 
 const MODULE_NAME: &str = "core/folder";
@@ -42,67 +42,55 @@ impl SDModule for FolderModule {
         map.insert(FolderComponent::NAME.to_string(), ComponentDefinition {
             display_name: "Folder".to_string(),
             description: "Opens folder".to_string(),
-            default_looks: RendererComponent {
-                background: ButtonBackground::Solid((0, 50, 200, 255)),
-                text: vec![
-                    ButtonText {
-                        text: "Folder".to_string(),
-                        font: "default".to_string(),
-                        scale: (22.0, 22.0),
-                        alignment: TextAlignment::Center,
-                        padding: 0,
-                        offset: (0.0, 0.0),
-                        color: (255, 255, 255, 255),
-                        shadow: None
-                    }
-                ],
-                plugin_blacklist: vec![],
-                to_cache: true
-            }
+            default_looks: RendererComponentBuilder::new()
+                .background(ButtonBackground::Solid((0, 50, 200, 255)))
+                .add_text(ButtonText {
+                    text: "Folder".to_string(),
+                    font: "default".to_string(),
+                    scale: (22.0, 22.0),
+                    alignment: TextAlignment::Center,
+                    padding: 0,
+                    offset: (0.0, 0.0),
+                    color: (255, 255, 255, 255),
+                    shadow: None
+                })
+                .build()
         });
 
         map.insert(FolderLinkComponent::NAME.to_string(), ComponentDefinition {
             display_name: "Folder Link".to_string(),
             description: "Opens existing folders in symlink style".to_string(),
-            default_looks: RendererComponent {
-                background: ButtonBackground::Solid((0, 50, 200, 255)),
-                text: vec![
-                    ButtonText {
-                        text: "⇲".to_string(),
-                        font: "default".to_string(),
-                        scale: (32.0, 32.0),
-                        alignment: TextAlignment::BottomRight,
-                        padding: 7,
-                        offset: (0.0, 0.0),
-                        color: (255, 255, 255, 255),
-                        shadow: None
-                    }
-                ],
-                plugin_blacklist: vec![],
-                to_cache: true
-            }
+            default_looks: RendererComponentBuilder::new()
+                .background(ButtonBackground::Solid((0, 50, 200, 255)))
+                .add_text(ButtonText {
+                                text: "⇲".to_string(),
+                                font: "default".to_string(),
+                                scale: (32.0, 32.0),
+                                alignment: TextAlignment::BottomRight,
+                                padding: 7,
+                                offset: (0.0, 0.0),
+                                color: (255, 255, 255, 255),
+                                shadow: None
+                })
+                .build()
         });
 
         map.insert(FolderUpComponent::NAME.to_string(), ComponentDefinition {
             display_name: "Folder Up".to_string(),
             description: "Back button for folders".to_string(),
-            default_looks: RendererComponent {
-                background: ButtonBackground::Solid((50, 50, 50, 255)),
-                text: vec![
-                    ButtonText {
-                        text: "Back".to_string(),
-                        font: "default".to_string(),
-                        scale: (22.0, 22.0),
-                        alignment: TextAlignment::Center,
-                        padding: 0,
-                        offset: (0.0, 0.0),
-                        color: (255, 255, 255, 255),
-                        shadow: None
-                    }
-                ],
-                plugin_blacklist: vec![],
-                to_cache: true
-            }
+            default_looks: RendererComponentBuilder::new()
+                .background(ButtonBackground::Solid((50, 50, 50, 255)))
+                .add_text(ButtonText {
+                    text: "Back".to_string(),
+                    font: "default".to_string(),
+                    scale: (22.0, 22.0),
+                    alignment: TextAlignment::Center,
+                    padding: 0,
+                    offset: (0.0, 0.0),
+                    color: (255, 255, 255, 255),
+                    shadow: None
+                })
+                .build()
         });
 
         map

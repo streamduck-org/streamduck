@@ -1,34 +1,30 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::process::Command;
 use std::thread::spawn;
 use streamduck_core::core::button::{Button, Component, parse_button_to_component, parse_unique_button_to_component};
 use streamduck_core::core::UniqueButton;
 use streamduck_core::modules::components::{ComponentDefinition, map_ui_values, map_ui_values_ref, UIField, UIFieldType, UIFieldValue, UIValue};
-use streamduck_core::core::thread::{ButtonBackground, ButtonText, RendererComponent};
-use streamduck_core::util::rendering::TextAlignment;
+use streamduck_core::thread::rendering::{ButtonBackground, ButtonText, RendererComponentBuilder};
+use streamduck_core::thread::util::TextAlignment;
 
 pub fn add_definition(map: &mut HashMap<String, ComponentDefinition>) {
     map.insert("run_command".to_string(), ComponentDefinition {
         display_name: "Run Command".to_string(),
         description: "Runs a provided command".to_string(),
-        default_looks: RendererComponent {
-            background: ButtonBackground::Solid((50, 50, 50, 255)),
-            text: vec![
-                ButtonText {
-                    text: ">_".to_string(),
-                    font: "default".to_string(),
-                    scale: (30.0, 30.0),
-                    alignment: TextAlignment::Center,
-                    padding: 0,
-                    offset: (0.0, 0.0),
-                    color: (255, 255, 255, 255),
-                    shadow: None
-                }
-            ],
-            plugin_blacklist: vec![],
-            to_cache: true
-        }
+        default_looks: RendererComponentBuilder::new()
+            .background(ButtonBackground::Solid((50, 50, 50, 255)))
+            .add_text(ButtonText {
+                text: ">_".to_string(),
+                font: "default".to_string(),
+                scale: (30.0, 30.0),
+                alignment: TextAlignment::Center,
+                padding: 0,
+                offset: (0.0, 0.0),
+                color: (255, 255, 255, 255),
+                shadow: None
+            })
+            .build()
     });
 }
 

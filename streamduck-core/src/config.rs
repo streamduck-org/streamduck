@@ -13,7 +13,7 @@ use streamdeck::Kind;
 use crate::ImageCollection;
 use crate::images::{SDImage, SDSerializedImage};
 use crate::util::{hash_image, hash_str};
-use crate::util::rendering::resize_for_streamdeck;
+use crate::thread::util::resize_for_streamdeck;
 
 pub const DEFAULT_POOL_RATE: u32 = 150;
 pub const DEFAULT_RECONNECT_TIME: f32 = 1.0;
@@ -21,6 +21,7 @@ pub const DEFAULT_CONFIG_PATH: &'static str = "devices";
 pub const DEFAULT_PLUGIN_PATH: &'static str = "plugins";
 pub const DEFAULT_PLUGIN_SETTINGS_PATH: &'static str = "global.json";
 
+/// Reference counted [DeviceConfig]
 pub type UniqueDeviceConfig = Arc<RwLock<DeviceConfig>>;
 
 /// Struct to keep daemon settings

@@ -1,20 +1,24 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use streamduck_core::core::button::{Button, parse_unique_button_to_component};
 use streamduck_core::modules::{PluginMetadata, SDModule, SDModulePointer};
 use streamduck_core::versions::{EVENTS, PLUGIN_API, RENDERING, SDMODULE_TRAIT};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use serde_json::{Number, Value};
 use streamduck_core::core::methods::CoreHandle;
-use streamduck_core::modules::components::{ComponentDefinition, UIFieldType, UIFieldValue, UIScalar, UIValue};
+use streamduck_core::modules::components::{ComponentDefinition, map_ui_values, UIFieldType, UIFieldValue, UIScalar, UIValue};
 use streamduck_core::modules::events::SDEvent;
-use streamduck_core::core::thread::{ButtonBackground, RendererComponent};
 use streamduck_core::core::UniqueButton;
-use streamduck_core::image::DynamicImage;
+use streamduck_core::image::{DynamicImage, Rgba};
+use streamduck_core::images::convert_image;
 use streamduck_core_derive::component;
 use streamduck_core_derive::plugin_config;
 use streamduck_core::socket::{SocketHandle, SocketListener, SocketManager, SocketPacket};
-use streamduck_core::util::rendering::render_box_on_image;
+use streamduck_core::streamdeck::{DeviceImage, Kind};
+use streamduck_core::thread::rendering::{ButtonBackground, RendererComponent, RendererComponentBuilder};
+use streamduck_core::thread::rendering::custom::{CustomRenderer, DeviceReference, RenderingManager};
+use streamduck_core::thread::util::{image_from_horiz_gradient, image_from_solid, render_box_on_image};
 use streamduck_core::util::rusttype::{Point, Scale};
 
 #[no_mangle]
@@ -34,8 +38,9 @@ pub fn get_metadata() -> PluginMetadata {
 }
 
 #[no_mangle]
-pub fn get_module(socket_manager: Arc<SocketManager>) -> SDModulePointer {
+pub fn get_module(socket_manager: Arc<SocketManager>, render_manager: Arc<RenderingManager>) -> SDModulePointer {
     socket_manager.add_listener(Box::new(ExampleListener));
+    render_manager.add_custom_renderer(Arc::new(Box::new(ExampleRenderer::new())));
     Box::into_raw(Box::new(ExampleModule))
 }
 
@@ -63,12 +68,9 @@ impl SDModule for ExampleModule {
         map.insert("example".to_string(), ComponentDefinition {
             display_name: "Example".to_string(),
             description: "Example component".to_string(),
-            default_looks: RendererComponent {
-                background: ButtonBackground::Solid((255, 0, 255, 255)),
-                text: vec![],
-                plugin_blacklist: vec![],
-                to_cache: true
-            }
+            default_looks: RendererComponentBuilder::new()
+                .background(ButtonBackground::Solid((255, 0, 255, 255)))
+                .build()
         });
 
         map
@@ -202,11 +204,11 @@ impl SDModule for ExampleModule {
         }
     }
 
-    fn render(&self, core: CoreHandle, button: &UniqueButton, frame: &mut DynamicImage) {
+    fn render(&self, _: CoreHandle, _: &UniqueButton, frame: &mut DynamicImage) {
         render_box_on_image(frame, Scale::uniform(15.0), Point {x: 10.0, y: 25.0}, (255, 0, 0, 255));
     }
 
-    fn render_hash(&self, core: CoreHandle, button: &UniqueButton, hash: &mut Box<dyn Hasher>) {
+    fn render_hash(&self, _: CoreHandle, _: &UniqueButton, hash: &mut Box<dyn Hasher>) {
         0.hash(hash);
     }
 }
@@ -221,4 +223,64 @@ pub struct ExampleComponent {
 #[derive(Serialize, Deserialize, Default)]
 pub struct ExampleSettings {
     test: i64
+}
+
+pub struct ExampleRenderer {
+    tex: DeviceImage,
+    already_rendered: Mutex<HashSet<u8>>,
+}
+
+impl ExampleRenderer {
+    fn new() -> Self {
+        Self {
+            tex: convert_image( &Kind::OriginalV2, image_from_horiz_gradient((72, 72), Rgba([255, 0, 255, 255]), Rgba([255, 255, 255, 255]))),
+            already_rendered: Default::default()
+        }
+    }
+}
+
+impl CustomRenderer for ExampleRenderer {
+    fn name(&self) -> String {
+        "example".to_string()
+    }
+
+    fn refresh(&self, _: &CoreHandle) {
+        self.already_rendered.lock().unwrap().clear();
+    }
+
+    fn render(&self, key: u8, _: &UniqueButton, _: &CoreHandle, streamdeck: &mut DeviceReference) {
+        let mut lock = self.already_rendered.lock().unwrap();
+
+        if !lock.contains(&key) {
+            streamdeck.write_image(&self.tex).ok();
+            lock.insert(key);
+        }
+    }
+
+    fn representation(&self, _: u8, _: &UniqueButton, core: &CoreHandle) -> Option<DynamicImage> {
+        Some(image_from_solid(core.core().image_size, Rgba([255, 0, 0, 255])))
+    }
+
+    fn component_values(&self, _: &Button, component: &RendererComponent, _: &CoreHandle) -> Vec<UIValue> {
+        let my_int = component.custom_data.as_i64().unwrap_or_default();
+
+        vec![
+            UIValue {
+                name: "my_int".to_string(),
+                display_name: "My Integer".to_string(),
+                ty: UIFieldType::InputFieldInteger,
+                value: UIFieldValue::InputFieldInteger(my_int as i32)
+            }
+        ]
+    }
+
+    fn set_component_value(&self, _: &mut Button, component: &mut RendererComponent, _: &CoreHandle, value: Vec<UIValue>) {
+        let change_map = map_ui_values(value);
+
+        if let Some(value) = change_map.get("my_int") {
+            if let Ok(value) = value.value.try_into_i32() {
+                component.custom_data = Value::Number(Number::from(value))
+            }
+        }
+    }
 }

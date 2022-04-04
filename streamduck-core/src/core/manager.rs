@@ -9,7 +9,7 @@ use crate::core::methods::{CoreHandle, reset_stack, set_brightness};
 use hidapi::HidApi;
 use serde_json::Value;
 use crate::config::{Config, DeviceConfig};
-use crate::{connect, find_decks, ModuleManager};
+use crate::{connect, find_decks, ModuleManager, RenderingManager};
 use crate::util::{make_panel_unique};
 
 /// Core manager struct
@@ -18,19 +18,21 @@ pub struct CoreManager {
     pub config: Arc<Config>,
     devices: RwLock<HashMap<String, DeviceData>>,
     pub module_manager: Arc<ModuleManager>,
+    pub render_manager: Arc<RenderingManager>,
 }
 
 #[allow(dead_code)]
 impl CoreManager {
     /// Creates new core manager with provided module manager and config
-    pub fn new(module_manager: Arc<ModuleManager>, config: Arc<Config>) -> Arc<CoreManager> {
+    pub fn new(module_manager: Arc<ModuleManager>, render_manager: Arc<RenderingManager>, config: Arc<Config>) -> Arc<CoreManager> {
         let hid = HidApi::new().expect("could not connect to hidapi");
 
         Arc::new(CoreManager {
             hid: RwLock::new(hid),
             config,
             devices: Default::default(),
-            module_manager
+            module_manager,
+            render_manager
         })
     }
 
@@ -61,7 +63,7 @@ impl CoreManager {
 
         if !handle.contains_key(serial) {
             let data = DeviceData {
-                core: SDCore::blank(self.module_manager.clone(), self.config.clone(), Default::default(), Default::default()),
+                core: SDCore::blank(self.module_manager.clone(), self.render_manager.clone(), self.config.clone(), Default::default(), Default::default()),
                 vid,
                 pid,
                 serial: serial.to_string()
@@ -98,7 +100,7 @@ impl CoreManager {
             self.config.get_device_config(serial).unwrap()
         };
 
-        if let Ok((core, handler)) = connect(self.module_manager.clone(), self.config.clone(), config.clone(), collection,&hid_handle, vid, pid, serial, self.config.pool_rate()) {
+        if let Ok((core, handler)) = connect(self.module_manager.clone(), self.render_manager.clone(), self.config.clone(), config.clone(), collection,&hid_handle, vid, pid, serial, self.config.pool_rate()) {
             spawn(move || {
                 handler.run_loop();
                 log::trace!("key handler closed");

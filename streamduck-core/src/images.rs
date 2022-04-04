@@ -8,7 +8,7 @@ use image::io::Reader;
 use itertools::Itertools;
 use serde::{Serialize, Deserialize};
 use streamdeck::{DeviceImage, ImageMode, Kind};
-use crate::util::rendering::resize_for_streamdeck;
+use crate::thread::util::resize_for_streamdeck;
 
 /// Enum that represents various types of images Streamduck will use
 #[derive(Clone)]

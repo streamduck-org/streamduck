@@ -11,9 +11,6 @@ use crate::modules::components::{UIFieldType, UIFieldValue, UIPathValue, UIValue
 
 pub use rusttype;
 
-/// Rendering utilities
-pub mod rendering;
-
 /// Wraps button in [Arc] and [RwLock], but packed into a more convenient function
 pub fn make_button_unique(button: Button) -> UniqueButton {
     Arc::new(RwLock::new(button))
@@ -87,6 +84,20 @@ pub fn hash_image(data: &SDSerializedImage) -> String {
     data.hash(&mut hasher);
 
     hasher.finish().to_string()
+}
+
+pub fn hash_value<H: Hasher>(value: &Value, state: &mut H) {
+    match value {
+        Value::Null => 0.hash(state),
+        Value::Bool(b) => b.hash(state),
+        Value::Number(n) => n.hash(state),
+        Value::String(s) => s.hash(state),
+        Value::Array(a) => a.iter().for_each(|x| hash_value(x, state)),
+        Value::Object(o) => o.iter().for_each(|(k, v)| {
+            k.hash(state);
+            hash_value(v, state)
+        }),
+    }
 }
 
 /// Converts [UIValue] to [UIPathValue]

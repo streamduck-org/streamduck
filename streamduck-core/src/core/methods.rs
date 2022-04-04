@@ -1,7 +1,8 @@
 use std::collections::HashMap;
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, LockResult, MutexGuard};
-use image::DynamicImage;
+use image::{DynamicImage, Rgba};
+use rusttype::Scale;
 use serde_json::{Map, Value};
 use crate::core::{ButtonPanel, UniqueButton};
 use crate::{Config, ModuleManager, SDCore};
@@ -9,10 +10,13 @@ use crate::util::{add_array_function, button_to_raw, change_from_path, convert_v
 use serde::de::Error as DeError;
 use serde_json::Error as JSONError;
 use crate::core::button::parse_unique_button_to_component;
+use crate::font::get_font_from_collection;
 use crate::modules::events::SDEvent;
 use crate::modules::{features_to_vec, UniqueSDModule};
 use crate::modules::components::{UIPathValue, UIValue};
-use crate::core::thread::{DeviceThreadCommunication, draw_background, draw_foreground, draw_missing_texture, RendererComponent};
+use crate::thread::DeviceThreadCommunication;
+use crate::thread::rendering::{draw_background, draw_foreground, draw_missing_texture, RendererComponent};
+use crate::thread::util::{image_from_solid, render_aligned_text_on_image, TextAlignment};
 use crate::versions::SUPPORTED_FEATURES;
 
 /// Handle that's given out to a module to perform actions on the core
@@ -608,10 +612,22 @@ pub fn get_current_screen(core: &CoreHandle) -> Option<ButtonPanel> {
 
 pub fn get_button_images(core: &CoreHandle) -> Option<HashMap<u8, DynamicImage>> {
     let missing = draw_missing_texture(core.core.image_size);
+    let custom = {
+        let size = core.core.image_size;
+        let font = get_font_from_collection("default").unwrap();
+        let mut frame = image_from_solid(size, Rgba([55, 55, 55, 255]));
+
+        render_aligned_text_on_image(size, &mut frame, font.deref(), "Custom", Scale::uniform(16.0), TextAlignment::Center, 0, (0.0, -8.0), (255, 255, 255, 255));
+        render_aligned_text_on_image(size, &mut frame, font.deref(), "Renderer", Scale::uniform(16.0), TextAlignment::Center, 0, (0.0, 8.0), (255, 255, 255, 255));
+
+        frame
+    };
 
     let panel = get_current_screen(core)?;
     let current_screen = panel.read().unwrap();
     let buttons = current_screen.buttons.clone();
+
+    let renderers = core.core.render_manager.read_renderers();
 
     Some(buttons.into_iter()
         .filter_map(|(key, button)| {
@@ -621,17 +637,31 @@ pub fn get_button_images(core: &CoreHandle) -> Option<HashMap<u8, DynamicImage>>
                     .filter(|x| !component.plugin_blacklist.contains(&x.name()))
                     .collect::<Vec<UniqueSDModule>>();
 
-                Some((key, draw_foreground(
-                    &component,
-                    &button,
-                    &modules,
-                    draw_background(
+                let image = if component.renderer.is_empty() {
+                    draw_foreground(
                         &component,
-                        core,
-                        &missing
-                    ),
-                    core
-                )))
+                        &button,
+                        &modules,
+                        draw_background(
+                            &component,
+                            core,
+                            &missing
+                        ),
+                        core
+                    )
+                } else {
+                    if let Some(renderer) = renderers.get(&component.renderer) {
+                        if let Some(image) = renderer.representation(key, &button, core) {
+                            image
+                        } else {
+                            custom.clone()
+                        }
+                    } else {
+                        custom.clone()
+                    }
+                };
+
+                Some((key, image))
             } else {
                 None
             }

@@ -4,7 +4,6 @@ pub mod button;
 /// Methods for interacting with the core
 pub mod methods;
 pub mod manager;
-pub mod thread;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
@@ -14,10 +13,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use crate::config::{Config, UniqueDeviceConfig};
 use crate::core::button::Button;
-use crate::core::thread::{DeviceThreadCommunication, DeviceThreadHandle, spawn_device_thread};
+use crate::thread::{DeviceThreadCommunication, DeviceThreadHandle, spawn_device_thread};
 use crate::core::methods::{button_down, button_up, CoreHandle};
 use crate::ImageCollection;
 use crate::modules::ModuleManager;
+use crate::thread::rendering::custom::RenderingManager;
 
 /// Reference counted RwLock of a button, prevents data duplication and lets you edit buttons if they're in many stacks at once
 pub type UniqueButton = Arc<RwLock<Button>>;
@@ -38,10 +38,13 @@ pub type RawButtonPanel = Panel<ButtonMap>;
 #[derive(Serialize, Deserialize, Clone, Default, Debug)]
 pub struct Panel<T> {
     /// Display name that will be shown in UI
+    #[serde(default)]
     pub display_name: String,
     /// Data to keep with stack
+    #[serde(default)]
     pub data: Value,
     /// Buttons of the panel
+    #[serde(default)]
     pub buttons: T
 }
 
@@ -75,6 +78,9 @@ pub struct SDCore {
     /// Module manager
     pub module_manager: Arc<ModuleManager>,
 
+    /// Rendering manager
+    pub render_manager: Arc<RenderingManager>,
+
     /// Config
     pub config: Arc<Config>,
 
@@ -87,7 +93,7 @@ pub struct SDCore {
     /// Image size supported by streamdeck
     pub image_size: (usize, usize),
 
-    /// Image collection to use for rendering
+    /// Image collection to use for thread
     pub image_collection: ImageCollection,
 
     /// Kind of streamdeck device
@@ -107,9 +113,10 @@ pub struct SDCore {
 
 impl SDCore {
     /// Creates an instance of core that is already dead
-    pub fn blank(module_manager: Arc<ModuleManager>, config: Arc<Config>, device_config: UniqueDeviceConfig, image_collection: ImageCollection) -> Arc<SDCore> {
+    pub fn blank(module_manager: Arc<ModuleManager>, render_manager: Arc<RenderingManager>, config: Arc<Config>, device_config: UniqueDeviceConfig, image_collection: ImageCollection) -> Arc<SDCore> {
         Arc::new(SDCore {
             module_manager,
+            render_manager,
             config,
             device_config,
             current_stack: Mutex::new(vec![]),
@@ -124,11 +131,12 @@ impl SDCore {
     }
 
     /// Creates an instance of the core over existing streamdeck connection
-    pub fn new(module_manager: Arc<ModuleManager>, config: Arc<Config>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, connection: StreamDeck, pool_rate: u32) -> (Arc<SDCore>, KeyHandler) {
+    pub fn new(module_manager: Arc<ModuleManager>, render_manager: Arc<RenderingManager>, config: Arc<Config>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, connection: StreamDeck, pool_rate: u32) -> (Arc<SDCore>, KeyHandler) {
         let (key_tx, key_rx) = channel();
 
         let core = Arc::new(SDCore {
             module_manager,
+            render_manager,
             config,
             device_config,
             current_stack: Mutex::new(vec![]),
