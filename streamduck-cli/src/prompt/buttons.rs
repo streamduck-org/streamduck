@@ -358,6 +358,8 @@ pub fn button_component_list_params(client: ClientRef, current_sn: &str, mut arg
                                 // Name
                                 println!("{}{}", tabs, item.display_name);
 
+                                println!("{}Description: {}", tabs, item.description);
+
                                 if let UIFieldValue::Header | UIFieldValue::Collapsable(_) = &item.value {} else {
                                     println!("{}Path: {}", tabs, item.path)
                                 }

@@ -197,6 +197,7 @@ pub fn module_list_params(client: ClientRef, mut args: Split<&str>) {
                     for item in items {
                         // Name
                         println!("{}{}", tabs, item.display_name);
+                        println!("{}Description: {}", tabs, item.description);
 
                         // Path
                         let item_path = format!("{}{}", if path.is_empty() { "".to_string() } else { format!("{}.", path) }, item.name);

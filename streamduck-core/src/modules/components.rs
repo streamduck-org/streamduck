@@ -22,6 +22,7 @@ pub struct ComponentDefinition {
 pub struct UIField {
     pub name: String,
     pub display_name: String,
+    pub description: String,
     pub ty: UIFieldType,
     pub default_value: UIFieldValue<UIValue>
 }
@@ -31,6 +32,7 @@ pub struct UIField {
 pub struct UIValue {
     pub name: String,
     pub display_name: String,
+    pub description: String,
     pub ty: UIFieldType,
     pub value: UIFieldValue<UIValue>,
 }
@@ -41,6 +43,7 @@ pub struct UIPathValue {
     pub name: String,
     pub path: String,
     pub display_name: String,
+    pub description: String,
     pub ty: UIFieldType,
     pub value: UIFieldValue<UIPathValue>,
 }
@@ -485,6 +488,7 @@ impl From<UIFieldValue<UIPathValue>> for UIFieldValue<UIValue> {
                     .map(|x| UIValue {
                         name: x.name,
                         display_name: x.display_name,
+                        description: x.description,
                         ty: x.ty,
                         value: x.value.into()
                     })
@@ -497,6 +501,7 @@ impl From<UIFieldValue<UIPathValue>> for UIFieldValue<UIValue> {
                         .map(|x| UIValue {
                             name: x.name,
                             display_name: x.display_name,
+                            description: x.description,
                             ty: x.ty,
                             value: x.value.into()
                         })
@@ -519,6 +524,7 @@ impl From<UIPathValue> for UIValue {
         UIValue {
             name: value.name,
             display_name: value.display_name,
+            description: value.description,
             ty: value.ty,
             value: value.value.into()
         }

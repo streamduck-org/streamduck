@@ -104,54 +104,63 @@ impl SDModule for ExampleModule {
             UIValue {
                 name: "header".to_string(),
                 display_name: "Header".to_string(),
+                description: "".to_string(),
                 ty: UIFieldType::Header,
                 value: UIFieldValue::Header
             },
             UIValue {
                 name: "label".to_string(),
                 display_name: "Label".to_string(),
+                description: "".to_string(),
                 ty: UIFieldType::Label,
                 value: UIFieldValue::Label("label".to_string())
             },
             UIValue {
                 name: "float".to_string(),
                 display_name: "Float".to_string(),
+                description: "".to_string(),
                 ty: UIFieldType::InputFieldFloat,
                 value: UIFieldValue::InputFieldFloat(2.43)
             },
             UIValue {
                 name: "int".to_string(),
                 display_name: "Integer".to_string(),
+                description: "".to_string(),
                 ty: UIFieldType::InputFieldInteger,
                 value: UIFieldValue::InputFieldInteger(3)
             },
             UIValue {
                 name: "str".to_string(),
                 display_name: "String".to_string(),
+                description: "".to_string(),
                 ty: UIFieldType::InputFieldString,
                 value: UIFieldValue::InputFieldString("string".to_string())
             },
             UIValue {
                 name: "float2".to_string(),
                 display_name: "Float2".to_string(),
+                description: "".to_string(),
                 ty: UIFieldType::InputFieldFloat2,
                 value: UIFieldValue::InputFieldFloat2(13.23, 23.1)
             },
             UIValue {
                 name: "int2".to_string(),
                 display_name: "Integer2".to_string(),
+                description: "".to_string(),
                 ty: UIFieldType::InputFieldInteger2,
                 value: UIFieldValue::InputFieldInteger2(13, 23)
             },
             UIValue {
                 name: "uint".to_string(),
                 display_name: "Unsigned Integer".to_string(),
+                description: "".to_string(),
                 ty: UIFieldType::InputFieldUnsignedInteger,
                 value: UIFieldValue::InputFieldUnsignedInteger(232)
             },
             UIValue {
                 name: "float_slider".to_string(),
                 display_name: "Float Slider".to_string(),
+                description: "".to_string(),
                 ty: UIFieldType::ValueSliderFloat(UIScalar {
                     default_value: 5.0,
                     max_value: 100.0,
@@ -164,6 +173,7 @@ impl SDModule for ExampleModule {
             UIValue {
                 name: "int_slider".to_string(),
                 display_name: "Integer Slider".to_string(),
+                description: "".to_string(),
                 ty: UIFieldType::ValueSliderInteger(UIScalar {
                     default_value: 5,
                     max_value: 100,
@@ -268,6 +278,7 @@ impl CustomRenderer for ExampleRenderer {
             UIValue {
                 name: "my_int".to_string(),
                 display_name: "My Integer".to_string(),
+                description: "Some example integer".to_string(),
                 ty: UIFieldType::InputFieldInteger,
                 value: UIFieldValue::InputFieldInteger(my_int as i32)
             }

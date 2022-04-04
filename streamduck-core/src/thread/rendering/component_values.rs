@@ -19,6 +19,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
             UIValue {
                 name: "renderer".to_string(),
                 display_name: "Renderer to use".to_string(),
+                description: "Renderers can be added by plugins".to_string(),
                 ty: UIFieldType::Choice({
                     let mut names = vec!["default".to_string()];
 
@@ -41,6 +42,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                 UIValue {
                     name: "background_params".to_string(),
                     display_name: "Background Parameters".to_string(),
+                    description: "Parameters related to background of the button".to_string(),
                     ty: UIFieldType::Collapsable,
                     value: UIFieldValue::Collapsable({
                         let mut fields = vec![];
@@ -49,6 +51,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                             UIValue {
                                 name: "background".to_string(),
                                 display_name: "Background Type".to_string(),
+                                description: "Type of the background to use".to_string(),
                                 ty: UIFieldType::Choice(vec!["Solid Color".to_string(), "Horizontal Gradient".to_string(), "Vertical Gradient".to_string(), "Existing Image".to_string(), "New Image".to_string()]),
                                 value: UIFieldValue::Choice(
                                     match &component.background {
@@ -69,6 +72,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                                     UIValue {
                                         name: "color".to_string(),
                                         display_name: "Background Color".to_string(),
+                                        description: "Color that will be the background of the button".to_string(),
                                         ty: UIFieldType::Color,
                                         value: color.into()
                                     }
@@ -80,6 +84,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                                     UIValue {
                                         name: "start_color".to_string(),
                                         display_name: "Gradient Start Color".to_string(),
+                                        description: "Color that will be on left side of the gradient".to_string(),
                                         ty: UIFieldType::Color,
                                         value: start_color.into()
                                     }
@@ -89,6 +94,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                                     UIValue {
                                         name: "end_color".to_string(),
                                         display_name: "Gradient End Color".to_string(),
+                                        description: "Color that will be on right side of the gradient".to_string(),
                                         ty: UIFieldType::Color,
                                         value: end_color.into()
                                     }
@@ -99,6 +105,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                                     UIValue {
                                         name: "start_color".to_string(),
                                         display_name: "Gradient Start Color".to_string(),
+                                        description: "Color that will be on top side of the gradient".to_string(),
                                         ty: UIFieldType::Color,
                                         value: start_color.into()
                                     }
@@ -108,6 +115,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                                     UIValue {
                                         name: "end_color".to_string(),
                                         display_name: "Gradient End Color".to_string(),
+                                        description: "Color that will be on bottom side of the gradient".to_string(),
                                         ty: UIFieldType::Color,
                                         value: end_color.into()
                                     }
@@ -118,6 +126,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                                     UIValue {
                                         name: "image".to_string(),
                                         display_name: "Image".to_string(),
+                                        description: "Image to use as background of the button".to_string(),
                                         ty: UIFieldType::ExistingImage,
                                         value: UIFieldValue::ExistingImage(identifier.to_string())
                                     }
@@ -128,6 +137,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                                     UIValue {
                                         name: "image".to_string(),
                                         display_name: "Image".to_string(),
+                                        description: "Image to use as background of the button".to_string(),
                                         ty: UIFieldType::ImageData,
                                         value: UIFieldValue::ImageData(blob.to_string())
                                     }
@@ -145,6 +155,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                 UIValue {
                     name: "text_params".to_string(),
                     display_name: "Text Parameters".to_string(),
+                    description: "Parameters related to text on the button".to_string(),
                     ty: UIFieldType::Collapsable,
                     value: UIFieldValue::Collapsable({
                         let mut fields = vec![];
@@ -153,29 +164,34 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                             UIValue {
                                 name: "text".to_string(),
                                 display_name: "Text Objects".to_string(),
+                                description: "Array of text objects".to_string(),
                                 ty: UIFieldType::Array(
                                     vec![
                                         UIField {
                                             name: "text".to_string(),
                                             display_name: "Text".to_string(),
+                                            description: "Text that will be displayed".to_string(),
                                             ty: UIFieldType::InputFieldString,
                                             default_value: UIFieldValue::InputFieldString("".to_string())
                                         },
                                         UIField {
                                             name: "font".to_string(),
                                             display_name: "Font".to_string(),
+                                            description: "Font that will be used for text rendering".to_string(),
                                             ty: UIFieldType::Font,
                                             default_value: UIFieldValue::Font("default".to_string())
                                         },
                                         UIField {
                                             name: "scale".to_string(),
                                             display_name: "Text Scale".to_string(),
+                                            description: "Scale of the text".to_string(),
                                             ty: UIFieldType::InputFieldFloat2,
-                                            default_value: UIFieldValue::InputFieldFloat2(1.0, 1.0)
+                                            default_value: UIFieldValue::InputFieldFloat2(15.0, 15.0)
                                         },
                                         UIField {
                                             name: "alignment".to_string(),
                                             display_name: "Alignment".to_string(),
+                                            description: "To which point of the button the text will be anchored to".to_string(),
                                             ty: UIFieldType::Choice(
                                                 TextAlignment::VARIANTS.iter().map(|x| x.to_string()).collect()
                                             ),
@@ -184,24 +200,28 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                                         UIField {
                                             name: "padding".to_string(),
                                             display_name: "Padding".to_string(),
+                                            description: "Gap to have from alignment/anchor point".to_string(),
                                             ty: UIFieldType::InputFieldUnsignedInteger,
                                             default_value: UIFieldValue::InputFieldUnsignedInteger(0)
                                         },
                                         UIField {
                                             name: "offset".to_string(),
                                             display_name: "Text Offset".to_string(),
+                                            description: "2D offset of the text from its alignment/anchor point".to_string(),
                                             ty: UIFieldType::InputFieldFloat2,
                                             default_value: UIFieldValue::InputFieldFloat2(0.0, 0.0)
                                         },
                                         UIField {
                                             name: "color".to_string(),
                                             display_name: "Text Color".to_string(),
+                                            description: "Color that text will be displayed in".to_string(),
                                             ty: UIFieldType::Color,
                                             default_value: UIFieldValue::Color(0, 0, 0, 255)
                                         },
                                         UIField {
                                             name: "shadow_enabled".to_string(),
                                             display_name: "Text Shadow".to_string(),
+                                            description: "If text shadow should be rendered or not".to_string(),
                                             ty: UIFieldType::Checkbox {
                                                 disabled: false
                                             },
@@ -218,6 +238,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                                         values.push(UIValue {
                                             name: "text".to_string(),
                                             display_name: "Text".to_string(),
+                                            description: "Text that will be displayed".to_string(),
                                             ty: UIFieldType::InputFieldString,
                                             value: UIFieldValue::InputFieldString(text.text.clone())
                                         });
@@ -225,6 +246,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                                         values.push(UIValue {
                                             name: "font".to_string(),
                                             display_name: "Font".to_string(),
+                                            description: "Font that will be used for text rendering".to_string(),
                                             ty: UIFieldType::Font,
                                             value: UIFieldValue::Font(text.font.clone())
                                         });
@@ -232,6 +254,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                                         values.push(UIValue {
                                             name: "scale".to_string(),
                                             display_name: "Text Scale".to_string(),
+                                            description: "Scale of the text".to_string(),
                                             ty: UIFieldType::InputFieldFloat2,
                                             value: UIFieldValue::InputFieldFloat2(text.scale.0, text.scale.1)
                                         });
@@ -239,6 +262,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                                         values.push(UIValue {
                                             name: "alignment".to_string(),
                                             display_name: "Alignment".to_string(),
+                                            description: "To which point of the button the text will be anchored to".to_string(),
                                             ty: UIFieldType::Choice(
                                                 TextAlignment::VARIANTS.iter().map(|x| x.to_string()).collect()
                                             ),
@@ -248,6 +272,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                                         values.push(UIValue {
                                             name: "padding".to_string(),
                                             display_name: "Padding".to_string(),
+                                            description: "Gap to have from alignment/anchor point".to_string(),
                                             ty: UIFieldType::InputFieldUnsignedInteger,
                                             value: UIFieldValue::InputFieldUnsignedInteger(text.padding)
                                         });
@@ -255,6 +280,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                                         values.push(UIValue {
                                             name: "offset".to_string(),
                                             display_name: "Text Offset".to_string(),
+                                            description: "2D offset of the text from its alignment/anchor point".to_string(),
                                             ty: UIFieldType::InputFieldFloat2,
                                             value: UIFieldValue::InputFieldFloat2(text.offset.0, text.offset.1)
                                         });
@@ -262,6 +288,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                                         values.push(UIValue {
                                             name: "color".to_string(),
                                             display_name: "Text Color".to_string(),
+                                            description: "Color that text will be displayed in".to_string(),
                                             ty: UIFieldType::Color,
                                             value: text.color.into()
                                         });
@@ -271,6 +298,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                                                 UIValue {
                                                     name: "shadow_enabled".to_string(),
                                                     display_name: "Text Shadow".to_string(),
+                                                    description: "If text shadow should be rendered or not".to_string(),
                                                     ty: UIFieldType::Checkbox {
                                                         disabled: false
                                                     },
@@ -281,6 +309,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                                             values.push(UIValue {
                                                 name: "shadow_color".to_string(),
                                                 display_name: "Text Shadow Color".to_string(),
+                                                description: "Color of the shadow".to_string(),
                                                 ty: UIFieldType::Color,
                                                 value: shadow.color.into()
                                             });
@@ -288,6 +317,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                                             values.push(UIValue {
                                                 name: "shadow_offset".to_string(),
                                                 display_name: "Text Shadow Offset".to_string(),
+                                                description: "Offset of the shadow from text".to_string(),
                                                 ty: UIFieldType::InputFieldInteger2,
                                                 value: UIFieldValue::InputFieldInteger2(shadow.offset.0, shadow.offset.1)
                                             });
@@ -296,6 +326,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                                                 UIValue {
                                                     name: "shadow_enabled".to_string(),
                                                     display_name: "Text Shadow".to_string(),
+                                                    description: "If text shadow should be rendered or not".to_string(),
                                                     ty: UIFieldType::Checkbox {
                                                         disabled: false
                                                     },
@@ -322,6 +353,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                 UIValue {
                     name: "plugin_blacklist".to_string(),
                     display_name: "Allowed plugins to render".to_string(),
+                    description: "Disabled plugins will not appear on button".to_string(),
                     ty: UIFieldType::Collapsable,
                     value: UIFieldValue::Collapsable({
                         let names = core.module_manager().get_modules_for_rendering(&button.component_names());
@@ -333,6 +365,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                                 UIValue {
                                     name: name.clone(),
                                     display_name: name.clone(),
+                                    description: "".to_string(),
                                     ty: UIFieldType::Checkbox { disabled: false },
                                     value: UIFieldValue::Checkbox(!component.plugin_blacklist.contains(&name))
                                 }
@@ -345,6 +378,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                 UIValue {
                     name: "to_cache".to_string(),
                     display_name: "Caching".to_string(),
+                    description: "If renderer should cache render result or not. Caching might use a lot of RAM, no caching will use a lot more CPU".to_string(),
                     ty: UIFieldType::Checkbox {
                         disabled: false
                     },

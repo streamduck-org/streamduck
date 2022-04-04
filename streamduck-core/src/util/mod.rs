@@ -116,6 +116,7 @@ pub fn convert_value_to_path(value: UIValue, current_path: &str) -> UIPathValue 
                 name: value.name,
                 path,
                 display_name: value.display_name,
+                description: value.description,
                 ty: value.ty,
                 value: UIFieldValue::Collapsable(values)
             }
@@ -135,6 +136,7 @@ pub fn convert_value_to_path(value: UIValue, current_path: &str) -> UIPathValue 
                 name: value.name,
                 path,
                 display_name: value.display_name,
+                description: value.description,
                 ty: value.ty,
                 value: UIFieldValue::Array(values)
             }
@@ -147,6 +149,7 @@ pub fn convert_value_to_path(value: UIValue, current_path: &str) -> UIPathValue 
                 name: value.name,
                 path,
                 display_name: value.display_name,
+                description: value.description,
                 ty: value.ty,
                 value: value.value.into()
             }
@@ -231,6 +234,7 @@ pub fn add_array_function() -> fn(&mut UIValue) -> bool {
                 new_item.push(UIValue {
                     name: field.name.clone(),
                     display_name: field.display_name.clone(),
+                    description: field.description.clone(),
                     ty: field.ty.clone(),
                     value: field.default_value.clone()
                 })

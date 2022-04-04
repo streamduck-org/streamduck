@@ -157,12 +157,14 @@ impl SDModule for FolderModule {
                         UIValue {
                             name: "id".to_string(),
                             display_name: "ID".to_string(),
+                            description: "ID of the folder".to_string(),
                             ty: UIFieldType::Label,
                             value: UIFieldValue::Label(component.id)
                         },
                         UIValue {
                             name: "name".to_string(),
                             display_name: "Folder Name".to_string(),
+                            description: "Name that will appear in breadcrumbs of the stack".to_string(),
                             ty: UIFieldType::InputFieldString,
                             value: UIFieldValue::InputFieldString(component.name)
                         }
@@ -187,6 +189,7 @@ impl SDModule for FolderModule {
                         UIValue {
                             name: "id".to_string(),
                             display_name: "ID".to_string(),
+                            description: "Folder to link to".to_string(),
                             ty: UIFieldType::Choice(choices),
                             value: UIFieldValue::Choice(choice)
                         }

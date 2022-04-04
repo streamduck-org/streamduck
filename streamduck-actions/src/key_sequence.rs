@@ -157,17 +157,20 @@ pub fn get_values(button: &Button) -> Vec<UIValue> {
             UIValue {
                 name: "actions".to_string(),
                 display_name: "Key Actions".to_string(),
+                description: "Sequence of actions to perform on button press".to_string(),
                 ty: UIFieldType::Array(
                     vec![
                         UIField {
                             name: "type".to_string(),
                             display_name: "Action Type".to_string(),
+                            description: "Type of action to perform".to_string(),
                             ty: UIFieldType::Choice(action_types.clone()),
                             default_value: UIFieldValue::Choice("Click".to_string())
                         },
                         UIField {
                             name: "key".to_string(),
                             display_name: "Key".to_string(),
+                            description: "Key to use".to_string(),
                             ty: UIFieldType::Choice(key_variants()),
                             default_value: UIFieldValue::Choice("Alt".to_string())
                         }
@@ -183,6 +186,7 @@ pub fn get_values(button: &Button) -> Vec<UIValue> {
                             UIValue {
                                 name: "type".to_string(),
                                 display_name: "Action Type".to_string(),
+                                description: "Type of action to perform".to_string(),
                                 ty: UIFieldType::Choice(action_types.clone()),
                                 value: UIFieldValue::Choice(
                                     match &key_action {
@@ -205,6 +209,7 @@ pub fn get_values(button: &Button) -> Vec<UIValue> {
                                     UIValue {
                                         name: "key".to_string(),
                                         display_name: "Key".to_string(),
+                                        description: "Key to use".to_string(),
                                         ty: UIFieldType::Choice(key_variants()),
                                         value: UIFieldValue::Choice(choice)
                                     }
@@ -215,6 +220,7 @@ pub fn get_values(button: &Button) -> Vec<UIValue> {
                                         UIValue {
                                             name: "char".to_string(),
                                             display_name: "Character".to_string(),
+                                            description: "Character to use".to_string(),
                                             ty: UIFieldType::InputFieldString,
                                             value: UIFieldValue::InputFieldString(char.to_string())
                                         }
@@ -227,6 +233,7 @@ pub fn get_values(button: &Button) -> Vec<UIValue> {
                                     UIValue {
                                         name: "delay".to_string(),
                                         display_name: "Delay".to_string(),
+                                        description: "Amount of time to wait".to_string(),
                                         ty: UIFieldType::InputFieldFloat,
                                         value: UIFieldValue::InputFieldFloat(delay)
                                     }
@@ -238,6 +245,7 @@ pub fn get_values(button: &Button) -> Vec<UIValue> {
                                     UIValue {
                                         name: "text".to_string(),
                                         display_name: "Text".to_string(),
+                                        description: "Text to write, non-ascii text might lag the libxdo".to_string(),
                                         ty: UIFieldType::InputFieldString,
                                         value: UIFieldValue::InputFieldString(text)
                                     }

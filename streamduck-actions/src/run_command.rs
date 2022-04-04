@@ -36,6 +36,7 @@ pub fn get_values(button: &Button) -> Vec<UIValue> {
             UIValue {
                 name: "use_advanced".to_string(),
                 display_name: "Advanced mode".to_string(),
+                description: "Advanced mode allows for more granular control over arguments".to_string(),
                 ty: UIFieldType::Checkbox {
                     disabled: false
                 },
@@ -48,10 +49,12 @@ pub fn get_values(button: &Button) -> Vec<UIValue> {
                 UIValue {
                     name: "args".to_string(),
                     display_name: "Arguments".to_string(),
+                    description: "Arguments to put into shell".to_string(),
                     ty: UIFieldType::Array(vec![
                         UIField {
                             name: "arg".to_string(),
                             display_name: "Argument".to_string(),
+                            description: "".to_string(),
                             ty: UIFieldType::InputFieldString,
                             default_value: UIFieldValue::InputFieldString("".to_string())
                         }
@@ -66,6 +69,7 @@ pub fn get_values(button: &Button) -> Vec<UIValue> {
                                 UIValue {
                                     name: "arg".to_string(),
                                     display_name: "Argument".to_string(),
+                                    description: "".to_string(),
                                     ty: UIFieldType::InputFieldString,
                                     value: UIFieldValue::InputFieldString(arg.to_string())
                                 }
@@ -83,6 +87,7 @@ pub fn get_values(button: &Button) -> Vec<UIValue> {
                 UIValue {
                     name: "command".to_string(),
                     display_name: "Command".to_string(),
+                    description: "Command to execute in the shell, splits arguments by spaces, if you need file names with spaces, use advanced mode instead".to_string(),
                     ty: UIFieldType::InputFieldString,
                     value: UIFieldValue::InputFieldString(component.simple_command)
                 }

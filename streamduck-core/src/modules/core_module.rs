@@ -84,6 +84,7 @@ impl SDModule for CoreModule {
             UIValue {
                 name: "rendering".to_string(),
                 display_name: "Rendering Settings".to_string(),
+                description: "Settings related to rendering of buttons".to_string(),
                 ty: UIFieldType::Collapsable,
                 value: UIFieldValue::Collapsable({
                     let mut fields = vec![];
@@ -92,6 +93,7 @@ impl SDModule for CoreModule {
                         UIValue {
                             name: "plugin_blacklist".to_string(),
                             display_name: "Allowed plugins to render".to_string(),
+                            description: "Disabled plugins will not appear on buttons".to_string(),
                             ty: UIFieldType::Collapsable,
                             value: UIFieldValue::Collapsable({
                                 core_manager.module_manager.get_modules()
@@ -101,6 +103,7 @@ impl SDModule for CoreModule {
                                         Some(UIValue {
                                             name: name.clone(),
                                             display_name: name.clone(),
+                                            description: "".to_string(),
                                             ty: UIFieldType::Checkbox { disabled: false },
                                             value: UIFieldValue::Checkbox(!settings.renderer.plugin_blacklist.contains(&name))
                                         })
