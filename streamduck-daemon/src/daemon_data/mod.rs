@@ -33,8 +33,6 @@ pub struct DaemonListener {
 
 impl SocketListener for DaemonListener {
     fn message(&self, socket: SocketHandle, packet: SocketPacket) {
-        println!("packet received: {:?}", packet);
-
         // Version
         process_for_type::<SocketAPIVersion>(self,socket, &packet);
 
