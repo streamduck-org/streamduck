@@ -9,7 +9,7 @@ use crate::{Config, ModuleManager, SDCore};
 use crate::util::{add_array_function, button_to_raw, change_from_path, convert_value_to_path, deserialize_panel, make_button_unique, panel_to_raw, remove_array_function, serialize_panel, set_value_function};
 use serde::de::Error as DeError;
 use serde_json::Error as JSONError;
-use crate::core::button::parse_unique_button_to_component;
+use crate::core::button::{Button, parse_unique_button_to_component};
 use crate::font::get_font_from_collection;
 use crate::modules::events::SDEvent;
 use crate::modules::{features_to_vec, UniqueSDModule};
@@ -417,6 +417,19 @@ pub fn remove_component(core: &CoreHandle, key: u8, component_name: &str) -> boo
     }
 
     false
+}
+
+pub fn paste_button(core: &CoreHandle, key: u8, reference_button: &Button) -> bool {
+    let mut new_button = Button::new();
+
+    let responsible_modules = core.module_manager().get_modules_for_declared_components(reference_button.component_names().as_slice());
+    for module in responsible_modules {
+        module.paste_component(core.clone_for(&module), reference_button, &mut new_button);
+    }
+
+    println!("resulting button: {:?}", new_button);
+
+    set_button(core, key, make_button_unique(new_button))
 }
 
 /// Pushes new panel into the stack

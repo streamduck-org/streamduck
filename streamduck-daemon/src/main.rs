@@ -1,7 +1,7 @@
 #[cfg(target_family = "unix")]
 mod unix;
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread::spawn;
 use flexi_logger::{DeferredNow, Logger, LogSpecification, style, TS_DASHES_BLANK_COLONS_DOT_BLANK};
 use log::{LevelFilter, Record};
@@ -68,7 +68,8 @@ fn main() {
     socket_manager.add_listener(Box::new(DaemonListener {
         core_manager: core_manager.clone(),
         module_manager: module_manager.clone(),
-        config: config.clone()
+        config: config.clone(),
+        clipboard: Mutex::new(None)
     }));
 
     // Loading plugins

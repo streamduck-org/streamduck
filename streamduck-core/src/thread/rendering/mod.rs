@@ -133,11 +133,11 @@ pub fn process_frame(
 
                     let hash = hasher.finish();
 
-                    if counter.new_frame || (hash != *previous_state.get(&key).unwrap_or(&0)) {
+                    if counter.new_frame || (hash != *previous_state.get(&key).unwrap_or(&1)) {
                         let variant = cache.get(&hash);
 
                         if component.to_cache && variant.is_some() {
-                            let previous = previous_state.get(&key).unwrap_or(&0);
+                            let previous = previous_state.get(&key).unwrap_or(&1);
                             if hash != *previous {
                                 streamdeck.write_button_image(key, variant.unwrap().deref()).ok();
                             }
@@ -179,7 +179,7 @@ pub fn process_frame(
             let variant = cache.get(&hash);
 
             if component.to_cache && variant.is_some() {
-                let previous = previous_state.get(&key).unwrap_or(&0);
+                let previous = previous_state.get(&key).unwrap_or(&1);
                 if hash != *previous {
                     streamdeck.write_button_image(key, variant.unwrap().deref()).ok();
                 }
@@ -202,7 +202,7 @@ pub fn process_frame(
 
             previous_state.insert(key, hash);
         } else {
-            let previous = previous_state.get(&key).unwrap_or(&0);
+            let previous = previous_state.get(&key).unwrap_or(&1);
 
             if *previous != 0 {
                 previous_state.insert(key, 0);

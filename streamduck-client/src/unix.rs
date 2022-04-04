@@ -14,7 +14,7 @@ use streamduck_core::modules::PluginMetadata;
 use streamduck_core::versions::SOCKET_API;
 use streamduck_core::socket::{parse_packet_to_data, send_no_data_packet_with_requester, send_packet_with_requester, SocketData, SocketPacket};
 use streamduck_daemon::daemon_data::assets::{AddImage, AddImageResult, ListFonts, ListImages, ListImagesResult, RemoveImage, RemoveImageResult};
-use streamduck_daemon::daemon_data::buttons::{AddComponent, AddComponentResult, AddComponentValue, AddComponentValueResult, ClearButton, ClearButtonResult, GetButton, GetButtonResult, GetComponentValues, GetComponentValuesResult, NewButton, NewButtonFromComponent, NewButtonFromComponentResult, NewButtonResult, RemoveComponent, RemoveComponentResult, RemoveComponentValue, RemoveComponentValueResult, SetButton, SetButtonResult, SetComponentValue, SetComponentValueResult};
+use streamduck_daemon::daemon_data::buttons::{AddComponent, AddComponentResult, AddComponentValue, AddComponentValueResult, ClearButton, ClearButtonResult, ClipboardStatusResult, CopyButton, CopyButtonResult, GetButton, GetButtonResult, GetComponentValues, GetComponentValuesResult, NewButton, NewButtonFromComponent, NewButtonFromComponentResult, NewButtonResult, PasteButton, PasteButtonResult, RemoveComponent, RemoveComponentResult, RemoveComponentValue, RemoveComponentValueResult, SetButton, SetButtonResult, SetComponentValue, SetComponentValueResult};
 use streamduck_daemon::daemon_data::config::{ExportDeviceConfig, ExportDeviceConfigResult, GetDeviceConfig, GetDeviceConfigResult, ImportDeviceConfig, ImportDeviceConfigResult, ReloadDeviceConfig, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, SaveDeviceConfig, SaveDeviceConfigResult, SaveDeviceConfigsResult};
 use streamduck_daemon::daemon_data::devices::{AddDevice, AddDeviceResult, Device, GetDevice, GetDeviceResult, ListDevices, RemoveDevice, RemoveDeviceResult, SetBrightness, SetBrightnessResult};
 use streamduck_daemon::daemon_data::modules::{AddModuleValue, AddModuleValueResult, GetModuleValues, GetModuleValuesResult, ListComponents, ListModules, RemoveModuleValue, RemoveModuleValueResult, SetModuleValue, SetModuleValueResult};
@@ -309,6 +309,30 @@ impl SDClient for UnixClient {
 
     fn clear_button(&self, serial_number: &str, key: u8) -> Result<ClearButtonResult, SDClientError> {
         let response: ClearButtonResult = self.process_request(&ClearButton {
+            serial_number: serial_number.to_string(),
+            key
+        })?;
+
+        Ok(response)
+    }
+
+    fn clipboard_status(&self) -> Result<ClipboardStatusResult, SDClientError> {
+        let response: ClipboardStatusResult = self.process_request_without_data()?;
+
+        Ok(response)
+    }
+
+    fn copy_button(&self, serial_number: &str, key: u8) -> Result<CopyButtonResult, SDClientError> {
+        let response: CopyButtonResult = self.process_request(&CopyButton {
+            serial_number: serial_number.to_string(),
+            key
+        })?;
+
+        Ok(response)
+    }
+
+    fn paste_button(&self, serial_number: &str, key: u8) -> Result<PasteButtonResult, SDClientError> {
+        let response: PasteButtonResult = self.process_request(&PasteButton {
             serial_number: serial_number.to_string(),
             key
         })?;

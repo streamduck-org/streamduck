@@ -20,6 +20,7 @@ use streamduck_core::thread::rendering::{ButtonBackground, RendererComponent, Re
 use streamduck_core::thread::rendering::custom::{CustomRenderer, DeviceReference, RenderingManager};
 use streamduck_core::thread::util::{image_from_horiz_gradient, image_from_solid, render_box_on_image};
 use streamduck_core::util::rusttype::{Point, Scale};
+use streamduck_core::util::straight_copy;
 
 #[no_mangle]
 pub fn get_metadata() -> PluginMetadata {
@@ -97,6 +98,10 @@ impl SDModule for ExampleModule {
 
             _ => {}
         }
+    }
+
+    fn paste_component(&self, _: CoreHandle, reference_button: &Button, new_button: &mut Button) {
+        straight_copy(reference_button, new_button, "example");
     }
 
     fn component_values(&self, _: CoreHandle, _: &Button, _: &str) -> Vec<UIValue> {

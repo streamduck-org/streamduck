@@ -7,15 +7,16 @@ pub mod panels;
 pub mod buttons;
 pub mod ops;
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use serde::{Deserialize, Serialize};
 use streamduck_core::versions::SOCKET_API;
 use streamduck_core::core::manager::CoreManager;
 use streamduck_core::socket::{check_packet_for_data, send_packet, SocketData, SocketHandle, SocketListener, SocketPacket};
 use streamduck_core::modules::ModuleManager;
 use streamduck_core::config::Config;
+use streamduck_core::core::button::Button;
 use crate::daemon_data::assets::{AddImage, ListFonts, ListImages, RemoveImage};
-use crate::daemon_data::buttons::{AddComponent, AddComponentValue, ClearButton, GetButton, GetComponentValues, NewButton, NewButtonFromComponent, RemoveComponent, RemoveComponentValue, SetButton, SetComponentValue};
+use crate::daemon_data::buttons::{AddComponent, AddComponentValue, ClearButton, ClipboardStatusResult, CopyButton, GetButton, GetComponentValues, NewButton, NewButtonFromComponent, PasteButton, RemoveComponent, RemoveComponentValue, SetButton, SetComponentValue};
 use crate::daemon_data::config::{ExportDeviceConfig, GetDeviceConfig, ImportDeviceConfig, ReloadDeviceConfig, ReloadDeviceConfigsResult, SaveDeviceConfig, SaveDeviceConfigsResult};
 use crate::daemon_data::devices::{AddDevice, GetDevice, ListDevices, RemoveDevice, SetBrightness};
 use crate::daemon_data::modules::{AddModuleValue, GetModuleValues, ListComponents, ListModules, RemoveModuleValue, SetModuleValue};
@@ -27,10 +28,13 @@ pub struct DaemonListener {
     pub core_manager: Arc<CoreManager>,
     pub module_manager: Arc<ModuleManager>,
     pub config: Arc<Config>,
+    pub clipboard: Mutex<Option<Button>>,
 }
 
 impl SocketListener for DaemonListener {
     fn message(&self, socket: SocketHandle, packet: SocketPacket) {
+        println!("packet received: {:?}", packet);
+
         // Version
         process_for_type::<SocketAPIVersion>(self,socket, &packet);
 
@@ -77,6 +81,10 @@ impl SocketListener for DaemonListener {
         process_for_type::<GetButton>(self, socket, &packet);
         process_for_type::<SetButton>(self, socket, &packet);
         process_for_type::<ClearButton>(self, socket, &packet);
+
+        process_for_type::<ClipboardStatusResult>(self, socket, &packet);
+        process_for_type::<CopyButton>(self, socket, &packet);
+        process_for_type::<PasteButton>(self, socket, &packet);
 
         process_for_type::<NewButton>(self, socket, &packet);
         process_for_type::<NewButtonFromComponent>(self, socket, &packet);

@@ -51,6 +51,10 @@ impl SDModule for PluginProxy {
         self.plugin.remove_component(core, button, name)
     }
 
+    fn paste_component(&self, core: CoreHandle, reference_button: &Button, new_button: &mut Button) {
+        self.plugin.paste_component(core, reference_button, new_button)
+    }
+
     fn component_values(&self, core: CoreHandle, button: &Button, name: &str) -> Vec<UIValue> {
         self.plugin.component_values(core, button, name)
     }

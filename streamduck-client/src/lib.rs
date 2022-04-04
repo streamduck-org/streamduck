@@ -9,7 +9,7 @@ use streamduck_core::modules::PluginMetadata;
 use streamduck_core::socket::{SocketError, SocketPacket};
 pub use streamduck_daemon as daemon;
 use streamduck_daemon::daemon_data::assets::{AddImageResult, ListImagesResult, RemoveImageResult};
-use streamduck_daemon::daemon_data::buttons::{AddComponentResult, AddComponentValueResult, ClearButtonResult, GetButtonResult, GetComponentValuesResult, NewButtonFromComponentResult, NewButtonResult, RemoveComponentResult, RemoveComponentValueResult, SetButtonResult, SetComponentValueResult};
+use streamduck_daemon::daemon_data::buttons::{AddComponentResult, AddComponentValueResult, ClearButtonResult, ClipboardStatusResult, CopyButtonResult, GetButtonResult, GetComponentValuesResult, NewButtonFromComponentResult, NewButtonResult, PasteButtonResult, RemoveComponentResult, RemoveComponentValueResult, SetButtonResult, SetComponentValueResult};
 use streamduck_daemon::daemon_data::config::{ExportDeviceConfigResult, GetDeviceConfigResult, ImportDeviceConfigResult, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, SaveDeviceConfigResult, SaveDeviceConfigsResult};
 use streamduck_daemon::daemon_data::devices::{AddDeviceResult, Device, GetDeviceResult, RemoveDeviceResult, SetBrightnessResult};
 use streamduck_daemon::daemon_data::modules::{AddModuleValueResult, GetModuleValuesResult, RemoveModuleValueResult, SetModuleValueResult};
@@ -101,6 +101,13 @@ pub trait SDClient {
     fn set_button(&self, serial_number: &str, key: u8, button: Button) -> Result<SetButtonResult, SDClientError>;
     /// Clears a button from current screen of a device
     fn clear_button(&self, serial_number: &str, key: u8) -> Result<ClearButtonResult, SDClientError>;
+
+    /// Returns status of clipboard on daemon
+    fn clipboard_status(&self) -> Result<ClipboardStatusResult, SDClientError>;
+    /// Copies button into daemon's clipboard
+    fn copy_button(&self, serial_number: &str, key: u8) -> Result<CopyButtonResult, SDClientError>;
+    /// Pastes button from daemon's clipboard
+    fn paste_button(&self, serial_number: &str, key: u8) -> Result<PasteButtonResult, SDClientError>;
 
     /// Creates a new empty button on current screen of a device
     fn new_button(&self, serial_number: &str, key: u8) -> Result<NewButtonResult, SDClientError>;

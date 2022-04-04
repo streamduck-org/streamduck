@@ -10,7 +10,7 @@ use crate::modules::components::{ComponentDefinition, map_ui_values, UIFieldType
 use crate::modules::events::SDEvent;
 use crate::modules::{PluginMetadata, SDModule};
 use crate::thread::rendering::{ButtonBackground, ButtonText, RendererComponentBuilder};
-use crate::util::{button_to_raw, make_panel_unique};
+use crate::util::{button_to_raw, make_panel_unique, straight_copy};
 use crate::thread::util::TextAlignment;
 use crate::versions::{CORE, CORE_METHODS, EVENTS, MODULE_MANAGER};
 
@@ -99,22 +99,26 @@ impl SDModule for FolderModule {
     fn add_component(&self, core: CoreHandle, button: &mut Button, name: &str) {
         match name {
             FolderComponent::NAME => {
-                let folder_id = self.new_folder(&core);
+                if !button.contains(FolderLinkComponent::NAME) {
+                    let folder_id = self.new_folder(&core);
 
-                button.insert_component(
-                    FolderComponent {
-                        id: folder_id,
-                        name: "Folder".to_string()
-                    }
-                ).ok();
+                    button.insert_component(
+                        FolderComponent {
+                            id: folder_id,
+                            name: "Folder".to_string()
+                        }
+                    ).ok();
+                }
             }
 
             FolderLinkComponent::NAME => {
-                button.insert_component(
-                    FolderLinkComponent {
-                        id: "".to_string()
-                    }
-                ).ok();
+                if !button.contains(FolderComponent::NAME) {
+                    button.insert_component(
+                        FolderLinkComponent {
+                            id: "".to_string()
+                        }
+                    ).ok();
+                }
             }
 
             FolderUpComponent::NAME => {
@@ -146,6 +150,28 @@ impl SDModule for FolderModule {
             }
 
             _ => {}
+        }
+    }
+
+    fn paste_component(&self, core: CoreHandle, reference_button: &Button, new_button: &mut Button) {
+        straight_copy(reference_button, new_button, FolderLinkComponent::NAME);
+        straight_copy(reference_button, new_button, FolderUpComponent::NAME);
+
+        if let Ok(component) = parse_button_to_component::<FolderComponent>(reference_button) {
+            let new_name = self.random_unique_name(&core);
+
+            let reference_folder = self.get_folder(&core, &component.id).unwrap_or_else(|| RawButtonPanel {
+                display_name: "Folder".to_string(),
+                data: Default::default(),
+                buttons: Default::default()
+            });
+
+            self.update_folder(&core, new_name.clone(), reference_folder);
+
+            new_button.insert_component(FolderComponent {
+                id: new_name,
+                name: component.name
+            }).ok();
         }
     }
 
@@ -380,6 +406,23 @@ impl SDModule for FolderModule {
 type FolderMap = HashMap<String, RawButtonPanel>;
 
 impl FolderModule {
+    /// Generates a random name for folder
+    fn random_name(&self) -> String {
+        rand::thread_rng().sample_iter(&Alphanumeric).take(16).map(char::from).collect::<String>()
+    }
+
+    /// Generates a random name for folder and ensures it's not used anywhere
+    fn random_unique_name(&self, core: &CoreHandle) -> String {
+        let folder_list = self.list_folders(core);
+
+        let mut name = self.random_name();
+        while folder_list.get(&name).is_some() {
+            name = self.random_name();
+        }
+
+        name
+    }
+
     /// Creates a new folder in plugin data
     fn new_folder(&self, core: &CoreHandle) -> String {
         let core = core.core();
@@ -396,7 +439,7 @@ impl FolderModule {
         };
 
         loop {
-            let str = rand::thread_rng().sample_iter(&Alphanumeric).take(16).map(char::from).collect::<String>();
+            let str = self.random_name();
             if !folders.contains_key(&str) {
                 folders.insert(str.clone(), RawButtonPanel {
                     display_name: "Folder".to_string(),

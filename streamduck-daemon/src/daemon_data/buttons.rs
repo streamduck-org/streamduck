@@ -1,9 +1,10 @@
 //! Requests related to buttons
+use std::ops::Deref;
 use serde::{Deserialize, Serialize};
 use streamduck_core::core::button::Button;
-use streamduck_core::core::methods::{add_element_component_value, add_component, clear_button, CoreHandle, get_button, get_component_values_with_paths, remove_component, set_button, set_component_value_by_path, remove_element_component_value};
+use streamduck_core::core::methods::{add_element_component_value, add_component, clear_button, CoreHandle, get_button, get_component_values_with_paths, remove_component, set_button, set_component_value_by_path, remove_element_component_value, paste_button};
 use streamduck_core::modules::components::UIPathValue;
-use streamduck_core::socket::{parse_packet_to_data, send_packet, SocketData, SocketHandle, SocketPacket};
+use streamduck_core::socket::{check_packet_for_data, parse_packet_to_data, send_packet, SocketData, SocketHandle, SocketPacket};
 use streamduck_core::util::{button_to_raw, make_button_unique};
 use crate::daemon_data::{DaemonListener, DaemonRequest};
 
@@ -544,6 +545,130 @@ impl DaemonRequest for RemoveComponent {
                 }
             } else {
                 send_packet(handle, packet, &RemoveComponentResult::DeviceNotFound).ok();
+            }
+        }
+    }
+}
+
+/// Request for checking clipboard status
+#[derive(Serialize, Deserialize)]
+pub enum ClipboardStatusResult {
+    /// Sent if clipboard is empty
+    Empty,
+
+    /// Sent if clipboard has anything
+    Full,
+}
+
+impl SocketData for ClipboardStatusResult {
+    const NAME: &'static str = "clipboard_status";
+}
+
+impl DaemonRequest for ClipboardStatusResult {
+    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+        if check_packet_for_data::<ClipboardStatusResult>(packet) {
+            let lock = listener.clipboard.lock().unwrap();
+
+            send_packet(handle, packet, &if lock.is_some() { ClipboardStatusResult::Full } else { ClipboardStatusResult::Empty }).ok();
+        }
+    }
+}
+
+
+/// Request to copy a button
+#[derive(Serialize, Deserialize)]
+pub struct CopyButton {
+    pub serial_number: String,
+    pub key: u8,
+}
+
+/// Response of [CopyButton] request
+#[derive(Serialize, Deserialize)]
+pub enum CopyButtonResult {
+    /// Sent if device wasn't found
+    DeviceNotFound,
+
+    /// Sent if there's no button to copy
+    NoButton,
+
+    /// Sent if successfully copied a button
+    Copied
+}
+
+impl SocketData for CopyButton {
+    const NAME: &'static str = "copy_button";
+}
+
+impl SocketData for CopyButtonResult {
+    const NAME: &'static str = "copy_button";
+}
+
+impl DaemonRequest for CopyButton {
+    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+        if let Ok(request) = parse_packet_to_data::<CopyButton>(packet) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+                let wrapped_core = CoreHandle::wrap(device.core);
+
+                if let Some(button) = get_button(&wrapped_core, request.key) {
+                    let mut lock = listener.clipboard.lock().unwrap();
+                    *lock = Some(button.read().unwrap().deref().clone());
+                    send_packet(handle, packet, &CopyButtonResult::Copied).ok();
+                } else {
+                    send_packet(handle, packet, &CopyButtonResult::NoButton).ok();
+                }
+            } else {
+                send_packet(handle, packet, &CopyButtonResult::DeviceNotFound).ok();
+            }
+        }
+    }
+}
+
+/// Request for pasting button
+#[derive(Serialize, Deserialize)]
+pub struct PasteButton {
+    pub serial_number: String,
+    pub key: u8,
+}
+
+/// Response of [PasteButton] request
+#[derive(Serialize, Deserialize)]
+pub enum PasteButtonResult {
+    /// Sent if device wasn't found
+    DeviceNotFound,
+
+    /// Sent if failed to paste
+    FailedToPaste,
+
+    /// Sent if successfully pasted button
+    Pasted
+}
+
+impl SocketData for PasteButton {
+    const NAME: &'static str = "paste_button";
+}
+
+impl SocketData for PasteButtonResult {
+    const NAME: &'static str = "paste_button";
+}
+
+impl DaemonRequest for PasteButton {
+    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+        if let Ok(request) = parse_packet_to_data::<PasteButton>(packet) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+                let wrapped_core = CoreHandle::wrap(device.core);
+
+                let clipboard = listener.clipboard.lock().unwrap();
+
+                if clipboard.is_some() {
+                    if paste_button(&wrapped_core, request.key, clipboard.as_ref().unwrap()) {
+                        send_packet(handle, packet, &PasteButtonResult::Pasted).ok();
+                        return;
+                    }
+                }
+
+                send_packet(handle, packet, &PasteButtonResult::FailedToPaste).ok();
+            } else {
+                send_packet(handle, packet, &PasteButtonResult::DeviceNotFound).ok();
             }
         }
     }

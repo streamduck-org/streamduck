@@ -4,13 +4,14 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use crate::config::PluginConfig;
-use crate::core::button::Button;
+use crate::core::button::{Button, Component};
 use crate::core::manager::CoreManager;
 use crate::core::methods::{check_feature_list_for_feature, CoreHandle};
 use crate::modules::components::{ComponentDefinition, map_ui_values, UIFieldType, UIFieldValue, UIValue};
 use crate::modules::{PluginMetadata, SDModule};
 use crate::thread::rendering::{RendererComponent, RendererSettings};
 use crate::thread::rendering::component_values::{get_renderer_component_values, set_renderer_component_values};
+use crate::util::straight_copy;
 use crate::versions::{CORE, MODULE_MANAGER};
 
 /// The core module, for exposing renderer component to requests and such
@@ -49,6 +50,10 @@ impl SDModule for CoreModule {
             }
             _ => {}
         }
+    }
+
+    fn paste_component(&self, _: CoreHandle, reference_button: &Button, new_button: &mut Button) {
+        straight_copy(reference_button, new_button, RendererComponent::NAME);
     }
 
     fn component_values(&self, core: CoreHandle, button: &Button, name: &str) -> Vec<UIValue> {

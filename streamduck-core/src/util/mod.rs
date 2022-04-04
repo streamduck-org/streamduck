@@ -157,6 +157,13 @@ pub fn convert_value_to_path(value: UIValue, current_path: &str) -> UIPathValue 
     }
 }
 
+/// Copies component data from reference to new button
+pub fn straight_copy(reference: &Button, new_button: &mut Button, component_name: &str) {
+    if let Some(data) = reference.0.get(component_name) {
+        new_button.0.insert(component_name.to_string(), data.clone());
+    }
+}
+
 /// Util function to navigate paths and perform changes on values
 pub fn change_from_path<T: Fn(&mut UIValue) -> bool>(path: &str, ui_values: Vec<UIValue>, func: &T, keep: bool) -> (Vec<UIValue>, bool) {
     let mut path = path.split(".");

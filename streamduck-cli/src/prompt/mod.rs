@@ -10,12 +10,11 @@ mod helper;
 use std::sync::Arc;
 use rustyline::{Editor};
 use rustyline::error::ReadlineError;
-use streamduck_client::daemon::daemon_data::buttons::{GetButtonResult, SetButtonResult};
+use streamduck_client::daemon::daemon_data::buttons::{CopyButtonResult, PasteButtonResult};
 use streamduck_client::daemon::daemon_data::devices::{GetDeviceResult, SetBrightnessResult};
 use streamduck_client::daemon::daemon_data::ops::DoButtonActionResult;
 use streamduck_client::daemon::daemon_data::panels::{DropStackToRootResult, PopScreenResult};
 use streamduck_client::SDClient;
-use streamduck_core::core::button::Button;
 use crate::prompt::buttons::{button_component, button_from, button_new, button_remove};
 use crate::prompt::config::{export_config, import_config, reload_config, save_config};
 use crate::prompt::device::{add_device, device_list, remove_device};
@@ -29,7 +28,6 @@ type ClientRef<'a> = &'a Arc<Box<dyn SDClient>>;
 pub fn prompt(client: Arc<Box<dyn SDClient>>) {
     println!("Streamduck CLI Prompt\n\nTo view commands, enter 'help' command.\nTo exit, enter 'exit'.\n");
     let mut current_sn = String::new();
-    let mut button_clipboard: Option<Button> = None;
 
     let mut rl = Editor::<StreamduckHelper>::new();
     rl.set_helper(Some(StreamduckHelper));
@@ -234,15 +232,12 @@ pub fn prompt(client: Arc<Box<dyn SDClient>>) {
                                         if !current_sn.is_empty() {
                                             if let Some(key) = args.next() {
                                                 if let Ok(key) = key.parse::<u8>() {
-                                                    let result = client.get_button(&current_sn, key).expect("Failed to get button");
+                                                    let result = client.copy_button(&current_sn, key).expect("Failed to copy button");
 
                                                     match result {
-                                                        GetButtonResult::DeviceNotFound => println!("button copy: Device not found"),
-                                                        GetButtonResult::NoButton => println!("button copy: No button"),
-                                                        GetButtonResult::Button(b) => {
-                                                            button_clipboard = Some(b);
-                                                            println!("button copy: Saved button to internal clipboard")
-                                                        }
+                                                        CopyButtonResult::DeviceNotFound => println!("button copy: Device not found"),
+                                                        CopyButtonResult::NoButton => println!("button copy: No button to copy"),
+                                                        CopyButtonResult::Copied => println!("button copy: Copied"),
                                                     }
                                                 } else {
                                                     println!("button copy: Input valid key index (0-255)")
@@ -259,19 +254,12 @@ pub fn prompt(client: Arc<Box<dyn SDClient>>) {
                                         if !current_sn.is_empty() {
                                             if let Some(key) = args.next() {
                                                 if let Ok(key) = key.parse::<u8>() {
-                                                    if let Some(button) = button_clipboard.clone() {
-                                                        let result = client.set_button(&current_sn, key, button).expect("Failed to set button");
+                                                    let result = client.paste_button(&current_sn, key).expect("Failed to paste button");
 
-                                                        match result {
-                                                            SetButtonResult::DeviceNotFound => println!("button paste: Device not found"),
-                                                            SetButtonResult::NoScreen => println!("button paste: No screen"),
-                                                            SetButtonResult::Set => {
-                                                                client.commit_changes(&current_sn).expect("Failed to commit changes");
-                                                                println!("button paste: Pasted button")
-                                                            }
-                                                        }
-                                                    } else {
-                                                        println!("button paste: Nothing in internal clipboard")
+                                                    match result {
+                                                        PasteButtonResult::DeviceNotFound => println!("button paste: Device not found"),
+                                                        PasteButtonResult::FailedToPaste => println!("button paste: Failed to paste"),
+                                                        PasteButtonResult::Pasted => println!("button paste: Pasted"),
                                                     }
                                                 } else {
                                                     println!("button paste: Input valid key index (0-255)")

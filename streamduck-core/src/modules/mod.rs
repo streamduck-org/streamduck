@@ -148,6 +148,24 @@ impl ModuleManager {
         }
     }
 
+    /// Retrieves modules that have added specified components
+    pub fn get_modules_for_declared_components(&self, components: &[String]) -> Vec<UniqueSDModule> {
+        let handle = self.component_map.read().unwrap();
+
+        let mut shared_modules = vec![];
+
+        for component in components {
+            if let Some((_, module)) = handle.get(component) {
+                shared_modules.push(module.clone());
+            }
+        }
+
+        shared_modules.sort_by(|a, b| a.name().cmp(&b.name()));
+        shared_modules.dedup_by(|a, b| a.name() == b.name());
+
+        shared_modules
+    }
+
     /// Retrieves modules that are listening to specified components
     pub fn get_modules_for_components(&self, components: &[String]) -> Vec<UniqueSDModule> {
         let handle = self.component_listener_map.read().unwrap();
@@ -270,6 +288,9 @@ pub trait SDModule: Send + Sync {
 
     /// Method for removing components from buttons
     fn remove_component(&self, core: CoreHandle, button: &mut Button, name: &str);
+
+    /// Method for handling pasting components of plugin, can be used for any additional handling
+    fn paste_component(&self, core: CoreHandle, reference_button: &Button, new_button: &mut Button);
 
     /// Method for letting core know what values component currently has
     fn component_values(&self, core: CoreHandle, button: &Button, name: &str) -> Vec<UIValue>;

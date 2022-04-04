@@ -12,6 +12,7 @@ use streamduck_core::core::methods::CoreHandle;
 use streamduck_core::modules::components::{ComponentDefinition, UIValue};
 use streamduck_core::modules::events::SDEvent;
 use streamduck_core::modules::{ModuleManager, PluginMetadata, SDModule};
+use streamduck_core::util::straight_copy;
 use streamduck_core::versions::{CORE, EVENTS};
 use crate::key_sequence::{KeyAction, KeySequenceComponent};
 use crate::run_command::RunCommandComponent;
@@ -105,6 +106,11 @@ impl SDModule for ActionsModule {
 
             _ => {}
         }
+    }
+
+    fn paste_component(&self, _: CoreHandle, reference_button: &Button, new_button: &mut Button) {
+        straight_copy(reference_button, new_button, RunCommandComponent::NAME);
+        straight_copy(reference_button, new_button, KeySequenceComponent::NAME);
     }
 
     fn component_values(&self, _: CoreHandle, button: &Button, name: &str) -> Vec<UIValue> {
