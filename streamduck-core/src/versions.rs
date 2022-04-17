@@ -19,8 +19,8 @@ pub const CORE_METHODS: (&str, &str) = ("core_methods", "0.1");
 pub const CONFIG: (&str, &str) = ("config", "0.1");
 /// Module manager, will be updated everytime there's changes to existing functions or functions get deleted
 pub const MODULE_MANAGER: (&str, &str) = ("module_manager", "0.1");
-/// Events, will be updated everytime there's changes to existing events or an event was removed
-pub const EVENTS: (&str, &str) = ("events", "0.1");
+/// Core events, will be updated everytime there's changes to existing events or an event was removed
+pub const CORE_EVENTS: (&str, &str) = ("core_events", "0.1");
 /// Socket API of daemon, mostly used for socket communication, will be updated everytime there's changes to existing requests or a request was removed
 pub const SOCKET_API: (&str, &str) = ("socket_api", "0.1");
 /// Rendering version, will be updated everytime there's changes to existing rendering API for plugins
@@ -34,7 +34,7 @@ pub const SUPPORTED_FEATURES: &[(&str, &str)] = &[
     CORE_METHODS,
     CONFIG,
     MODULE_MANAGER,
-    EVENTS,
+    CORE_EVENTS,
     RENDERING,
     SOCKET_API
 ];

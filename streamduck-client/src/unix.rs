@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::io::Write;
+use std::ops::DerefMut;
 use std::os::unix::net::UnixStream;
 use std::sync::{Arc, RwLock};
+use rand::distributions::Alphanumeric;
+use rand::Rng;
 
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -46,32 +49,45 @@ impl UnixClient {
         Ok(client)
     }
 
-    fn process_request<Req: SocketData + Serialize, Res: SocketData + DeserializeOwned>(&self, request: &Req) -> Result<Res, SDClientError> {
-        let mut handle = self.connection.write().unwrap();
-
-        send_packet_with_requester(handle.get_mut(), "", request)?;
-
+    fn read_socket(&self, handle: &mut dyn BufRead) -> Result<SocketPacket, SDClientError> {
         let mut byte_array = vec![];
         handle.read_until(0x4, &mut byte_array)?;
 
         let line = String::from_utf8(byte_array)?;
 
-        let packet: SocketPacket = serde_json::from_str(line.replace("\u{0004}", "").trim())?;
+        Ok(serde_json::from_str(line.replace("\u{0004}", "").trim())?)
+    }
+
+    fn read_response(&self, handle: &mut dyn BufRead, requester: &str) -> Result<SocketPacket, SDClientError> {
+        loop {
+            let packet = self.read_socket(handle)?;
+
+            if packet.requester.as_ref().unwrap_or(&"".to_string()) == requester {
+                return Ok(packet);
+            }
+        }
+    }
+
+    fn process_request<Req: SocketData + Serialize, Res: SocketData + DeserializeOwned>(&self, request: &Req) -> Result<Res, SDClientError> {
+        let id = rand::thread_rng().sample_iter(&Alphanumeric).take(20).map(char::from).collect::<String>();
+
+        let mut handle = self.connection.write().unwrap();
+
+        send_packet_with_requester(handle.get_mut(), &id, request)?;
+
+        let packet = self.read_response(handle.deref_mut(), &id)?;
 
         Ok(parse_packet_to_data(&packet)?)
     }
 
     fn process_request_without_data<Res: SocketData + DeserializeOwned>(&self) -> Result<Res, SDClientError> {
+        let id = rand::thread_rng().sample_iter(&Alphanumeric).take(20).map(char::from).collect::<String>();
+
         let mut handle = self.connection.write().unwrap();
 
-        send_no_data_packet_with_requester::<Res>(handle.get_mut(), "")?;
+        send_no_data_packet_with_requester::<Res>(handle.get_mut(), &id)?;
 
-        let mut byte_array = vec![];
-        handle.read_until(0x4, &mut byte_array)?;
-
-        let line = String::from_utf8(byte_array)?;
-
-        let packet: SocketPacket = serde_json::from_str(line.replace("\u{0004}", "").trim())?;
+        let packet = self.read_response(handle.deref_mut(), &id)?;
 
         Ok(parse_packet_to_data(&packet)?)
     }

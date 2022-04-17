@@ -146,6 +146,7 @@ pub trait SDClient {
     /// Simulate a press on a button on current screen for a device
     fn do_button_action(&self, serial_number: &str, key: u8) -> Result<DoButtonActionResult, SDClientError>;
 
+
     /// Sends a custom packet to daemon and returns response, for use with plugins that utilize socket functionality
     fn send_packet(&self, packet: SocketPacket) -> Result<SocketPacket, SDClientError>;
     /// Sends a custom packet to daemon and returns response, for use with plugins that utilize socket functionality

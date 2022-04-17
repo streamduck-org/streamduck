@@ -13,10 +13,10 @@ use dlopen_derive::WrapperApi;
 use image::DynamicImage;
 use crate::core::button::Button;
 use crate::core::manager::CoreManager;
-use crate::core::methods::{CoreHandle, warn_for_feature};
+use crate::core::methods::{check_feature_list_for_feature, CoreHandle, warn_for_feature};
 use crate::core::UniqueButton;
 use crate::modules::components::{ComponentDefinition, UIValue};
-use crate::modules::events::SDEvent;
+use crate::modules::events::{SDCoreEvent, SDGlobalEvent};
 use crate::RenderingManager;
 use crate::socket::SocketManager;
 use crate::versions::SUPPORTED_FEATURES;
@@ -75,8 +75,14 @@ impl SDModule for PluginProxy {
         self.plugin.set_setting(core, value)
     }
 
-    fn event(&self, core: CoreHandle, event: SDEvent) {
-        if core.check_for_feature("events") {
+    fn global_event(&self, event: SDGlobalEvent) {
+        if check_feature_list_for_feature(&self.metadata.used_features, "global_events") {
+            self.plugin.global_event(event)
+        }
+    }
+
+    fn event(&self, core: CoreHandle, event: SDCoreEvent) {
+        if core.check_for_feature("core_events") {
             self.plugin.event(core, event)
         }
     }

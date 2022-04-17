@@ -3,12 +3,12 @@ use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 use streamduck_core::core::button::{Button, parse_unique_button_to_component};
 use streamduck_core::modules::{PluginMetadata, SDModule, SDModulePointer};
-use streamduck_core::versions::{EVENTS, PLUGIN_API, RENDERING, SDMODULE_TRAIT};
+use streamduck_core::versions::{CORE_EVENTS, PLUGIN_API, RENDERING, SDMODULE_TRAIT};
 use serde::{Deserialize, Serialize};
 use serde_json::{Number, Value};
 use streamduck_core::core::methods::CoreHandle;
 use streamduck_core::modules::components::{ComponentDefinition, map_ui_values, UIFieldType, UIFieldValue, UIScalar, UIValue};
-use streamduck_core::modules::events::SDEvent;
+use streamduck_core::modules::events::SDCoreEvent;
 use streamduck_core::core::UniqueButton;
 use streamduck_core::image::{DynamicImage, Rgba};
 use streamduck_core::images::convert_image;
@@ -32,7 +32,7 @@ pub fn get_metadata() -> PluginMetadata {
         &[
             PLUGIN_API,
             SDMODULE_TRAIT,
-            EVENTS,
+            CORE_EVENTS,
             RENDERING
         ]
     )
@@ -201,9 +201,9 @@ impl SDModule for ExampleModule {
         ]
     }
 
-    fn event(&self, core: CoreHandle, event: SDEvent) {
+    fn event(&self, core: CoreHandle, event: SDCoreEvent) {
         match event {
-            SDEvent::ButtonAction { pressed_button, .. } => {
+            SDCoreEvent::ButtonAction { pressed_button, .. } => {
                 if let Ok(_) = parse_unique_button_to_component::<ExampleComponent>(&pressed_button) {
                     let config = core.config();
 

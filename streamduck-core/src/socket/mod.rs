@@ -3,9 +3,11 @@
 use std::io::Write;
 use std::ops::Deref;
 use std::sync::{Arc, RwLock};
+use std::thread::spawn;
 use serde::{Deserialize, Serialize};
 use serde::de::{DeserializeOwned, Error};
 use serde_json::Value;
+use crate::modules::events::SDGlobalEvent;
 
 /// Type for listener's socket handles
 pub type SocketHandle<'a> = &'a mut dyn Write;
@@ -26,6 +28,7 @@ pub struct SocketPacket {
 
 /// Socket listener, something that can listen in to socket connections
 pub trait SocketListener {
+    /// Called when message is received, handle can be used to send back a response
     fn message(&self, socket: SocketHandle, packet: SocketPacket);
 }
 
@@ -69,7 +72,7 @@ pub fn send_packet<T: SocketData + Serialize>(handle: SocketHandle, previous_pac
         data: Some(serde_json::to_value(data)?)
     };
 
-    write_in_chunks(handle, format!("{}\u{0004}", serde_json::to_string(&packet)?))?;
+    send_packet_as_is(handle, packet)?;
 
     Ok(())
 }
@@ -82,7 +85,7 @@ pub fn send_packet_with_requester<T: SocketData + Serialize>(handle: SocketHandl
         data: Some(serde_json::to_value(data)?)
     };
 
-    write_in_chunks(handle, format!("{}\u{0004}", serde_json::to_string(&packet)?))?;
+    send_packet_as_is(handle, packet)?;
 
     Ok(())
 }
@@ -95,7 +98,14 @@ pub fn send_no_data_packet_with_requester<T: SocketData>(handle: SocketHandle, r
         data: None
     };
 
-    write_in_chunks(handle, format!("{}\u{0004}", serde_json::to_string(&packet)?))?;
+    send_packet_as_is(handle, packet)?;
+
+    Ok(())
+}
+
+/// Sends a packet as is
+pub fn send_packet_as_is(handle: SocketHandle, data: SocketPacket) -> Result<(), SocketError> {
+    write_in_chunks(handle, format!("{}\u{0004}", serde_json::to_string(&data)?))?;
 
     Ok(())
 }
@@ -178,6 +188,22 @@ impl SocketManager {
             }
         }
     }
+}
+
+/// Sends packet to all socket connections in different thread, so current thread won't have to wait for write locks
+pub fn send_socket_message(socket_manager: &Arc<SocketManager>, packet: SocketPacket) {
+    let socket_manager = socket_manager.clone();
+    spawn(move || {
+        socket_manager.send_message(packet);
+    });
+}
+
+pub fn send_event_to_socket(socket_manager: &Arc<SocketManager>, event: SDGlobalEvent) {
+    send_socket_message(socket_manager, SocketPacket {
+        ty: "event".to_string(),
+        requester: None,
+        data: Some(serde_json::to_value(event).unwrap())
+    })
 }
 
 /// Pool of messages for socket implementations

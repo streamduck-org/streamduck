@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 use std::io::Cursor;
 use serde::{Deserialize, Serialize};
-use streamduck_core::core::methods::{CoreHandle, get_button_images, get_current_screen, get_root_screen, get_stack, pop_screen, push_screen, replace_screen, reset_stack};
+use streamduck_core::core::methods::{CoreHandle, get_button_image, get_button_images, get_current_screen, get_root_screen, get_stack, pop_screen, push_screen, replace_screen, reset_stack};
 use streamduck_core::core::RawButtonPanel;
 use streamduck_core::image::ImageOutputFormat;
 use streamduck_core::socket::{parse_packet_to_data, send_packet, SocketData, SocketHandle, SocketPacket};
@@ -191,6 +191,56 @@ impl DaemonRequest for GetButtonImages {
             }
 
             send_packet(handle, packet, &GetButtonImagesResult::DeviceNotFound).ok();
+        }
+    }
+}
+
+
+/// Request for getting current button image on a device
+#[derive(Serialize, Deserialize)]
+pub struct GetButtonImage {
+    pub serial_number: String,
+    pub key: u8,
+}
+
+/// Response of [GetButtonImage] request
+#[derive(Serialize, Deserialize)]
+pub enum GetButtonImageResult {
+    /// Sent if device wasn't found
+    DeviceNotFound,
+
+    /// Sent if there's no button
+    NoButton,
+
+    /// Sent if successfully generated image
+    Image(String)
+}
+
+impl SocketData for GetButtonImage {
+    const NAME: &'static str = "get_button_image";
+}
+
+impl SocketData for GetButtonImageResult {
+    const NAME: &'static str = "get_button_image";
+}
+
+impl DaemonRequest for GetButtonImage {
+    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+        if let Ok(request) = parse_packet_to_data::<GetButtonImage>(packet) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+                let wrapped_core = CoreHandle::wrap(device.core);
+
+                if let Some(image) = get_button_image(&wrapped_core, request.key) {
+                    let mut buffer: Vec<u8> = vec![];
+                    image.write_to(&mut Cursor::new(&mut buffer), ImageOutputFormat::Png).ok();
+
+                    send_packet(handle, packet, &GetButtonImageResult::Image(base64::encode(buffer))).ok();
+                } else {
+                    send_packet(handle, packet, &GetButtonImageResult::NoButton).ok();
+                }
+            } else {
+                send_packet(handle, packet, &GetButtonImageResult::DeviceNotFound).ok();
+            }
         }
     }
 }

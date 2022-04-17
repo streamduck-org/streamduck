@@ -9,13 +9,18 @@ use crate::core::manager::CoreManager;
 use crate::core::methods::{check_feature_list_for_feature, CoreHandle};
 use crate::modules::components::{ComponentDefinition, map_ui_values, UIFieldType, UIFieldValue, UIValue};
 use crate::modules::{PluginMetadata, SDModule};
+use crate::modules::events::{core_event_to_global, SDCoreEvent};
+use crate::socket::send_event_to_socket;
+use crate::SocketManager;
 use crate::thread::rendering::{RendererComponent, RendererSettings};
 use crate::thread::rendering::component_values::{get_renderer_component_values, set_renderer_component_values};
 use crate::util::straight_copy;
 use crate::versions::{CORE, MODULE_MANAGER};
 
 /// The core module, for exposing renderer component to requests and such
-pub struct CoreModule;
+pub struct CoreModule {
+    pub(crate) socket_manager: Arc<SocketManager>
+}
 
 impl SDModule for CoreModule {
     fn name(&self) -> String {
@@ -159,6 +164,11 @@ impl SDModule for CoreModule {
         }
 
         core_manager.config.set_plugin_settings(settings);
+    }
+
+    fn event(&self, core: CoreHandle, event: SDCoreEvent) {
+        let global_event = core_event_to_global(event, &core.core.serial_number());
+        send_event_to_socket(&self.socket_manager, global_event);
     }
 
     fn metadata(&self) -> PluginMetadata {

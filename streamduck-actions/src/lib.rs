@@ -10,10 +10,10 @@ use enigo::{Enigo, KeyboardControllable};
 use streamduck_core::core::button::{Button, Component};
 use streamduck_core::core::methods::CoreHandle;
 use streamduck_core::modules::components::{ComponentDefinition, UIValue};
-use streamduck_core::modules::events::SDEvent;
+use streamduck_core::modules::events::SDCoreEvent;
 use streamduck_core::modules::{ModuleManager, PluginMetadata, SDModule};
 use streamduck_core::util::straight_copy;
-use streamduck_core::versions::{CORE, EVENTS};
+use streamduck_core::versions::{CORE, CORE_EVENTS};
 use crate::key_sequence::{KeyAction, KeySequenceComponent};
 use crate::run_command::RunCommandComponent;
 
@@ -148,9 +148,9 @@ impl SDModule for ActionsModule {
         ]
     }
 
-    fn event(&self, _: CoreHandle, event: SDEvent) {
+    fn event(&self, _: CoreHandle, event: SDCoreEvent) {
         match event {
-            SDEvent::ButtonAction { pressed_button, .. } => {
+            SDCoreEvent::ButtonAction { pressed_button, .. } => {
                 run_command::action(&pressed_button);
                 key_sequence::action(&pressed_button, &self.key_transmitter);
             }
@@ -167,7 +167,7 @@ impl SDModule for ActionsModule {
             "0.1",
             &[
                 CORE,
-                EVENTS
+                CORE_EVENTS
             ]
         )
     }

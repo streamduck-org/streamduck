@@ -16,7 +16,9 @@ use crate::core::button::Button;
 use crate::thread::{DeviceThreadCommunication, DeviceThreadHandle, spawn_device_thread};
 use crate::core::methods::{button_down, button_up, CoreHandle};
 use crate::ImageCollection;
+use crate::modules::events::SDGlobalEvent;
 use crate::modules::ModuleManager;
+use crate::socket::{send_event_to_socket, SocketManager};
 use crate::thread::rendering::custom::RenderingManager;
 
 /// Reference counted RwLock of a button, prevents data duplication and lets you edit buttons if they're in many stacks at once
@@ -75,11 +77,17 @@ impl Into<UniqueButtonMap> for &Panel<UniqueButtonMap> {
 /// Core struct that contains all relevant information about streamdeck and manages the streamdeck
 #[allow(dead_code)]
 pub struct SDCore {
+    /// Serial number of the device
+    pub serial_number: String,
+
     /// Module manager
     pub module_manager: Arc<ModuleManager>,
 
     /// Rendering manager
     pub render_manager: Arc<RenderingManager>,
+
+    /// Socket manager
+    pub socket_manager: Arc<SocketManager>,
 
     /// Config
     pub config: Arc<Config>,
@@ -113,10 +121,13 @@ pub struct SDCore {
 
 impl SDCore {
     /// Creates an instance of core that is already dead
-    pub fn blank(module_manager: Arc<ModuleManager>, render_manager: Arc<RenderingManager>, config: Arc<Config>, device_config: UniqueDeviceConfig, image_collection: ImageCollection) -> Arc<SDCore> {
+    pub fn blank(module_manager: Arc<ModuleManager>, render_manager: Arc<RenderingManager>, socket_manager: Arc<SocketManager>, config: Arc<Config>, device_config: UniqueDeviceConfig, image_collection: ImageCollection) -> Arc<SDCore> {
+        let serial_number = device_config.read().unwrap().serial.to_string();
         Arc::new(SDCore {
+            serial_number,
             module_manager,
             render_manager,
+            socket_manager,
             config,
             device_config,
             current_stack: Mutex::new(vec![]),
@@ -131,12 +142,20 @@ impl SDCore {
     }
 
     /// Creates an instance of the core over existing streamdeck connection
-    pub fn new(module_manager: Arc<ModuleManager>, render_manager: Arc<RenderingManager>, config: Arc<Config>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, connection: StreamDeck, pool_rate: u32) -> (Arc<SDCore>, KeyHandler) {
+    pub fn new(module_manager: Arc<ModuleManager>, render_manager: Arc<RenderingManager>, socket_manager: Arc<SocketManager>, config: Arc<Config>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, mut connection: StreamDeck, pool_rate: u32) -> (Arc<SDCore>, KeyHandler) {
         let (key_tx, key_rx) = channel();
 
+        let serial_number = connection.serial().unwrap_or_else(|_| device_config.read().unwrap().serial.to_string());
+
+        send_event_to_socket(&socket_manager, SDGlobalEvent::DeviceConnected {
+            serial_number: serial_number.clone()
+        });
+
         let core = Arc::new(SDCore {
+            serial_number,
             module_manager,
             render_manager,
+            socket_manager,
             config,
             device_config,
             current_stack: Mutex::new(vec![]),
@@ -179,6 +198,11 @@ impl SDCore {
         handles.as_ref().unwrap().renderer.send(commands);
     }
 
+    /// Gets serial number of the core
+    pub fn serial_number(&self) -> String {
+        self.device_config.read().unwrap().serial.to_string()
+    }
+
     /// Checks if core is supposed to be closed
     pub fn is_closed(&self) -> bool {
         *self.should_close.read().unwrap()
@@ -186,6 +210,10 @@ impl SDCore {
 
     /// Kills the core and all the related threads
     pub fn close(&self) {
+        send_event_to_socket(&self.socket_manager, SDGlobalEvent::DeviceDisconnected {
+            serial_number: self.serial_number.to_string()
+        });
+
         let mut lock = self.should_close.write().unwrap();
         *lock = true;
     }
@@ -196,7 +224,7 @@ struct ThreadHandles {
 }
 
 /// Routine that acts as a middleman between streamdeck thread and the core, was made as a way to get around Sync restriction
-pub struct KeyHandler{
+pub struct KeyHandler {
     core: CoreHandle,
     receiver: Receiver<(u8, bool)>
 }

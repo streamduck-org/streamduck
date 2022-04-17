@@ -7,25 +7,23 @@ use crate::core::button::{Button, Component, parse_button_to_component, parse_un
 use crate::core::{ButtonPanel, RawButtonPanel};
 use crate::core::methods::{CoreHandle, get_stack, pop_screen, push_screen};
 use crate::modules::components::{ComponentDefinition, map_ui_values, UIFieldType, UIFieldValue, UIValue};
-use crate::modules::events::SDEvent;
+use crate::modules::events::SDCoreEvent;
 use crate::modules::{PluginMetadata, SDModule};
 use crate::thread::rendering::{ButtonBackground, ButtonText, RendererComponentBuilder};
 use crate::util::{button_to_raw, make_panel_unique, straight_copy};
 use crate::thread::util::TextAlignment;
-use crate::versions::{CORE, CORE_METHODS, EVENTS, MODULE_MANAGER};
+use crate::versions::{CORE, CORE_METHODS, CORE_EVENTS, MODULE_MANAGER};
 
 const MODULE_NAME: &str = "core/folder";
 
 #[derive(Debug)]
 pub struct FolderModule {
-    folder_stack: RwLock<Vec<String>>,
     folder_references: RwLock<HashMap<String, ButtonPanel>>,
 }
 
 impl Default for FolderModule {
     fn default() -> Self {
         Self {
-            folder_stack: Default::default(),
             folder_references: Default::default(),
         }
     }
@@ -291,37 +289,27 @@ impl SDModule for FolderModule {
         ]
     }
 
-    fn event(&self, core: CoreHandle, event: SDEvent) {
+    fn event(&self, core: CoreHandle, event: SDCoreEvent) {
         match event {
-            SDEvent::ButtonAdded { key, added_button, .. } => {
-                let mut stack = self.folder_stack.read().unwrap().clone();
+            SDCoreEvent::ButtonAdded { key, added_button, panel } |
+            SDCoreEvent::ButtonUpdated { key, new_button: added_button, panel, .. } => {
+                let panel = panel.read().unwrap();
 
-                if let Some(id) = stack.pop() {
-                    if let Some(mut contents) = self.get_folder(&core, &id) {
+                if let Ok(stack_data) = serde_json::from_value::<FolderStackData>(panel.data.clone()) {
+                    if let Some(mut contents) = self.get_folder(&core, &stack_data.folder_id) {
                         contents.buttons.insert(key, button_to_raw(&added_button));
-                        self.update_folder(&core, id, contents);
+                        self.update_folder(&core, stack_data.folder_id, contents);
                     }
                 }
             }
 
-            SDEvent::ButtonUpdated { key, new_button, .. } => {
-                let mut stack = self.folder_stack.read().unwrap().clone();
+            SDCoreEvent::ButtonDeleted { key, deleted_button, panel, .. } => {
+                let panel = panel.read().unwrap();
 
-                if let Some(id) = stack.pop() {
-                    if let Some(mut contents) = self.get_folder(&core, &id) {
-                        contents.buttons.insert(key, button_to_raw(&new_button));
-                        self.update_folder(&core, id, contents);
-                    }
-                }
-            }
-
-            SDEvent::ButtonDeleted { key, deleted_button, .. } => {
-                let mut stack = self.folder_stack.read().unwrap().clone();
-
-                if let Some(id) = stack.pop() {
-                    if let Some(mut contents) = self.get_folder(&core, &id) {
+                if let Ok(stack_data) = serde_json::from_value::<FolderStackData>(panel.data.clone()) {
+                    if let Some(mut contents) = self.get_folder(&core, &stack_data.folder_id) {
                         contents.buttons.remove(&key);
-                        self.update_folder(&core, id, contents);
+                        self.update_folder(&core, stack_data.folder_id, contents);
                     }
                 }
 
@@ -330,25 +318,25 @@ impl SDModule for FolderModule {
                 }
             }
 
-            SDEvent::ButtonAction { pressed_button, .. } => {
+            SDCoreEvent::ButtonAction { pressed_button, .. } => {
                 if let Ok(_) = parse_unique_button_to_component::<FolderUpComponent>(&pressed_button) {
                     if get_stack(&core).len() > 1 {
                         pop_screen(&core);
-
-                        self.folder_stack.write().unwrap().pop();
                     }
                 } else if let Ok(folder) = parse_unique_button_to_component::<FolderComponent>(&pressed_button) {
                     let mut folder_ref_handle = self.folder_references.write().unwrap();
 
                     if let Some(panel) = folder_ref_handle.get(&folder.id).cloned() {
                         push_screen(&core, panel);
-                        self.folder_stack.write().unwrap().push(folder.id.clone());
                     } else {
                         if let Some(mut contents) = self.get_folder(&core, &folder.id) {
                             contents.display_name = folder.name;
+                            contents.data = serde_json::to_value(FolderStackData {
+                                folder_id: folder.id.to_string()
+                            }).unwrap();
+
                             let panel = make_panel_unique(contents);
                             push_screen(&core, panel.clone());
-                            self.folder_stack.write().unwrap().push(folder.id.clone());
                             folder_ref_handle.insert(folder.id, panel);
                         }
                     }
@@ -359,28 +347,18 @@ impl SDModule for FolderModule {
 
                     if let Some(panel) = folder_ref_handle.get(&folder_link.id).cloned() {
                         push_screen(&core, panel);
-                        self.folder_stack.write().unwrap().push(folder_link.id.clone());
                     } else {
-                        if let Some(contents) = self.get_folder(&core, &folder_link.id) {
+                        if let Some(mut contents) = self.get_folder(&core, &folder_link.id) {
+                            contents.data = serde_json::to_value(FolderStackData {
+                                folder_id: folder_link.id.to_string()
+                            }).unwrap();
+
                             let panel = make_panel_unique(contents);
                             push_screen(&core, panel.clone());
-                            self.folder_stack.write().unwrap().push(folder_link.id.clone());
                             folder_ref_handle.insert(folder_link.id, panel);
                         }
                     }
                 }
-            }
-
-            SDEvent::PanelPushed { .. } => {
-                self.folder_stack.write().unwrap().push("unknown".to_string())
-            }
-
-            SDEvent::PanelPopped { .. } => {
-                self.folder_stack.write().unwrap().pop();
-            }
-
-            SDEvent::StackReset { .. } => {
-                self.folder_stack.write().unwrap().clear();
             }
 
             _ => {}
@@ -397,7 +375,7 @@ impl SDModule for FolderModule {
                 CORE,
                 CORE_METHODS,
                 MODULE_MANAGER,
-                EVENTS
+                CORE_EVENTS
             ]
         )
     }
@@ -566,4 +544,9 @@ pub struct FolderUpComponent {}
 
 impl Component for FolderUpComponent {
     const NAME: &'static str = "folder_up";
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct FolderStackData {
+    folder_id: String,
 }

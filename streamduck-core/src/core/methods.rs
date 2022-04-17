@@ -5,15 +5,16 @@ use image::{DynamicImage, Rgba};
 use rusttype::Scale;
 use serde_json::{Map, Value};
 use crate::core::{ButtonPanel, UniqueButton};
-use crate::{Config, ModuleManager, SDCore};
+use crate::{Config, ModuleManager, SDCore, SocketManager};
 use crate::util::{add_array_function, button_to_raw, change_from_path, convert_value_to_path, deserialize_panel, make_button_unique, panel_to_raw, remove_array_function, serialize_panel, set_value_function};
 use serde::de::Error as DeError;
 use serde_json::Error as JSONError;
 use crate::core::button::{Button, parse_unique_button_to_component};
 use crate::font::get_font_from_collection;
-use crate::modules::events::SDEvent;
-use crate::modules::{features_to_vec, UniqueSDModule};
+use crate::modules::events::{core_event_to_global, SDCoreEvent};
+use crate::modules::{features_to_vec, send_core_event_to_modules, UniqueSDModule};
 use crate::modules::components::{UIPathValue, UIValue};
+use crate::socket::send_event_to_socket;
 use crate::thread::DeviceThreadCommunication;
 use crate::thread::rendering::{draw_background, draw_foreground, draw_missing_texture, RendererComponent};
 use crate::thread::util::{image_from_solid, render_aligned_text_on_image, TextAlignment};
@@ -92,6 +93,12 @@ impl CoreHandle {
         self.core.module_manager.clone()
     }
 
+    /// Returns socket manager reference
+    pub fn socket_manager(&self) -> Arc<SocketManager> {
+        self.required_feature("socket_api");
+        self.core.socket_manager.clone()
+    }
+
     /// Returns current stack lock
     pub fn current_stack(&self) -> LockResult<MutexGuard<'_, Vec<ButtonPanel>>> {
         self.required_feature("core");
@@ -123,30 +130,18 @@ pub fn set_button(core: &CoreHandle, key: u8, button: UniqueButton) -> bool {
         drop(handle);
 
         if let Some(previous_button) = previous_button {
-            for module in core.module_manager().get_module_list() {
-                if module.name() == core.module_name {
-                    continue;
-                }
-
-                module.event(core.clone_for(&module), SDEvent::ButtonUpdated {
-                    key,
-                    panel: screen.clone(),
-                    new_button: button.clone(),
-                    old_button: previous_button.clone()
-                });
-            }
+            send_core_event_to_modules(core, SDCoreEvent::ButtonUpdated {
+                key,
+                panel: screen.clone(),
+                new_button: button.clone(),
+                old_button: previous_button.clone()
+            }, core.module_manager().get_module_list().into_iter());
         } else {
-            for module in core.module_manager().get_module_list() {
-                if module.name() == core.module_name {
-                    continue;
-                }
-
-                module.event(core.clone_for(&module), SDEvent::ButtonAdded {
-                    key,
-                    panel: screen.clone(),
-                    added_button: button.clone()
-                });
-            }
+            send_core_event_to_modules(core, SDCoreEvent::ButtonAdded {
+                key,
+                panel: screen.clone(),
+                added_button: button.clone()
+            }, core.module_manager().get_module_list().into_iter());
         }
 
         core.core.mark_for_redraw();
@@ -165,17 +160,11 @@ pub fn clear_button(core: &CoreHandle, key: u8) -> bool {
         if let Some(button) = handle.buttons.remove(&key) {
             drop(handle);
 
-            for module in core.module_manager().get_module_list() {
-                if module.name() == core.module_name {
-                    continue;
-                }
-
-                module.event(core.clone_for(&module), SDEvent::ButtonDeleted {
-                    key,
-                    panel: screen.clone(),
-                    deleted_button: button.clone()
-                });
-            }
+            send_core_event_to_modules(core, SDCoreEvent::ButtonDeleted {
+                key,
+                panel: screen.clone(),
+                deleted_button: button.clone()
+            }, core.module_manager().get_module_list().into_iter());
 
             core.core.mark_for_redraw();
 
@@ -211,18 +200,12 @@ pub fn add_component(core: &CoreHandle, key: u8, component_name: &str) -> bool {
                     drop(button_handle);
                     drop(components);
 
-                    for module in core.module_manager().get_module_list() {
-                        if module.name() == core.module_name {
-                            continue;
-                        }
-
-                        module.event(core.clone_for(&module), SDEvent::ButtonUpdated {
-                            key,
-                            panel: screen.clone(),
-                            new_button: button.clone(),
-                            old_button: previous.clone()
-                        });
-                    }
+                    send_core_event_to_modules(core, SDCoreEvent::ButtonUpdated {
+                        key,
+                        panel: screen.clone(),
+                        new_button: button.clone(),
+                        old_button: previous.clone()
+                    }, core.module_manager().get_module_list().into_iter());
 
                     core.core.mark_for_redraw();
 
@@ -291,18 +274,12 @@ pub fn set_component_value(core: &CoreHandle, key: u8, component_name: &str, val
                     drop(button_handle);
                     drop(components);
 
-                    for module in core.module_manager().get_module_list() {
-                        if module.name() == core.module_name {
-                            continue;
-                        }
-
-                        module.event(core.clone_for(&module), SDEvent::ButtonUpdated {
-                            key,
-                            panel: screen.clone(),
-                            new_button: button.clone(),
-                            old_button: previous.clone()
-                        });
-                    }
+                    send_core_event_to_modules(core, SDCoreEvent::ButtonUpdated {
+                        key,
+                        panel: screen.clone(),
+                        new_button: button.clone(),
+                        old_button: previous.clone()
+                    }, core.module_manager().get_module_list().into_iter());
 
                     core.core.mark_for_redraw();
 
@@ -395,18 +372,12 @@ pub fn remove_component(core: &CoreHandle, key: u8, component_name: &str) -> boo
                     drop(button_handle);
                     drop(components);
 
-                    for module in core.module_manager().get_module_list() {
-                        if module.name() == core.module_name {
-                            continue;
-                        }
-
-                        module.event(core.clone_for(&module), SDEvent::ButtonUpdated {
-                            key,
-                            panel: screen.clone(),
-                            new_button: button.clone(),
-                            old_button: previous.clone()
-                        });
-                    }
+                    send_core_event_to_modules(core, SDCoreEvent::ButtonUpdated {
+                        key,
+                        panel: screen.clone(),
+                        new_button: button.clone(),
+                        old_button: previous.clone()
+                    }, core.module_manager().get_module_list().into_iter());
 
                     core.core.mark_for_redraw();
 
@@ -440,15 +411,9 @@ pub fn push_screen(core: &CoreHandle, screen: ButtonPanel) {
     stack.push(screen.clone());
     drop(stack);
 
-    for module in core.module_manager().get_module_list() {
-        if module.name() == core.module_name {
-            continue;
-        }
-
-        module.event(core.clone_for(&module), SDEvent::PanelPushed {
-            new_panel: screen.clone()
-        });
-    }
+    send_core_event_to_modules(core, SDCoreEvent::PanelPushed {
+        new_panel: screen.clone()
+    }, core.module_manager().get_module_list().into_iter());
 
     core.core.mark_for_redraw();
 }
@@ -462,15 +427,9 @@ pub fn pop_screen(core: &CoreHandle) {
     drop(stack);
 
     if let Some(old_panel) = old_panel {
-        for module in core.module_manager().get_module_list() {
-            if module.name() == core.module_name {
-                continue;
-            }
-
-            module.event(core.clone_for(&module), SDEvent::PanelPopped {
-                popped_panel: old_panel.clone()
-            })
-        }
+        send_core_event_to_modules(core, SDCoreEvent::PanelPopped {
+            popped_panel: old_panel.clone()
+        }, core.module_manager().get_module_list().into_iter());
     }
 
     core.core.mark_for_redraw();
@@ -505,15 +464,9 @@ pub fn reset_stack(core: &CoreHandle, panel: ButtonPanel) {
     stack.push(panel.clone());
     drop(stack);
 
-    for module in core.module_manager().get_module_list() {
-        if module.name() == core.module_name {
-            continue;
-        }
-
-        module.event(core.clone_for(&module), SDEvent::StackReset {
-            new_panel: panel.clone()
-        });
-    }
+    send_core_event_to_modules(core, SDCoreEvent::StackReset {
+        new_panel: panel.clone()
+    }, core.module_manager().get_module_list().into_iter());
 
     core.core.mark_for_redraw();
 }
@@ -529,15 +482,9 @@ pub fn load_panels_from_value(core: &CoreHandle, panels: Value) -> Result<(), JS
             stack.push(panel.clone());
             drop(stack);
 
-            for module in core.module_manager().get_module_list() {
-                if module.name() == core.module_name {
-                    continue;
-                }
-
-                module.event(core.clone_for(&module), SDEvent::StackReset {
-                    new_panel: panel.clone()
-                });
-            }
+            send_core_event_to_modules(core, SDCoreEvent::StackReset {
+                new_panel: panel.clone()
+            }, core.module_manager().get_module_list().into_iter());
 
             core.core.mark_for_redraw();
 
@@ -552,29 +499,17 @@ pub fn load_panels_from_value(core: &CoreHandle, panels: Value) -> Result<(), JS
 /// Triggers button down event on all modules
 pub fn button_down(core: &CoreHandle, key: u8) {
     core.required_feature("core_methods");
-    for module in core.module_manager().get_module_list() {
-        if module.name() == core.module_name {
-            continue;
-        }
-
-        module.event(core.clone_for(&module), SDEvent::ButtonDown {
-            key
-        })
-    }
+    send_core_event_to_modules(core, SDCoreEvent::ButtonDown {
+        key
+    }, core.module_manager().get_module_list().into_iter());
 }
 
 /// Triggers button up event on all modules
 pub fn button_up(core: &CoreHandle, key: u8) {
     core.required_feature("core_methods");
-    for module in core.module_manager().get_module_list() {
-        if module.name() == core.module_name {
-            continue;
-        }
-
-        module.event(core.clone_for(&module), SDEvent::ButtonUp {
-            key
-        })
-    }
+    send_core_event_to_modules(core, SDCoreEvent::ButtonUp {
+        key
+    }, core.module_manager().get_module_list().into_iter());
 
     button_action(core, key);
 }
@@ -586,17 +521,15 @@ pub fn button_action(core: &CoreHandle, key: u8) {
         let handle = screen.read().unwrap();
         if let Some(button) = handle.buttons.get(&key).cloned() {
             drop(handle);
-            for module in core.module_manager().get_modules_for_components(button.read().unwrap().component_names().as_slice()) {
-                if module.name() == core.module_name {
-                    continue;
-                }
 
-                module.event(core.clone_for(&module), SDEvent::ButtonAction {
-                    key,
-                    panel: screen.clone(),
-                    pressed_button: button.clone()
-                })
-            }
+            let event = SDCoreEvent::ButtonAction {
+                key,
+                panel: screen.clone(),
+                pressed_button: button.clone()
+            };
+
+            send_core_event_to_modules(&core, event.clone(), core.module_manager().get_modules_for_components(button.read().unwrap().component_names().as_slice()).into_iter());
+            send_event_to_socket(&core.core.socket_manager, core_event_to_global(event, &core.core.serial_number));
 
             core.core.mark_for_redraw();
         }
@@ -682,12 +615,71 @@ pub fn get_button_images(core: &CoreHandle) -> Option<HashMap<u8, DynamicImage>>
         .collect())
 }
 
+pub fn get_button_image(core: &CoreHandle, key: u8) -> Option<DynamicImage> {
+    let missing = draw_missing_texture(core.core.image_size);
+    let custom = {
+        let size = core.core.image_size;
+        let font = get_font_from_collection("default").unwrap();
+        let mut frame = image_from_solid(size, Rgba([55, 55, 55, 255]));
+
+        render_aligned_text_on_image(size, &mut frame, font.deref(), "Custom", Scale::uniform(16.0), TextAlignment::Center, 0, (0.0, -8.0), (255, 255, 255, 255));
+        render_aligned_text_on_image(size, &mut frame, font.deref(), "Renderer", Scale::uniform(16.0), TextAlignment::Center, 0, (0.0, 8.0), (255, 255, 255, 255));
+
+        frame
+    };
+
+    let button = get_button(core, key)?;
+    let renderers = core.core.render_manager.read_renderers();
+
+    if let Ok(component) = parse_unique_button_to_component::<RendererComponent>(&button) {
+        let modules = core.module_manager().get_modules_for_rendering(&button.read().unwrap().component_names());
+        let modules = modules.into_values()
+            .filter(|x| !component.plugin_blacklist.contains(&x.name()))
+            .collect::<Vec<UniqueSDModule>>();
+
+        let image = if component.renderer.is_empty() {
+            draw_foreground(
+                &component,
+                &button,
+                &modules,
+                draw_background(
+                    &component,
+                    core,
+                    &missing
+                ),
+                core
+            )
+        } else {
+            if let Some(renderer) = renderers.get(&component.renderer) {
+                if let Some(image) = renderer.representation(key, &button, core) {
+                    image
+                } else {
+                    custom.clone()
+                }
+            } else {
+                custom.clone()
+            }
+        };
+
+        Some(image)
+    } else {
+        None
+    }
+}
+
 /// Replaces current screen with specified one
 pub fn replace_screen(core: &CoreHandle, screen: ButtonPanel) {
     core.required_feature("core_methods");
     let mut stack = core.current_stack().unwrap();
-    stack.pop();
-    stack.push(screen);
+
+    let old_panel = stack.pop();
+    stack.push(screen.clone());
+
+    send_core_event_to_modules(core, SDCoreEvent::PanelReplaced {
+        old_panel,
+        new_panel: screen
+    }, core.module_manager().get_module_list().into_iter());
+
     core.core.mark_for_redraw();
 }
 

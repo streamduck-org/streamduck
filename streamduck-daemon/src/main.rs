@@ -50,19 +50,19 @@ fn main() {
     // Reading config
     let config = Arc::new(Config::get());
 
+    // Initializing socket manager
+    let socket_manager = SocketManager::new();
+
     // Initializing core stuff
-    load_base_modules(module_manager.clone());
+    load_base_modules(module_manager.clone(), socket_manager.clone());
     load_default_font();
     load_fonts_from_resources();
 
     // Initializing built-in modules
     streamduck_actions::init_module(&module_manager);
 
-    // Socket listener manager
-    let socket_manager = SocketManager::new();
-
     // Initializing core manager
-    let core_manager = CoreManager::new(module_manager.clone(), render_manager.clone(), config.clone());
+    let core_manager = CoreManager::new(module_manager.clone(), render_manager.clone(), socket_manager.clone(), config.clone());
 
     // Adding daemon listener
     socket_manager.add_listener(Box::new(DaemonListener {

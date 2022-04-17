@@ -21,7 +21,7 @@ use crate::daemon_data::config::{ExportDeviceConfig, GetDeviceConfig, ImportDevi
 use crate::daemon_data::devices::{AddDevice, GetDevice, ListDevices, RemoveDevice, SetBrightness};
 use crate::daemon_data::modules::{AddModuleValue, GetModuleValues, ListComponents, ListModules, RemoveModuleValue, SetModuleValue};
 use crate::daemon_data::ops::{CommitChangesToConfig, DoButtonAction};
-use crate::daemon_data::panels::{DropStackToRoot, ForciblyPopScreen, GetButtonImages, GetCurrentScreen, GetStack, GetStackNames, PopScreen, PushScreen, ReplaceScreen, ResetStack};
+use crate::daemon_data::panels::{DropStackToRoot, ForciblyPopScreen, GetButtonImage, GetButtonImages, GetCurrentScreen, GetStack, GetStackNames, PopScreen, PushScreen, ReplaceScreen, ResetStack};
 
 /// Listener for daemon types
 pub struct DaemonListener {
@@ -74,6 +74,7 @@ impl SocketListener for DaemonListener {
         process_for_type::<GetStack>(self, socket, &packet);
         process_for_type::<GetStackNames>(self, socket, &packet);
         process_for_type::<GetCurrentScreen>(self, socket, &packet);
+        process_for_type::<GetButtonImage>(self, socket, &packet);
         process_for_type::<GetButtonImages>(self, socket, &packet);
 
         process_for_type::<GetButton>(self, socket, &packet);

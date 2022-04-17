@@ -10,11 +10,12 @@ pub mod core_module;
 use std::collections::HashMap;
 use std::hash::Hasher;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
+use std::thread::spawn;
 
 use crate::core::button::{Button};
 use crate::core::methods::{check_feature_list_for_feature, CoreHandle};
 use crate::modules::components::{ComponentDefinition, UIPathValue, UIValue};
-use crate::modules::events::SDEvent;
+use crate::modules::events::{SDCoreEvent, SDGlobalEvent};
 use crate::modules::folders::FolderModule;
 
 use serde::{Deserialize, Serialize};
@@ -23,6 +24,7 @@ use image::DynamicImage;
 use crate::core::manager::CoreManager;
 use crate::core::UniqueButton;
 use crate::modules::core_module::CoreModule;
+use crate::SocketManager;
 use crate::util::{add_array_function, change_from_path, convert_value_to_path, remove_array_function, set_value_function};
 
 /// Manages modules
@@ -258,8 +260,8 @@ impl ModuleManager {
 }
 
 /// Loads built-in modules into the module manager
-pub fn load_base_modules(module_manager: Arc<ModuleManager>) {
-    module_manager.add_module(Arc::new(Box::new(CoreModule)));
+pub fn load_base_modules(module_manager: Arc<ModuleManager>, socket_manager: Arc<SocketManager>) {
+    module_manager.add_module(Arc::new(Box::new(CoreModule { socket_manager })));
     module_manager.add_module(Arc::new(Box::new(FolderModule::default())));
 }
 
@@ -307,8 +309,11 @@ pub trait SDModule: Send + Sync {
     /// Method for updating plugin settings from UI
     fn set_setting(&self, core_manager: Arc<CoreManager>, value: Vec<UIValue>) { }
 
-    /// Method for handling core events, add EVENTS feature to the plugin metadata to receive events
-    fn event(&self, core: CoreHandle, event: SDEvent) {}
+    /// Method for handling global events, add GLOBAL_EVENTS feature to the plugin metadata to receive global events
+    fn global_event(&self, event: SDGlobalEvent) {}
+
+    /// Method for handling core events, add CORE_EVENTS feature to the plugin metadata to receive core events
+    fn event(&self, core: CoreHandle, event: SDCoreEvent) {}
 
     /// Method renderer will run for rendering additional information on a button if RENDERING feature was specified
     fn render(&self, core: CoreHandle, button: &UniqueButton, frame: &mut DynamicImage) {}
@@ -413,6 +418,26 @@ pub fn set_module_setting(core_manager: Arc<CoreManager>, module: &UniqueSDModul
     }
 }
 
+/// Sends core event to all modules, spawns a separate thread to do it, so doesn't block current thread
+pub fn send_core_event_to_modules<T: Iterator<Item=UniqueSDModule> + Send + 'static>(core: &CoreHandle, event: SDCoreEvent, modules: T) {
+    let core = core.clone();
+    spawn(move || {
+        for module in modules {
+            if module.name() == core.module_name {
+                continue;
+            }
+
+            module.event(core.clone_for(&module), event.clone())
+        }
+    });
+}
+
+/// Sends global event to all modules, spawns a separate thread to do it, so doesn't block current thread
+pub fn send_global_event_to_modules<T: Iterator<Item=UniqueSDModule> + Send + 'static>(event: SDGlobalEvent, modules: T) {
+    spawn(move || {
+        modules.for_each(|x| x.global_event(event.clone()));
+    });
+}
 
 /// Converts features slice into Vec
 pub fn features_to_vec(features: &[(&str, &str)]) -> Vec<(String, String)> {
