@@ -5,6 +5,7 @@ use std::string::FromUtf8Error;
 use streamduck_core::core::button::Button;
 use streamduck_core::core::RawButtonPanel;
 use streamduck_core::modules::components::{ComponentDefinition, UIPathValue};
+use streamduck_core::modules::events::SDGlobalEvent;
 use streamduck_core::modules::PluginMetadata;
 use streamduck_core::socket::{SocketError, SocketPacket};
 pub use streamduck_daemon as daemon;
@@ -146,6 +147,8 @@ pub trait SDClient {
     /// Simulate a press on a button on current screen for a device
     fn do_button_action(&self, serial_number: &str, key: u8) -> Result<DoButtonActionResult, SDClientError>;
 
+    /// Retrieves an event from daemon, depending on implementation might block
+    fn get_event(&self) -> Result<SDGlobalEvent, SDClientError>;
 
     /// Sends a custom packet to daemon and returns response, for use with plugins that utilize socket functionality
     fn send_packet(&self, packet: SocketPacket) -> Result<SocketPacket, SDClientError>;

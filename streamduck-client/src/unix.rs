@@ -13,6 +13,7 @@ use serde::de::DeserializeOwned;
 use streamduck_core::core::button::Button;
 use streamduck_core::core::RawButtonPanel;
 use streamduck_core::modules::components::{ComponentDefinition, UIPathValue};
+use streamduck_core::modules::events::SDGlobalEvent;
 use streamduck_core::modules::PluginMetadata;
 use streamduck_core::versions::SOCKET_API;
 use streamduck_core::socket::{parse_packet_to_data, send_no_data_packet_with_requester, send_packet_with_requester, SocketData, SocketPacket};
@@ -505,6 +506,20 @@ impl SDClient for UnixClient {
         })?;
 
         Ok(response)
+    }
+
+    fn get_event(&self) -> Result<SDGlobalEvent, SDClientError> {
+        let mut handle = self.connection.write().unwrap();
+
+        loop {
+            let packet = self.read_socket(handle.deref_mut())?;
+
+            if packet.ty == "event" {
+                if let Some(data) = packet.data {
+                    return Ok(serde_json::from_value(data)?);
+                }
+            }
+        }
     }
 
     fn send_packet(&self, packet: SocketPacket) -> Result<SocketPacket, SDClientError> {
