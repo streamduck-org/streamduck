@@ -1,5 +1,7 @@
 #[cfg(target_family = "unix")]
 mod unix;
+#[cfg(target_family = "windows")]
+mod windows;
 
 use std::sync::{Arc, Mutex};
 use std::thread::spawn;
@@ -99,6 +101,16 @@ fn main() {
     }).expect("Error setting Ctrl-C handler");
 
     run_socket(socket_manager.clone());
+}
+
+#[cfg(target_family = "windows")]
+fn run_socket(socket_manager: Arc<SocketManager>) {
+    windows::open_socket(socket_manager)
+}
+
+#[cfg(target_family = "windows")]
+fn clean_socket() {
+    // cleanup not needed
 }
 
 #[cfg(target_family = "unix")]

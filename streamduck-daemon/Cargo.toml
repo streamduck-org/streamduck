@@ -28,3 +28,6 @@ log = "0.4"
 ctrlc = "3.2.1"
 strum = "0.23"
 strum_macros = "0.23"
+
+[target.'cfg(windows)'.dependencies]
+named_pipe = "0.4.1"

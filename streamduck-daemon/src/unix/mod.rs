@@ -48,7 +48,7 @@ fn handle_client(stream: UnixStream, socket_manager: Arc<SocketManager>) {
                             break;
                         }
                     } else {
-                        sleep(Duration::from_micros(1));
+                        sleep(Duration::from_micros(10));
                     }
                 } else {
                     break;

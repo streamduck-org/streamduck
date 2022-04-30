@@ -12,7 +12,7 @@ repository = "https://github.com/streamduck-org/streamduck"
 
 [dependencies]
 streamdeck = "0.6"
-hidapi = "1.2"
+hidapi = "1.4.1"
 image = "0.24.1"
 rand = "0.8.4"
 rusttype = "0.9.2"
