@@ -7,7 +7,7 @@ use std::hash::Hasher;
 use std::path::Path;
 use std::sync::Arc;
 use dlopen::Error;
-use crate::modules::{BoxedSDModule, ModuleManager, PluginMetadata, SDModule, SDModulePointer, UniqueSDModule};
+use crate::modules::{BoxedSDModule, ModuleManager, PluginMetadata, SDModule, SDModulePointer};
 use dlopen::wrapper::{Container, WrapperApi};
 use dlopen_derive::WrapperApi;
 use image::DynamicImage;
@@ -24,7 +24,8 @@ use crate::versions::SUPPORTED_FEATURES;
 #[derive(WrapperApi)]
 struct PluginApi {
     get_metadata: extern fn() -> PluginMetadata,
-    get_module: extern fn(socket_manager: Arc<SocketManager>, render_manager: Arc<RenderingManager>) -> SDModulePointer,
+    get_module: extern fn() -> SDModulePointer,
+    register: extern fn(socket_manager: Arc<SocketManager>, render_manager: Arc<RenderingManager>, module_manager: Arc<ModuleManager>),
 }
 
 #[allow(dead_code)]
@@ -124,7 +125,7 @@ pub fn compare_plugin_versions(versions: &Vec<(String, String)>) -> Result<(), P
 }
 
 /// Warns about essential features
-pub fn warn_about_essential_features(module: UniqueSDModule) {
+fn warn_about_essential_features(module: &PluginProxy) {
     let name = &module.name();
     let features = module.metadata().used_features;
 
@@ -142,26 +143,29 @@ pub fn load_plugin<T: AsRef<OsStr>>(module_manager: Arc<ModuleManager>, socket_m
     compare_plugin_versions(&metadata.used_features)?;
 
     // Attempting to get module from the plugin
-    let module: BoxedSDModule = unsafe { Box::from_raw(wrapper.get_module(socket_manager, render_manager)) };
+    let module: BoxedSDModule = unsafe { Box::from_raw(wrapper.get_module()) };
 
     // Wrapping plugin's module into a wrapper that contains loaded library
-    let module_proxy: UniqueSDModule = Arc::new(Box::new(PluginProxy { wrapper, metadata, plugin: module }));
+    let proxy = PluginProxy { wrapper, metadata, plugin: module };
 
     // Warn plugin if metadata doesn't contain essential plugins
-    warn_about_essential_features(module_proxy.clone());
+    warn_about_essential_features(&proxy);
 
     // Adding module if it wasn't defined before
-    if module_manager.get_module(&module_proxy.name()).is_none() {
-        for component in module_proxy.components().keys() {
+    if module_manager.get_module(&proxy.name()).is_none() {
+        for component in proxy.components().keys() {
             if module_manager.get_component(component).is_some() {
-                return Err(PluginError::ComponentConflict(module_proxy.name(), component.to_string()))
+                return Err(PluginError::ComponentConflict(proxy.name(), component.to_string()))
             }
         }
 
-        module_manager.add_module(module_proxy);
+        // Calling register after all checks were done
+        proxy.wrapper.register(socket_manager, render_manager, module_manager.clone());
+
+        module_manager.add_module(Arc::new(Box::new(proxy)));
         Ok(())
     } else {
-        Err(PluginError::AlreadyExists(module_proxy.name()))
+        Err(PluginError::AlreadyExists(proxy.name()))
     }
 }
 

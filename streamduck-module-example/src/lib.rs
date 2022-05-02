@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 use streamduck_core::core::button::{Button, parse_unique_button_to_component};
-use streamduck_core::modules::{PluginMetadata, SDModule, SDModulePointer};
+use streamduck_core::modules::{ModuleManager, PluginMetadata, SDModule, SDModulePointer};
 use streamduck_core::versions::{CORE_EVENTS, PLUGIN_API, RENDERING, SDMODULE_TRAIT};
 use serde::{Deserialize, Serialize};
 use serde_json::{Number, Value};
@@ -39,10 +39,14 @@ pub fn get_metadata() -> PluginMetadata {
 }
 
 #[no_mangle]
-pub fn get_module(socket_manager: Arc<SocketManager>, render_manager: Arc<RenderingManager>) -> SDModulePointer {
+pub fn get_module() -> SDModulePointer {
+    Box::into_raw(Box::new(ExampleModule))
+}
+
+#[no_mangle]
+pub fn register(socket_manager: Arc<SocketManager>, render_manager: Arc<RenderingManager>, _module_manager: Arc<ModuleManager>) {
     socket_manager.add_listener(Box::new(ExampleListener));
     render_manager.add_custom_renderer(Arc::new(Box::new(ExampleRenderer::new())));
-    Box::into_raw(Box::new(ExampleModule))
 }
 
 pub struct ExampleListener;

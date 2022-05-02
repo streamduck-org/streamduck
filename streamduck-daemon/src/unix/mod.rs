@@ -2,8 +2,6 @@ use std::io::{BufRead, BufReader};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::{fs, thread};
 use std::sync::Arc;
-use std::thread::sleep;
-use std::time::Duration;
 use streamduck_core::socket::{send_packet_as_is, SocketManager};
 use streamduck_daemon::UNIX_SOCKET_PATH;
 
