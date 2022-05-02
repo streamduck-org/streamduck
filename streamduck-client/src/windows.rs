@@ -20,7 +20,7 @@ use streamduck_daemon::daemon_data::panels::{DropStackToRoot, DropStackToRootRes
 use streamduck_daemon::daemon_data::SocketAPIVersion;
 use streamduck_daemon::{WINDOWS_EVENT_PIPE_NAME, WINDOWS_REQUEST_PIPE_NAME};
 use crate::{SDClientError, SDSyncEventClient, SDSyncRequestClient};
-use crate::util::{process_request, process_request_without_data, read_socket};
+use crate::util::{process_request, process_request_without_data, read_response, read_socket};
 
 /// Windows Named Pipe based Streamduck event client
 pub struct WinEventClient {
@@ -28,10 +28,10 @@ pub struct WinEventClient {
 }
 
 impl WinEventClient {
-    pub fn new() -> Result<Arc<Box<dyn SDSyncEventClient>>, std::io::Error> {
-        let client: Arc<Box<dyn SDSyncEventClient>> = Arc::new(Box::new(WinEventClient {
+    pub fn new() -> Result<Arc<dyn SDSyncEventClient>, std::io::Error> {
+        let client: Arc<Box<dyn SDSyncEventClient>> = Arc::new(WinEventClient {
             connection: RwLock::new(BufReader::new(PipeClient::connect(WINDOWS_EVENT_PIPE_NAME)?))
-        }));
+        });
 
         Ok(client)
     }
@@ -61,10 +61,10 @@ pub struct WinRequestClient {
 }
 
 impl WinRequestClient {
-    pub fn new() -> Result<Arc<Box<dyn SDSyncRequestClient>>, std::io::Error> {
-        let client: Arc<Box<dyn SDSyncRequestClient>> = Arc::new(Box::new(WinRequestClient {
+    pub fn new() -> Result<Arc<dyn SDSyncRequestClient>, std::io::Error> {
+        let client: Arc<Box<dyn SDSyncRequestClient>> = Arc::new(WinRequestClient {
             connection: RwLock::new(BufReader::new(PipeClient::connect(WINDOWS_REQUEST_PIPE_NAME)?))
-        }));
+        });
 
         let daemon_version = client.version().expect("Failed to retrieve version");
 
@@ -401,10 +401,13 @@ impl SDSyncRequestClient for WinRequestClient {
         })?)
     }
 
-    fn send_packet(&self, packet: SocketPacket) -> Result<SocketPacket, SDClientError> {
+    fn send_packet(&self, mut packet: SocketPacket) -> Result<SocketPacket, SDClientError> {
+        let id = rand::thread_rng().sample_iter(&Alphanumeric).take(20).map(char::from).collect::<String>();
+        packet.requester = Some(id.clone());
+
         let mut handle = self.get_handle();
         send_packet_as_is(handle.get_mut(), packet)?;
-        read_socket(handle.deref_mut())
+        read_response(handle.deref_mut(), &id)
     }
 
     fn send_packet_without_response(&self, packet: SocketPacket) -> Result<(), SDClientError> {

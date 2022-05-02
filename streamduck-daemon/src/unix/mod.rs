@@ -47,7 +47,7 @@ fn handle_client(stream: UnixStream, socket_manager: Arc<SocketManager>) {
                 }
             }
 
-            pool.write().unwrap().close();
+            pool.close();
         });
 
         // Read thread

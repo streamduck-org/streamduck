@@ -23,9 +23,9 @@ use crate::prompt::images::{add_image, list_images, remove_image};
 use crate::prompt::info::{button_info, component_info, list_buttons, list_components, list_fonts, prompt_help, show_stack};
 use crate::prompt::module::{list_modules, module_info, module_list_params, module_params_add, module_params_remove, module_params_set, module_params_upload};
 
-type ClientRef<'a> = &'a Arc<Box<dyn SDSyncRequestClient>>;
+type ClientRef<'a> = &'a Arc<dyn SDSyncRequestClient>;
 
-pub fn prompt(client: Arc<Box<dyn SDSyncRequestClient>>) {
+pub fn prompt(client: Arc<dyn SDSyncRequestClient>) {
     println!("Streamduck CLI Prompt\n\nTo view commands, enter 'help' command.\nTo exit, enter 'exit'.\n");
     let mut current_sn = String::new();
 

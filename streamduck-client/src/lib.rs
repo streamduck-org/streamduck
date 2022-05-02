@@ -25,9 +25,6 @@ pub mod windows;
 
 pub mod util;
 
-/// Trait that combines synchronous request and event client in case both are needed at the same time
-pub trait SDSyncClient: SDSyncEventClient + SDSyncRequestClient {}
-
 /// Trait that defines synchronous event client
 pub trait SDSyncEventClient {
     /// Retrieves an event from daemon, depending on implementation might block
