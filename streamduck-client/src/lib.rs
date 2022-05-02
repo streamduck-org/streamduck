@@ -40,13 +40,13 @@ pub trait SDSyncUpcastEventClient: SDSyncEventClient {
 }
 
 /// Trait that defines synchronous event client
-pub trait SDSyncEventClient {
+pub trait SDSyncEventClient: Send + Sync {
     /// Retrieves an event from daemon, depending on implementation might block
     fn get_event(&self) -> Result<SDGlobalEvent, SDClientError>;
 }
 
 /// Trait that defines synchronous request client
-pub trait SDSyncRequestClient {
+pub trait SDSyncRequestClient: Send + Sync {
     // Version
     /// Retrieves version of the daemon socket API
     fn version(&self) -> Result<String, SDClientError>;
