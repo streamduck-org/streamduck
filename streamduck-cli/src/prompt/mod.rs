@@ -14,7 +14,7 @@ use streamduck_client::daemon::daemon_data::buttons::{CopyButtonResult, PasteBut
 use streamduck_client::daemon::daemon_data::devices::{GetDeviceResult, SetBrightnessResult};
 use streamduck_client::daemon::daemon_data::ops::DoButtonActionResult;
 use streamduck_client::daemon::daemon_data::panels::{DropStackToRootResult, PopScreenResult};
-use streamduck_client::SDClient;
+use streamduck_client::SDSyncRequestClient;
 use crate::prompt::buttons::{button_component, button_from, button_new, button_remove};
 use crate::prompt::config::{export_config, import_config, reload_config, save_config};
 use crate::prompt::device::{add_device, device_list, remove_device};
@@ -23,9 +23,9 @@ use crate::prompt::images::{add_image, list_images, remove_image};
 use crate::prompt::info::{button_info, component_info, list_buttons, list_components, list_fonts, prompt_help, show_stack};
 use crate::prompt::module::{list_modules, module_info, module_list_params, module_params_add, module_params_remove, module_params_set, module_params_upload};
 
-type ClientRef<'a> = &'a Arc<Box<dyn SDClient>>;
+type ClientRef<'a> = &'a Arc<Box<dyn SDSyncRequestClient>>;
 
-pub fn prompt(client: Arc<Box<dyn SDClient>>) {
+pub fn prompt(client: Arc<Box<dyn SDSyncRequestClient>>) {
     println!("Streamduck CLI Prompt\n\nTo view commands, enter 'help' command.\nTo exit, enter 'exit'.\n");
     let mut current_sn = String::new();
 

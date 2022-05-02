@@ -1,22 +1,15 @@
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader};
-use std::io::Write;
+use std::io::BufReader;
 use std::ops::DerefMut;
-use std::os::unix::net::UnixStream;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
-use rand::distributions::Alphanumeric;
-use rand::Rng;
-
-use serde::Serialize;
-use serde::de::DeserializeOwned;
-
+use named_pipe::PipeClient;
 use streamduck_core::core::button::Button;
 use streamduck_core::core::RawButtonPanel;
 use streamduck_core::modules::components::{ComponentDefinition, UIPathValue};
 use streamduck_core::modules::events::SDGlobalEvent;
 use streamduck_core::modules::PluginMetadata;
+use streamduck_core::socket::{send_packet_as_is, SocketPacket};
 use streamduck_core::versions::SOCKET_API;
-use streamduck_core::socket::{parse_packet_to_data, send_no_data_packet_with_requester, send_packet_with_requester, SocketData, SocketPacket};
 use streamduck_daemon::daemon_data::assets::{AddImage, AddImageResult, ListFonts, ListImages, ListImagesResult, RemoveImage, RemoveImageResult};
 use streamduck_daemon::daemon_data::buttons::{AddComponent, AddComponentResult, AddComponentValue, AddComponentValueResult, ClearButton, ClearButtonResult, ClipboardStatusResult, CopyButton, CopyButtonResult, GetButton, GetButtonResult, GetComponentValues, GetComponentValuesResult, NewButton, NewButtonFromComponent, NewButtonFromComponentResult, NewButtonResult, PasteButton, PasteButtonResult, RemoveComponent, RemoveComponentResult, RemoveComponentValue, RemoveComponentValueResult, SetButton, SetButtonResult, SetComponentValue, SetComponentValueResult};
 use streamduck_daemon::daemon_data::config::{ExportDeviceConfig, ExportDeviceConfigResult, GetDeviceConfig, GetDeviceConfigResult, ImportDeviceConfig, ImportDeviceConfigResult, ReloadDeviceConfig, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, SaveDeviceConfig, SaveDeviceConfigResult, SaveDeviceConfigsResult};
@@ -25,21 +18,52 @@ use streamduck_daemon::daemon_data::modules::{AddModuleValue, AddModuleValueResu
 use streamduck_daemon::daemon_data::ops::{CommitChangesToConfig, CommitChangesToConfigResult, DoButtonAction, DoButtonActionResult};
 use streamduck_daemon::daemon_data::panels::{DropStackToRoot, DropStackToRootResult, ForciblyPopScreen, ForciblyPopScreenResult, GetButtonImages, GetButtonImagesResult, GetCurrentScreen, GetCurrentScreenResult, GetStack, GetStackNames, GetStackNamesResult, GetStackResult, PopScreen, PopScreenResult, PushScreen, PushScreenResult, ReplaceScreen, ReplaceScreenResult, ResetStack, ResetStackResult};
 use streamduck_daemon::daemon_data::SocketAPIVersion;
-use streamduck_daemon::UNIX_SOCKET_PATH;
+use streamduck_daemon::{WINDOWS_EVENT_PIPE_NAME, WINDOWS_REQUEST_PIPE_NAME};
+use crate::{SDClientError, SDSyncEventClient, SDSyncRequestClient};
+use crate::util::{process_request, process_request_without_data, read_socket};
 
-use crate::{SDSyncRequestClient, SDClientError, SDSyncEventClient, SDSyncClient};
-
-/// Unix Socket based Streamduck client
-pub struct UnixClient {
-    connection: RwLock<BufReader<UnixStream>>
+/// Windows Named Pipe based Streamduck event client
+pub struct WinEventClient {
+    connection: RwLock<BufReader<PipeClient>>
 }
 
-#[allow(dead_code)]
-impl UnixClient {
-    /// Initializes client using unix domain socket
-    pub fn new() -> Result<Arc<Box<dyn SDSyncClient>>, std::io::Error> {
-        let client: Arc<Box<dyn SDSyncClient>> = Arc::new(Box::new(UnixClient {
-            connection: RwLock::new(BufReader::new(UnixStream::connect(UNIX_SOCKET_PATH)?))
+impl WinEventClient {
+    pub fn new() -> Result<Arc<Box<dyn SDSyncEventClient>>, std::io::Error> {
+        let client: Arc<Box<dyn SDSyncEventClient>> = Arc::new(Box::new(WinEventClient {
+            connection: RwLock::new(BufReader::new(PipeClient::connect(WINDOWS_EVENT_PIPE_NAME)?))
+        }));
+
+        Ok(client)
+    }
+
+    fn get_handle(&self) -> RwLockWriteGuard<BufReader<PipeClient>> {
+        self.connection.write().unwrap()
+    }
+}
+
+impl SDSyncEventClient for WinEventClient {
+    fn get_event(&self) -> Result<SDGlobalEvent, SDClientError> {
+        loop {
+            let packet = read_socket(self.get_handle().deref_mut())?;
+
+            if packet.ty == "event" {
+                if let Some(data) = packet.data {
+                    return Ok(serde_json::from_value(data)?);
+                }
+            }
+        }
+    }
+}
+
+/// Windows Named Pipe based Streamduck request client
+pub struct WinRequestClient {
+    connection: RwLock<BufReader<PipeClient>>
+}
+
+impl WinRequestClient {
+    pub fn new() -> Result<Arc<Box<dyn SDSyncRequestClient>>, std::io::Error> {
+        let client: Arc<Box<dyn SDSyncRequestClient>> = Arc::new(Box::new(WinRequestClient {
+            connection: RwLock::new(BufReader::new(PipeClient::connect(WINDOWS_REQUEST_PIPE_NAME)?))
         }));
 
         let daemon_version = client.version().expect("Failed to retrieve version");
@@ -51,456 +75,340 @@ impl UnixClient {
         Ok(client)
     }
 
-    fn get_handle(&self) -> RwLockWriteGuard<BufReader<UnixStream>> {
+    fn get_handle(&self) -> RwLockWriteGuard<BufReader<PipeClient>> {
         self.connection.write().unwrap()
     }
 }
 
-impl SDSyncRequestClient for UnixClient {
+impl SDSyncRequestClient for WinRequestClient {
     fn version(&self) -> Result<String, SDClientError> {
-        let response: SocketAPIVersion = self.process_request_without_data()?;
-
+        let response: SocketAPIVersion = process_request_without_data(self.get_handle().deref_mut())?;
         Ok(response.version)
     }
 
     fn device_list(&self) -> Result<Vec<Device>, SDClientError> {
-        let response: ListDevices = self.process_request_without_data()?;
-
+        let response: ListDevices = process_request_without_data::<ListDevices, PipeClient>(self.get_handle().deref_mut())?;
         Ok(response.devices)
     }
 
     fn get_device(&self, serial_number: &str) -> Result<GetDeviceResult, SDClientError> {
-        let response: GetDeviceResult = self.process_request(&GetDevice {
+        Ok(process_request(self.get_handle().deref_mut(), &GetDevice {
             serial_number: serial_number.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn add_device(&self, serial_number: &str) -> Result<AddDeviceResult, SDClientError> {
-        let response: AddDeviceResult = self.process_request(&AddDevice {
+        Ok(process_request(self.get_handle().deref_mut(), &AddDevice {
             serial_number: serial_number.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn remove_device(&self, serial_number: &str) -> Result<RemoveDeviceResult, SDClientError> {
-        let response: RemoveDeviceResult = self.process_request(&RemoveDevice {
+        Ok(process_request(self.get_handle().deref_mut(), &RemoveDevice {
             serial_number: serial_number.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn reload_device_configs(&self) -> Result<ReloadDeviceConfigsResult, SDClientError> {
-        let response: ReloadDeviceConfigsResult = self.process_request_without_data()?;
-
-        Ok(response)
+        Ok(process_request_without_data(self.get_handle().deref_mut())?)
     }
 
     fn reload_device_config(&self, serial_number: &str) -> Result<ReloadDeviceConfigResult, SDClientError> {
-        let response: ReloadDeviceConfigResult = self.process_request(&ReloadDeviceConfig {
+        Ok(process_request(self.get_handle().deref_mut(), &ReloadDeviceConfig {
             serial_number: serial_number.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn save_device_configs(&self) -> Result<SaveDeviceConfigsResult, SDClientError> {
-        let response: SaveDeviceConfigsResult = self.process_request_without_data()?;
-
-        Ok(response)
+        Ok(process_request_without_data(self.get_handle().deref_mut())?)
     }
 
     fn save_device_config(&self, serial_number: &str) -> Result<SaveDeviceConfigResult, SDClientError> {
-        let response: SaveDeviceConfigResult = self.process_request(&SaveDeviceConfig {
+        Ok(process_request(self.get_handle().deref_mut(), &SaveDeviceConfig {
             serial_number: serial_number.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn get_device_config(&self, serial_number: &str) -> Result<GetDeviceConfigResult, SDClientError> {
-        let response: GetDeviceConfigResult = self.process_request(&GetDeviceConfig {
+        Ok(process_request(self.get_handle().deref_mut(), &GetDeviceConfig {
             serial_number: serial_number.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn import_device_config(&self, serial_number: &str, config: String) -> Result<ImportDeviceConfigResult, SDClientError> {
-        let response: ImportDeviceConfigResult = self.process_request(&ImportDeviceConfig {
+        Ok(process_request(self.get_handle().deref_mut(), &ImportDeviceConfig {
             serial_number: serial_number.to_string(),
             config
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn export_device_config(&self, serial_number: &str) -> Result<ExportDeviceConfigResult, SDClientError> {
-        let response: ExportDeviceConfigResult = self.process_request(&ExportDeviceConfig {
+        Ok(process_request(self.get_handle().deref_mut(), &ExportDeviceConfig {
             serial_number: serial_number.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn set_brightness(&self, serial_number: &str, brightness: u8) -> Result<SetBrightnessResult, SDClientError> {
-        let response: SetBrightnessResult = self.process_request(&SetBrightness {
+        Ok(process_request(self.get_handle().deref_mut(), &SetBrightness {
             serial_number: serial_number.to_string(),
             brightness
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn list_images(&self, serial_number: &str) -> Result<ListImagesResult, SDClientError> {
-        let response: ListImagesResult = self.process_request(&ListImages {
+        Ok(process_request(self.get_handle().deref_mut(), &ListImages {
             serial_number: serial_number.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn add_image(&self, serial_number: &str, image_data: &str) -> Result<AddImageResult, SDClientError> {
-        let response: AddImageResult = self.process_request(&AddImage {
+        Ok(process_request(self.get_handle().deref_mut(), &AddImage {
             serial_number: serial_number.to_string(),
             image_data: image_data.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn remove_image(&self, serial_number: &str, identifier: &str) -> Result<RemoveImageResult, SDClientError> {
-        let response: RemoveImageResult = self.process_request(&RemoveImage {
+        Ok(process_request(self.get_handle().deref_mut(), &RemoveImage {
             serial_number: serial_number.to_string(),
             image_identifier: identifier.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn list_fonts(&self) -> Result<Vec<String>, SDClientError> {
-        let response: ListFonts = self.process_request_without_data()?;
-
+        let response: ListFonts = process_request_without_data(self.get_handle().deref_mut())?;
         Ok(response.font_names)
     }
 
     fn list_modules(&self) -> Result<Vec<PluginMetadata>, SDClientError> {
-        let response: ListModules = self.process_request_without_data()?;
-
+        let response: ListModules = process_request_without_data(self.get_handle().deref_mut())?;
         Ok(response.modules)
     }
 
     fn list_components(&self) -> Result<HashMap<String, HashMap<String, ComponentDefinition>>, SDClientError> {
-        let response: ListComponents = self.process_request_without_data()?;
-
+        let response: ListComponents = process_request_without_data(self.get_handle().deref_mut())?;
         Ok(response.components)
     }
 
     fn get_module_values(&self, module_name: &str) -> Result<GetModuleValuesResult, SDClientError> {
-        let response: GetModuleValuesResult = self.process_request(&GetModuleValues {
+        Ok(process_request(self.get_handle().deref_mut(), &GetModuleValues {
             module_name: module_name.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn add_module_value(&self, module_name: &str, path: &str) -> Result<AddModuleValueResult, SDClientError> {
-        let response: AddModuleValueResult = self.process_request(&AddModuleValue {
+        Ok(process_request(self.get_handle().deref_mut(), &AddModuleValue {
             module_name: module_name.to_string(),
             path: path.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn remove_module_value(&self, module_name: &str, path: &str, index: usize) -> Result<RemoveModuleValueResult, SDClientError> {
-        let response: RemoveModuleValueResult = self.process_request(&RemoveModuleValue {
+        Ok(process_request(self.get_handle().deref_mut(), &RemoveModuleValue {
             module_name: module_name.to_string(),
             path: path.to_string(),
             index
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn set_module_value(&self, module_name: &str, value: UIPathValue) -> Result<SetModuleValueResult, SDClientError> {
-        let response: SetModuleValueResult = self.process_request(&SetModuleValue {
+        Ok(process_request(self.get_handle().deref_mut(), &SetModuleValue {
             module_name: module_name.to_string(),
             value
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn get_stack(&self, serial_number: &str) -> Result<GetStackResult, SDClientError> {
-        let response: GetStackResult = self.process_request(&GetStack {
+        Ok(process_request(self.get_handle().deref_mut(), &GetStack {
             serial_number: serial_number.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn get_stack_names(&self, serial_number: &str) -> Result<GetStackNamesResult, SDClientError> {
-        let response: GetStackNamesResult = self.process_request(&GetStackNames {
+        Ok(process_request(self.get_handle().deref_mut(), &GetStackNames {
             serial_number: serial_number.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn get_current_screen(&self, serial_number: &str) -> Result<GetCurrentScreenResult, SDClientError> {
-        let response: GetCurrentScreenResult = self.process_request(&GetCurrentScreen {
+        Ok(process_request(self.get_handle().deref_mut(), &GetCurrentScreen {
             serial_number: serial_number.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn get_button_images(&self, serial_number: &str) -> Result<GetButtonImagesResult, SDClientError> {
-        let response: GetButtonImagesResult = self.process_request(&GetButtonImages {
+        Ok(process_request(self.get_handle().deref_mut(), &GetButtonImages {
             serial_number: serial_number.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn get_button(&self, serial_number: &str, key: u8) -> Result<GetButtonResult, SDClientError> {
-        let response: GetButtonResult = self.process_request(&GetButton {
+        Ok(process_request(self.get_handle().deref_mut(), &GetButton {
             serial_number: serial_number.to_string(),
             key
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn set_button(&self, serial_number: &str, key: u8, button: Button) -> Result<SetButtonResult, SDClientError> {
-        let response: SetButtonResult = self.process_request(&SetButton {
+        Ok(process_request(self.get_handle().deref_mut(), &SetButton {
             serial_number: serial_number.to_string(),
             key,
             button
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn clear_button(&self, serial_number: &str, key: u8) -> Result<ClearButtonResult, SDClientError> {
-        let response: ClearButtonResult = self.process_request(&ClearButton {
+        Ok(process_request(self.get_handle().deref_mut(), &ClearButton {
             serial_number: serial_number.to_string(),
             key
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn clipboard_status(&self) -> Result<ClipboardStatusResult, SDClientError> {
-        let response: ClipboardStatusResult = self.process_request_without_data()?;
-
-        Ok(response)
+        Ok(process_request_without_data(self.get_handle().deref_mut())?)
     }
 
     fn copy_button(&self, serial_number: &str, key: u8) -> Result<CopyButtonResult, SDClientError> {
-        let response: CopyButtonResult = self.process_request(&CopyButton {
+        Ok(process_request(self.get_handle().deref_mut(), &CopyButton {
             serial_number: serial_number.to_string(),
             key
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn paste_button(&self, serial_number: &str, key: u8) -> Result<PasteButtonResult, SDClientError> {
-        let response: PasteButtonResult = self.process_request(&PasteButton {
+        Ok(process_request(self.get_handle().deref_mut(), &PasteButton {
             serial_number: serial_number.to_string(),
             key
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn new_button(&self, serial_number: &str, key: u8) -> Result<NewButtonResult, SDClientError> {
-        let response: NewButtonResult = self.process_request(&NewButton {
+        Ok(process_request(self.get_handle().deref_mut(), &NewButton {
             serial_number: serial_number.to_string(),
             key
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn new_button_from_component(&self, serial_number: &str, key: u8, component_name: &str) -> Result<NewButtonFromComponentResult, SDClientError> {
-        let response: NewButtonFromComponentResult = self.process_request(&NewButtonFromComponent {
+        Ok(process_request(self.get_handle().deref_mut(), &NewButtonFromComponent {
             serial_number: serial_number.to_string(),
             key,
             component_name: component_name.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn add_component(&self, serial_number: &str, key: u8, component_name: &str) -> Result<AddComponentResult, SDClientError> {
-        let response: AddComponentResult = self.process_request(&AddComponent {
+        Ok(process_request(self.get_handle().deref_mut(), &AddComponent {
             serial_number: serial_number.to_string(),
             key,
             component_name: component_name.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn get_component_values(&self, serial_number: &str, key: u8, component_name: &str) -> Result<GetComponentValuesResult, SDClientError> {
-        let response: GetComponentValuesResult = self.process_request(&GetComponentValues {
+        Ok(process_request(self.get_handle().deref_mut(), &GetComponentValues {
             serial_number: serial_number.to_string(),
             key,
             component_name: component_name.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn add_component_value(&self, serial_number: &str, key: u8, component_name: &str, path: &str) -> Result<AddComponentValueResult, SDClientError> {
-        let response: AddComponentValueResult = self.process_request(&AddComponentValue {
+        Ok(process_request(self.get_handle().deref_mut(), &AddComponentValue {
             serial_number: serial_number.to_string(),
             key,
             component_name: component_name.to_string(),
             path: path.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn remove_component_value(&self, serial_number: &str, key: u8, component_name: &str, path: &str, index: usize) -> Result<RemoveComponentValueResult, SDClientError> {
-        let response: RemoveComponentValueResult = self.process_request(&RemoveComponentValue {
+        Ok(process_request(self.get_handle().deref_mut(), &RemoveComponentValue {
             serial_number: serial_number.to_string(),
             key,
             component_name: component_name.to_string(),
             path: path.to_string(),
             index
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn set_component_value(&self, serial_number: &str, key: u8, component_name: &str, value: UIPathValue) -> Result<SetComponentValueResult, SDClientError> {
-        let response: SetComponentValueResult = self.process_request(&SetComponentValue {
+        Ok(process_request(self.get_handle().deref_mut(), &SetComponentValue {
             serial_number: serial_number.to_string(),
             key,
             component_name: component_name.to_string(),
             value
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn remove_component(&self, serial_number: &str, key: u8, component_name: &str) -> Result<RemoveComponentResult, SDClientError> {
-        let response: RemoveComponentResult = self.process_request(&RemoveComponent {
+        Ok(process_request(self.get_handle().deref_mut(), &RemoveComponent {
             serial_number: serial_number.to_string(),
             key,
             component_name: component_name.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn push_screen(&self, serial_number: &str, screen: RawButtonPanel) -> Result<PushScreenResult, SDClientError> {
-        let response: PushScreenResult = self.process_request(&PushScreen {
+        Ok(process_request(self.get_handle().deref_mut(), &PushScreen {
             serial_number: serial_number.to_string(),
             screen
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn pop_screen(&self, serial_number: &str) -> Result<PopScreenResult, SDClientError> {
-        let response: PopScreenResult = self.process_request(&PopScreen {
+        Ok(process_request(self.get_handle().deref_mut(), &PopScreen {
             serial_number: serial_number.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn forcibly_pop_screen(&self, serial_number: &str) -> Result<ForciblyPopScreenResult, SDClientError> {
-        let response: ForciblyPopScreenResult = self.process_request(&ForciblyPopScreen {
+        Ok(process_request(self.get_handle().deref_mut(), &ForciblyPopScreen {
             serial_number: serial_number.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn replace_screen(&self, serial_number: &str, screen: RawButtonPanel) -> Result<ReplaceScreenResult, SDClientError> {
-        let response: ReplaceScreenResult = self.process_request(&ReplaceScreen {
+        Ok(process_request(self.get_handle().deref_mut(), &ReplaceScreen {
             serial_number: serial_number.to_string(),
             screen
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn reset_stack(&self, serial_number: &str, screen: RawButtonPanel) -> Result<ResetStackResult, SDClientError> {
-        let response: ResetStackResult = self.process_request(&ResetStack {
+        Ok(process_request(self.get_handle().deref_mut(), &ResetStack {
             serial_number: serial_number.to_string(),
             screen
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn drop_stack_to_root(&self, serial_number: &str) -> Result<DropStackToRootResult, SDClientError> {
-        let response: DropStackToRootResult = self.process_request(&DropStackToRoot {
+        Ok(process_request(self.get_handle().deref_mut(), &DropStackToRoot {
             serial_number: serial_number.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn commit_changes(&self, serial_number: &str) -> Result<CommitChangesToConfigResult, SDClientError> {
-        let response: CommitChangesToConfigResult = self.process_request(&CommitChangesToConfig {
+        Ok(process_request(self.get_handle().deref_mut(), &CommitChangesToConfig {
             serial_number: serial_number.to_string()
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn do_button_action(&self, serial_number: &str, key: u8) -> Result<DoButtonActionResult, SDClientError> {
-        let response: DoButtonActionResult = self.process_request(&DoButtonAction {
+        Ok(process_request(self.get_handle().deref_mut(), &DoButtonAction {
             serial_number: serial_number.to_string(),
             key
-        })?;
-
-        Ok(response)
+        })?)
     }
 
     fn send_packet(&self, packet: SocketPacket) -> Result<SocketPacket, SDClientError> {
-        let mut handle = self.connection.write().unwrap();
-        writeln!(handle.get_mut(), "{}", serde_json::to_string(&packet)?)?;
-
-        let mut line = String::new();
-        handle.read_line(&mut line)?;
-
-        Ok(serde_json::from_str(&line)?)
+        let mut handle = self.get_handle();
+        send_packet_as_is(handle.get_mut(), packet)?;
+        read_socket(handle.deref_mut())
     }
 
     fn send_packet_without_response(&self, packet: SocketPacket) -> Result<(), SDClientError> {
-        let mut handle = self.connection.write().unwrap();
-        writeln!(handle.get_mut(), "{}", serde_json::to_string(&packet)?)?;
-        Ok(())
+        let mut handle = self.get_handle();
+        Ok(send_packet_as_is(handle.get_mut(), packet)?)
     }
 }
-
-impl SDSyncEventClient for UnixClient {
-    fn get_event(&self) -> Result<SDGlobalEvent, SDClientError> {
-        let mut handle = self.connection.write().unwrap();
-
-        loop {
-            let packet = self.read_socket(handle.deref_mut())?;
-
-            if packet.ty == "event" {
-                if let Some(data) = packet.data {
-                    return Ok(serde_json::from_value(data)?);
-                }
-            }
-        }
-    }
-}
-
-impl SDSyncClient for UnixClient {}

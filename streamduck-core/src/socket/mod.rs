@@ -2,7 +2,7 @@
 
 use std::io::Write;
 use std::ops::Deref;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Condvar, Mutex, RwLock};
 use std::thread::spawn;
 use serde::{Deserialize, Serialize};
 use serde::de::{DeserializeOwned, Error};
@@ -132,7 +132,7 @@ impl From<std::io::Error> for SocketError {
 /// Manager of socket listeners
 pub struct SocketManager {
     listeners: RwLock<Vec<BoxedSocketListener>>,
-    pools: RwLock<Vec<Arc<RwLock<SocketPool>>>>
+    pools: RwLock<Vec<Arc<SocketPool>>>
 }
 
 impl SocketManager {
@@ -157,13 +157,14 @@ impl SocketManager {
     }
 
     /// Creates a new message pool
-    pub fn get_pool(&self) -> Arc<RwLock<SocketPool>> {
+    pub fn get_pool(&self) -> Arc<SocketPool> {
         let mut pools = self.pools.write().unwrap();
 
-        let new_pool = Arc::new(RwLock::new(SocketPool {
-            messages: vec![],
-            is_open: true
-        }));
+        let new_pool = Arc::new(SocketPool {
+            messages: Mutex::new(vec![]),
+            condvar: Default::default(),
+            is_open: RwLock::new(true)
+        });
 
         pools.push(new_pool.clone());
 
@@ -174,18 +175,10 @@ impl SocketManager {
     pub fn send_message(&self, packet: SocketPacket) {
         let mut pools = self.pools.write().unwrap();
 
-        pools.retain(|x| {
-            if let Ok(x) = x.read() {
-                x.is_open()
-            } else {
-                false
-            }
-        });
+        pools.retain(|x| x.is_open());
 
         for pool in pools.iter() {
-            if let Ok(mut pool) = pool.write() {
-                pool.add_message(packet.clone())
-            }
+            pool.add_message(packet.clone())
         }
     }
 }
@@ -208,24 +201,36 @@ pub fn send_event_to_socket(socket_manager: &Arc<SocketManager>, event: SDGlobal
 
 /// Pool of messages for socket implementations
 pub struct SocketPool {
-    messages: Vec<SocketPacket>,
-    is_open: bool
+    messages: Mutex<Vec<SocketPacket>>,
+    condvar: Condvar,
+    is_open: RwLock<bool>
 }
 
 impl SocketPool {
-    pub fn add_message(&mut self, message: SocketPacket) {
-        self.messages.insert(0, message);
+    /// Puts message into the pool
+    pub fn add_message(&self, message: SocketPacket) {
+        let mut messages = self.messages.lock().unwrap();
+        messages.insert(0, message);
+        self.condvar.notify_all();
     }
 
-    pub fn take_message(&mut self) -> Option<SocketPacket> {
-        self.messages.pop()
+    /// Retrieves a message, will block if pool is currently empty
+    pub fn take_message(&self) -> SocketPacket {
+        let mut guard = self.condvar.wait_while(self.messages.lock().unwrap(), |x| x.len() <= 0).unwrap();
+
+        if let Some(packet) = guard.pop() {
+            packet
+        } else {
+            drop(guard);
+            self.take_message()
+        }
     }
 
     pub fn is_open(&self) -> bool {
-        self.is_open
+        *self.is_open.read().unwrap()
     }
 
-    pub fn close(&mut self) {
-        self.is_open = false;
+    pub fn close(&self) {
+        *self.is_open.write().unwrap() = false;
     }
 }

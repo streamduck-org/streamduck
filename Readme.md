@@ -10,7 +10,7 @@ Software for managing Stream Deck devices with folders and actions
 
 # Features
 ## Currently supported:
-* **Linux compatible**: Works on Linux without having to code
+* **Cross Platform**: Works on Windows and on Linux
 * **Managing multiple streamdeck devices**: Able to control multiple streamdeck devices with each having their own separate configurations.
 * **Flexible button display**: Buttons can be configured to have one of the following backgrounds: (solid color, horizontal and vertical gradients, images), and any amount of text objects with extensive text rendering settings
 * **Support for animated images**: GIF and APNG images are supported with rendering exactly as described in the format (no more slow-mo gifs like in original software)
@@ -21,7 +21,6 @@ Software for managing Stream Deck devices with folders and actions
 * **Import/Export Configuration**: Allows you to import and export device configurations, which include images that were uploaded into the software. Making backups of configs as easy as keeping the exported file, and just importing it later when needed.
 ## Planned features:
 * **Lua support for plugins** - for simple plugins to be made that utilize streamduck API
-* **Windows support** for those who would prefer using open source software on Windows
 * **OBS Websocket plugin**
 * **Electron-based GUI** (will have equal functionality with cli version) (alternative GUI applications can be made)
 ## Maybe in the future:

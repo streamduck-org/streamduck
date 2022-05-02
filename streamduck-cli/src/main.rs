@@ -3,8 +3,7 @@ mod helps;
 
 use std::env;
 use std::sync::Arc;
-use streamduck_client::SDClient;
-use streamduck_client::unix::UnixClient;
+use streamduck_client::SDSyncRequestClient;
 use crate::prompt::prompt;
 
 fn main() {
@@ -17,8 +16,13 @@ fn main() {
     }
 }
 
+#[cfg(target_family = "windows")]
+fn get_client(_args: &Vec<String>) -> Arc<Box<dyn SDSyncRequestClient>> {
+    streamduck_client::windows::WinRequestClient::new().expect("Failed to connect to daemon, is it up?")
+}
+
 #[cfg(target_family = "unix")]
-fn get_client(_args: &Vec<String>) -> Arc<Box<dyn SDClient>> {
+fn get_client(_args: &Vec<String>) -> Arc<Box<dyn SDSyncRequestClient>> {
     // TODO: Allow choosing connection method later
-    UnixClient::new().expect("Failed to connect to daemon, is it up?")
+    streamduck_client::unix::UnixClient::new().expect("Failed to connect to daemon, is it up?")
 }

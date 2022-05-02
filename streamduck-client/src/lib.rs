@@ -20,11 +20,22 @@ use streamduck_daemon::daemon_data::panels::{DropStackToRootResult, ForciblyPopS
 #[cfg(target_family = "unix")]
 pub mod unix;
 
+#[cfg(target_family = "windows")]
+pub mod windows;
 
 pub mod util;
 
-/// Trait that defines a client, implementations of clients must be separate due to conditional compiling
-pub trait SDClient {
+/// Trait that combines synchronous request and event client in case both are needed at the same time
+pub trait SDSyncClient: SDSyncEventClient + SDSyncRequestClient {}
+
+/// Trait that defines synchronous event client
+pub trait SDSyncEventClient {
+    /// Retrieves an event from daemon, depending on implementation might block
+    fn get_event(&self) -> Result<SDGlobalEvent, SDClientError>;
+}
+
+/// Trait that defines synchronous request client
+pub trait SDSyncRequestClient {
     // Version
     /// Retrieves version of the daemon socket API
     fn version(&self) -> Result<String, SDClientError>;
@@ -146,9 +157,6 @@ pub trait SDClient {
 
     /// Simulate a press on a button on current screen for a device
     fn do_button_action(&self, serial_number: &str, key: u8) -> Result<DoButtonActionResult, SDClientError>;
-
-    /// Retrieves an event from daemon, depending on implementation might block
-    fn get_event(&self) -> Result<SDGlobalEvent, SDClientError>;
 
     /// Sends a custom packet to daemon and returns response, for use with plugins that utilize socket functionality
     fn send_packet(&self, packet: SocketPacket) -> Result<SocketPacket, SDClientError>;

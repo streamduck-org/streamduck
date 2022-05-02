@@ -5,16 +5,15 @@ use std::sync::Arc;
 use std::thread::sleep;
 use std::time::Duration;
 use streamduck_core::socket::{send_packet_as_is, SocketManager};
-
-const SOCKET_PATH: &'static str = "/tmp/streamduck.sock";
+use streamduck_daemon::UNIX_SOCKET_PATH;
 
 pub fn remove_socket() {
-    fs::remove_file(SOCKET_PATH).ok();
+    fs::remove_file(UNIX_SOCKET_PATH).ok();
 }
 
 pub fn open_socket(socket_manager: Arc<SocketManager>) {
     remove_socket();
-    let listener = UnixListener::bind("/tmp/streamduck.sock").unwrap();
+    let listener = UnixListener::bind(UNIX_SOCKET_PATH).unwrap();
 
     for stream in listener.incoming() {
         match stream {
@@ -42,15 +41,8 @@ fn handle_client(stream: UnixStream, socket_manager: Arc<SocketManager>) {
             let pool = pool;
 
             loop {
-                if let Ok(mut pool) = pool.write() {
-                    if let Some(message) = pool.take_message() {
-                        if send_packet_as_is(&mut stream, message).is_err() {
-                            break;
-                        }
-                    } else {
-                        sleep(Duration::from_micros(10));
-                    }
-                } else {
+                let message = pool.take_message();
+                if send_packet_as_is(&mut stream, message).is_err() {
                     break;
                 }
             }
