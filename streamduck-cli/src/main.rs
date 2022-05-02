@@ -23,6 +23,5 @@ fn get_client(_args: &Vec<String>) -> Arc<dyn SDSyncRequestClient> {
 
 #[cfg(target_family = "unix")]
 fn get_client(_args: &Vec<String>) -> Arc<dyn SDSyncRequestClient> {
-    // TODO: Allow choosing connection method later
-    streamduck_client::unix::UnixClient::new_for_requests().expect("Failed to connect to daemon, is it up?")
+    streamduck_client::unix::UnixClient::new().expect("Failed to connect to daemon, is it up?").as_request()
 }

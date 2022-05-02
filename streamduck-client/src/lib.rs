@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::io::Error;
 use std::string::FromUtf8Error;
+use std::sync::Arc;
 
 use streamduck_core::core::button::Button;
 use streamduck_core::core::RawButtonPanel;
@@ -24,6 +25,19 @@ pub mod unix;
 pub mod windows;
 
 pub mod util;
+
+/// Trait that combines both types of clients
+pub trait SDSyncClient: SDSyncUpcastRequestClient + SDSyncUpcastEventClient {}
+
+/// Trait that allows to cast from Client to RequestClient
+pub trait SDSyncUpcastRequestClient: SDSyncRequestClient {
+    fn as_request(self: Arc<Self>) -> Arc<dyn SDSyncRequestClient>;
+}
+
+/// Trait that allows to cast from Client to EventClient
+pub trait SDSyncUpcastEventClient: SDSyncEventClient {
+    fn as_event(self: Arc<Self>) -> Arc<dyn SDSyncEventClient>;
+}
 
 /// Trait that defines synchronous event client
 pub trait SDSyncEventClient {

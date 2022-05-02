@@ -23,7 +23,7 @@ use streamduck_daemon::daemon_data::panels::{DropStackToRoot, DropStackToRootRes
 use streamduck_daemon::daemon_data::SocketAPIVersion;
 use streamduck_daemon::UNIX_SOCKET_PATH;
 
-use crate::{SDSyncRequestClient, SDClientError, SDSyncEventClient};
+use crate::{SDSyncRequestClient, SDClientError, SDSyncEventClient, SDSyncClient, SDSyncUpcastRequestClient, SDSyncUpcastEventClient};
 use crate::util::{process_request, process_request_without_data, read_response, read_socket};
 
 /// Unix Socket based Streamduck client
@@ -45,6 +45,11 @@ impl UnixClient {
         }
 
         Ok(client)
+    }
+
+    /// Initializes client using unix domain socket
+    pub fn new() -> Result<Arc<dyn SDSyncClient>, std::io::Error> {
+        Ok(Arc::new(UnixClient::make_client()?))
     }
 
     /// Initializes client using unix domain socket for use with requests
@@ -506,3 +511,18 @@ impl SDSyncEventClient for UnixClient {
         }
     }
 }
+
+
+impl SDSyncUpcastRequestClient for UnixClient {
+    fn as_request(self: Arc<Self>) -> Arc<dyn SDSyncRequestClient> {
+        self
+    }
+}
+
+impl SDSyncUpcastEventClient for UnixClient {
+    fn as_event(self: Arc<Self>) -> Arc<dyn SDSyncEventClient> {
+        self
+    }
+}
+
+impl SDSyncClient for UnixClient {}
