@@ -3,6 +3,8 @@ use std::io::BufReader;
 use std::ops::DerefMut;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 use named_pipe::PipeClient;
+use rand::distributions::Alphanumeric;
+use rand::Rng;
 use streamduck_core::core::button::Button;
 use streamduck_core::core::RawButtonPanel;
 use streamduck_core::modules::components::{ComponentDefinition, UIPathValue};
@@ -29,7 +31,7 @@ pub struct WinEventClient {
 
 impl WinEventClient {
     pub fn new() -> Result<Arc<dyn SDSyncEventClient>, std::io::Error> {
-        let client: Arc<Box<dyn SDSyncEventClient>> = Arc::new(WinEventClient {
+        let client: Arc<dyn SDSyncEventClient> = Arc::new(WinEventClient {
             connection: RwLock::new(BufReader::new(PipeClient::connect(WINDOWS_EVENT_PIPE_NAME)?))
         });
 
@@ -62,7 +64,7 @@ pub struct WinRequestClient {
 
 impl WinRequestClient {
     pub fn new() -> Result<Arc<dyn SDSyncRequestClient>, std::io::Error> {
-        let client: Arc<Box<dyn SDSyncRequestClient>> = Arc::new(WinRequestClient {
+        let client: Arc<dyn SDSyncRequestClient> = Arc::new(WinRequestClient {
             connection: RwLock::new(BufReader::new(PipeClient::connect(WINDOWS_REQUEST_PIPE_NAME)?))
         });
 
