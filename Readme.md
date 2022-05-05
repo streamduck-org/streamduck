@@ -8,6 +8,8 @@ Software for managing Stream Deck devices with folders and actions
 
 🛈 Currently in heavy development, and is not user-ready
 
+See [CONTRIBUTING](CONTRIBUTING.md).
+
 ## Features
 
 ### Currently supported
