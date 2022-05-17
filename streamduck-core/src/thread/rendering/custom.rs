@@ -3,8 +3,7 @@ use std::sync::{Arc, RwLock, RwLockReadGuard};
 use image::DynamicImage;
 use streamdeck::{DeviceImage, StreamDeck};
 use crate::core::button::Button;
-use crate::core::methods::CoreHandle;
-use crate::core::UniqueButton;
+use crate::core::{CoreHandle, UniqueButton};
 use crate::modules::components::UIValue;
 use crate::thread::rendering::RendererComponent;
 

@@ -13,7 +13,6 @@ use std::sync::{Arc, RwLock, RwLockReadGuard};
 use std::thread::spawn;
 
 use crate::core::button::{Button};
-use crate::core::methods::{check_feature_list_for_feature, CoreHandle};
 use crate::modules::components::{ComponentDefinition, UIPathValue, UIValue};
 use crate::modules::events::{SDCoreEvent, SDGlobalEvent};
 use crate::modules::folders::FolderModule;
@@ -22,7 +21,7 @@ use serde::{Deserialize, Serialize};
 
 use image::DynamicImage;
 use crate::core::manager::CoreManager;
-use crate::core::UniqueButton;
+use crate::core::{check_feature_list_for_feature, CoreHandle, UniqueButton};
 use crate::modules::core_module::CoreModule;
 use crate::SocketManager;
 use crate::util::{add_array_function, change_from_path, convert_value_to_path, remove_array_function, set_value_function};
@@ -416,20 +415,6 @@ pub fn set_module_setting(core_manager: Arc<CoreManager>, module: &UniqueSDModul
     } else {
         false
     }
-}
-
-/// Sends core event to all modules, spawns a separate thread to do it, so doesn't block current thread
-pub fn send_core_event_to_modules<T: Iterator<Item=UniqueSDModule> + Send + 'static>(core: &CoreHandle, event: SDCoreEvent, modules: T) {
-    let core = core.clone();
-    spawn(move || {
-        for module in modules {
-            if module.name() == core.module_name {
-                continue;
-            }
-
-            module.event(core.clone_for(&module), event.clone())
-        }
-    });
 }
 
 /// Sends global event to all modules, spawns a separate thread to do it, so doesn't block current thread

@@ -1,12 +1,12 @@
 //! Requests related to buttons
-use std::ops::Deref;
 use serde::{Deserialize, Serialize};
 use streamduck_core::core::button::Button;
-use streamduck_core::core::methods::{add_element_component_value, add_component, clear_button, CoreHandle, get_button, get_component_values_with_paths, remove_component, set_button, set_component_value_by_path, remove_element_component_value, paste_button};
+use streamduck_core::core::CoreHandle;
 use streamduck_core::modules::components::UIPathValue;
 use streamduck_core::socket::{check_packet_for_data, parse_packet_to_data, send_packet, SocketData, SocketHandle, SocketPacket};
 use streamduck_core::util::{button_to_raw, make_button_unique};
 use crate::daemon_data::{DaemonListener, DaemonRequest};
+use std::ops::Deref;
 
 /// Request for getting a button from current screen on a device
 #[derive(Serialize, Deserialize)]
@@ -42,7 +42,7 @@ impl DaemonRequest for GetButton {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if let Some(button) = get_button(&wrapped_core, request.key) {
+                if let Some(button) = wrapped_core.get_button(request.key) {
                     send_packet(handle, packet, &GetButtonResult::Button(button_to_raw(&button))).ok();
                 } else {
                     send_packet(handle, packet, &GetButtonResult::NoButton).ok();
@@ -89,7 +89,7 @@ impl DaemonRequest for SetButton {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if set_button(&wrapped_core, request.key, make_button_unique(request.button)) {
+                if wrapped_core.set_button(request.key, make_button_unique(request.button)) {
                     send_packet(handle, packet, &SetButtonResult::Set).ok();
                 } else {
                     send_packet(handle, packet, &SetButtonResult::NoScreen).ok();
@@ -135,7 +135,7 @@ impl DaemonRequest for ClearButton {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if clear_button(&wrapped_core, request.key) {
+                if wrapped_core.clear_button(request.key) {
                     send_packet(handle, packet, &ClearButtonResult::Cleared).ok();
                 } else {
                     send_packet(handle, packet, &ClearButtonResult::FailedToClear).ok();
@@ -181,7 +181,7 @@ impl DaemonRequest for NewButton {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if set_button(&wrapped_core, request.key, make_button_unique(Button::new())) {
+                if wrapped_core.set_button(request.key, make_button_unique(Button::new())) {
                     send_packet(handle, packet, &NewButtonResult::Created).ok();
                 } else {
                     send_packet(handle, packet, &NewButtonResult::FailedToCreate).ok();
@@ -241,7 +241,7 @@ impl DaemonRequest for NewButtonFromComponent {
 
                     module.add_component(wrapped_core.clone_for(&module), &mut button, &request.component_name);
 
-                    if set_button(&wrapped_core, request.key, make_button_unique(button)) {
+                    if wrapped_core.set_button(request.key, make_button_unique(button)) {
                         send_packet(handle, packet, &NewButtonFromComponentResult::Created).ok();
                     } else {
                         send_packet(handle, packet, &NewButtonFromComponentResult::FailedToCreate).ok();
@@ -294,7 +294,7 @@ impl DaemonRequest for AddComponent {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if add_component(&wrapped_core, request.key, &request.component_name) {
+                if wrapped_core.add_component(request.key, &request.component_name) {
                     send_packet(handle, packet, &AddComponentResult::Added).ok();
                 } else {
                     send_packet(handle, packet, &AddComponentResult::FailedToAdd).ok();
@@ -341,7 +341,7 @@ impl DaemonRequest for GetComponentValues {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                let values = get_component_values_with_paths(&wrapped_core, request.key, &request.component_name);
+                let values = wrapped_core.get_component_values_with_paths(request.key, &request.component_name);
 
                 if let Some(values) = values {
                     send_packet(handle, packet, &GetComponentValuesResult::Values(values)).ok();
@@ -391,7 +391,7 @@ impl DaemonRequest for AddComponentValue {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if add_element_component_value(&wrapped_core, request.key, &request.component_name, &request.path) {
+                if wrapped_core.add_element_component_value(request.key, &request.component_name, &request.path) {
                     listener.config.sync_images(&request.serial_number);
                     send_packet(handle, packet, &AddComponentValueResult::Added).ok();
                 } else {
@@ -441,7 +441,7 @@ impl DaemonRequest for RemoveComponentValue {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if remove_element_component_value(&wrapped_core, request.key, &request.component_name, &request.path, request.index) {
+                if wrapped_core.remove_element_component_value(request.key, &request.component_name, &request.path, request.index) {
                     listener.config.sync_images(&request.serial_number);
                     send_packet(handle, packet, &RemoveComponentValueResult::Removed).ok();
                 } else {
@@ -490,7 +490,7 @@ impl DaemonRequest for SetComponentValue {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if set_component_value_by_path(&wrapped_core, request.key, &request.component_name, request.value) {
+                if wrapped_core.set_component_value_by_path(request.key, &request.component_name, request.value) {
                     listener.config.sync_images(&request.serial_number);
                     send_packet(handle, packet, &SetComponentValueResult::Set).ok();
                 } else {
@@ -538,7 +538,7 @@ impl DaemonRequest for RemoveComponent {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if remove_component(&wrapped_core, request.key, &request.component_name) {
+                if wrapped_core.remove_component(request.key, &request.component_name) {
                     send_packet(handle, packet, &RemoveComponentResult::Removed).ok();
                 } else {
                     send_packet(handle, packet, &RemoveComponentResult::FailedToRemove).ok();
@@ -609,7 +609,7 @@ impl DaemonRequest for CopyButton {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if let Some(button) = get_button(&wrapped_core, request.key) {
+                if let Some(button) = wrapped_core.get_button(request.key) {
                     let mut lock = listener.clipboard.lock().unwrap();
                     *lock = Some(button.read().unwrap().deref().clone());
                     send_packet(handle, packet, &CopyButtonResult::Copied).ok();
@@ -660,7 +660,7 @@ impl DaemonRequest for PasteButton {
                 let clipboard = listener.clipboard.lock().unwrap();
 
                 if clipboard.is_some() {
-                    if paste_button(&wrapped_core, request.key, clipboard.as_ref().unwrap()) {
+                    if wrapped_core.paste_button(request.key, clipboard.as_ref().unwrap()) {
                         send_packet(handle, packet, &PasteButtonResult::Pasted).ok();
                         return;
                     }

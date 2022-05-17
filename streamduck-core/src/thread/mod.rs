@@ -12,9 +12,8 @@ use std::time::{Duration, Instant};
 use image::{DynamicImage, ImageFormat};
 use streamdeck::{Colour, DeviceImage, ImageMode, StreamDeck};
 use rendering::RendererComponent;
-use crate::core::SDCore;
+use crate::core::{CoreHandle, SDCore};
 use crate::core::button::{Component, parse_unique_button_to_component};
-use crate::core::methods::{CoreHandle, get_current_screen};
 use crate::images::SDImage;
 use crate::modules::core_module::CoreSettings;
 use crate::modules::UniqueSDModule;
@@ -149,7 +148,7 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
                             }
 
                             DeviceThreadCommunication::RefreshScreen => {
-                                let current_screen = get_current_screen(&core);
+                                let current_screen = core.get_current_screen();
 
                                 if current_screen.is_none() {
                                     return;

@@ -6,11 +6,11 @@ use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
 use serde::{Deserialize, Serialize};
 use streamduck_core::config::{ConfigError, DeviceConfig};
-use streamduck_core::core::methods::{CoreHandle, reset_stack, set_brightness};
 use streamduck_core::socket::{check_packet_for_data, parse_packet_to_data, send_packet, SocketData, SocketHandle, SocketPacket};
 use streamduck_core::util::make_panel_unique;
 use crate::daemon_data::{DaemonListener, DaemonRequest};
 use std::io::Write;
+use streamduck_core::core::CoreHandle;
 
 /// Request for reloading all device configs
 #[derive(Serialize, Deserialize)]
@@ -37,7 +37,7 @@ impl DaemonRequest for ReloadDeviceConfigsResult {
                                 let handle = dvc_cfg.read().unwrap();
                                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                                reset_stack(&wrapped_core, make_panel_unique(handle.layout.clone()));
+                                wrapped_core.reset_stack(make_panel_unique(handle.layout.clone()));
                             }
                         }
                     }
@@ -91,7 +91,7 @@ impl DaemonRequest for ReloadDeviceConfig {
                                 let handle = dvc_cfg.read().unwrap();
                                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                                reset_stack(&wrapped_core, make_panel_unique(handle.layout.clone()));
+                                wrapped_core.reset_stack(make_panel_unique(handle.layout.clone()));
                             }
                         }
                     }
@@ -326,8 +326,8 @@ impl DaemonRequest for ImportDeviceConfig {
                                 Ok(_) => {
                                     let wrapped_core = CoreHandle::wrap(device.core);
 
-                                    reset_stack(&wrapped_core, make_panel_unique(config.layout));
-                                    set_brightness(&wrapped_core, config.brightness);
+                                    wrapped_core.reset_stack(make_panel_unique(config.layout));
+                                    wrapped_core.set_brightness(config.brightness);
 
                                     send_packet(handle, packet, &ImportDeviceConfigResult::Imported).ok();
                                 }

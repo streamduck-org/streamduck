@@ -4,8 +4,7 @@ use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use crate::core::button::{Button, Component, parse_button_to_component, parse_unique_button_to_component};
-use crate::core::{ButtonPanel, RawButtonPanel};
-use crate::core::methods::{CoreHandle, get_stack, pop_screen, push_screen};
+use crate::core::{ButtonPanel, CoreHandle, RawButtonPanel};
 use crate::modules::components::{ComponentDefinition, map_ui_values, UIFieldType, UIFieldValue, UIValue};
 use crate::modules::events::SDCoreEvent;
 use crate::modules::{PluginMetadata, SDModule};
@@ -320,14 +319,14 @@ impl SDModule for FolderModule {
 
             SDCoreEvent::ButtonAction { pressed_button, .. } => {
                 if let Ok(_) = parse_unique_button_to_component::<FolderUpComponent>(&pressed_button) {
-                    if get_stack(&core).len() > 1 {
-                        pop_screen(&core);
+                    if core.current_stack().unwrap().len() > 1 {
+                        core.pop_screen();
                     }
                 } else if let Ok(folder) = parse_unique_button_to_component::<FolderComponent>(&pressed_button) {
                     let mut folder_ref_handle = self.folder_references.write().unwrap();
 
                     if let Some(panel) = folder_ref_handle.get(&folder.id).cloned() {
-                        push_screen(&core, panel);
+                        core.push_screen(panel);
                     } else {
                         if let Some(mut contents) = self.get_folder(&core, &folder.id) {
                             contents.display_name = folder.name;
@@ -336,7 +335,7 @@ impl SDModule for FolderModule {
                             }).unwrap();
 
                             let panel = make_panel_unique(contents);
-                            push_screen(&core, panel.clone());
+                            core.push_screen(panel.clone());
                             folder_ref_handle.insert(folder.id, panel);
                         }
                     }
@@ -346,7 +345,7 @@ impl SDModule for FolderModule {
                     let mut folder_ref_handle = self.folder_references.write().unwrap();
 
                     if let Some(panel) = folder_ref_handle.get(&folder_link.id).cloned() {
-                        push_screen(&core, panel);
+                        core.push_screen(panel);
                     } else {
                         if let Some(mut contents) = self.get_folder(&core, &folder_link.id) {
                             contents.data = serde_json::to_value(FolderStackData {
@@ -354,7 +353,7 @@ impl SDModule for FolderModule {
                             }).unwrap();
 
                             let panel = make_panel_unique(contents);
-                            push_screen(&core, panel.clone());
+                            core.push_screen(panel.clone());
                             folder_ref_handle.insert(folder_link.id, panel);
                         }
                     }

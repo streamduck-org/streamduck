@@ -1,6 +1,6 @@
 //! Requests for various operations
 use serde::{Deserialize, Serialize};
-use streamduck_core::core::methods::{button_action, commit_changes, CoreHandle};
+use streamduck_core::core::CoreHandle;
 use streamduck_core::socket::{parse_packet_to_data, send_packet, SocketData, SocketHandle, SocketPacket};
 use crate::daemon_data::{DaemonListener, DaemonRequest};
 
@@ -34,7 +34,7 @@ impl DaemonRequest for CommitChangesToConfig {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                commit_changes(&wrapped_core);
+                wrapped_core.commit_changes();
                 send_packet(handle, packet, &CommitChangesToConfigResult::Committed).ok();
             } else {
                 send_packet(handle, packet, &CommitChangesToConfigResult::DeviceNotFound).ok();
@@ -74,7 +74,7 @@ impl DaemonRequest for DoButtonAction {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                button_action(&wrapped_core, request.key);
+                wrapped_core.button_action(request.key);
                 send_packet(handle, packet, &DoButtonActionResult::Activated).ok();
             } else {
                 send_packet(handle, packet, &DoButtonActionResult::DeviceNotFound).ok();

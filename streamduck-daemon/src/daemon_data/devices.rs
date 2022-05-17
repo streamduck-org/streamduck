@@ -1,9 +1,9 @@
 //! Requests related to devices
 use serde::{Deserialize, Serialize};
 use strum_macros::Display;
+use streamduck_core::core::CoreHandle;
 use streamduck_core::socket::{check_packet_for_data, parse_packet_to_data, send_packet, SocketData, SocketHandle, SocketPacket};
 use crate::daemon_data::{DaemonListener, DaemonRequest};
-use streamduck_core::core::methods::{CoreHandle, set_brightness};
 use streamduck_core::streamdeck;
 
 /// Request for getting device list
@@ -245,7 +245,7 @@ impl DaemonRequest for SetBrightness {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 // Setting brightness
                 let wrapped_core = CoreHandle::wrap(device.core);
-                set_brightness(&wrapped_core, request.brightness);
+                wrapped_core.set_brightness(request.brightness);
 
                 send_packet(handle, packet, &SetBrightnessResult::Set).ok();
             } else {

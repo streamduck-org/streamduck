@@ -2,7 +2,7 @@
 pub mod button;
 
 /// Methods for interacting with the core
-pub mod methods;
+mod methods;
 pub mod manager;
 
 use std::collections::HashMap;
@@ -14,12 +14,15 @@ use serde_json::Value;
 use crate::config::{Config, UniqueDeviceConfig};
 use crate::core::button::Button;
 use crate::thread::{DeviceThreadCommunication, DeviceThreadHandle, spawn_device_thread};
-use crate::core::methods::{button_down, button_up, CoreHandle};
 use crate::ImageCollection;
 use crate::modules::events::SDGlobalEvent;
 use crate::modules::ModuleManager;
 use crate::socket::{send_event_to_socket, SocketManager};
 use crate::thread::rendering::custom::RenderingManager;
+
+pub use methods::CoreHandle;
+pub use methods::check_feature_list_for_feature;
+pub use methods::warn_for_feature;
 
 /// Reference counted RwLock of a button, prevents data duplication and lets you edit buttons if they're in many stacks at once
 pub type UniqueButton = Arc<RwLock<Button>>;
@@ -239,9 +242,9 @@ impl KeyHandler {
 
             if let Ok((key, state)) = self.receiver.recv() {
                 if state {
-                    button_down(&self.core, key);
+                    self.core.button_down(key);
                 } else {
-                    button_up(&self.core, key);
+                    self.core.button_up(key);
                 }
             } else {
                 break;

@@ -4,7 +4,7 @@ use image::io::Reader;
 use strum::VariantNames;
 use std::str::FromStr;
 use crate::core::button::{Button, parse_button_to_component};
-use crate::core::methods::CoreHandle;
+use crate::core::CoreHandle;
 use crate::modules::components::{map_ui_values, map_ui_values_ref, UIField, UIFieldType, UIFieldValue, UIValue};
 use crate::thread::rendering::{ButtonBackground, ButtonText, ButtonTextShadow, RendererComponent};
 use crate::thread::util::{resize_for_streamdeck, TextAlignment};

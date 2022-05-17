@@ -5,7 +5,7 @@ use std::sync::{Arc, RwLock};
 use std::thread::{sleep, spawn};
 use std::time::Duration;
 use crate::core::{RawButtonPanel, SDCore};
-use crate::core::methods::{CoreHandle, reset_stack, set_brightness};
+use crate::core::methods::CoreHandle;
 use hidapi::HidApi;
 use serde_json::Value;
 use crate::config::{Config, DeviceConfig};
@@ -124,8 +124,8 @@ impl CoreManager {
 
             drop(config_handle);
 
-            set_brightness(&core_handle, brightness);
-            reset_stack(&core_handle, make_panel_unique(layout));
+            core_handle.set_brightness(brightness);
+            core_handle.reset_stack(make_panel_unique(layout));
 
 
             let mut handle = self.devices.write().unwrap();

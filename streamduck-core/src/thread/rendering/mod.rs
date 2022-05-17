@@ -17,8 +17,7 @@ use std::ops::Deref;
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use crate::core::button::Component;
-use crate::core::methods::CoreHandle;
-use crate::core::UniqueButton;
+use crate::core::{CoreHandle, UniqueButton};
 use crate::font::get_font_from_collection;
 use crate::images::{AnimationFrame, SDImage};
 use crate::modules::UniqueSDModule;
@@ -374,6 +373,17 @@ pub fn draw_missing_texture(size: (usize, usize)) -> DynamicImage {
     }
 
     missing
+}
+
+/// Draws texture that says "Custom Renderer"
+pub fn draw_custom_renderer_texture(size: (usize, usize)) -> DynamicImage {
+    let font = get_font_from_collection("default").unwrap();
+    let mut frame = image_from_solid(size, Rgba([55, 55, 55, 255]));
+
+    render_aligned_text_on_image(size, &mut frame, font.deref(), "Custom", Scale::uniform(16.0), TextAlignment::Center, 0, (0.0, -8.0), (255, 255, 255, 255));
+    render_aligned_text_on_image(size, &mut frame, font.deref(), "Renderer", Scale::uniform(16.0), TextAlignment::Center, 0, (0.0, 8.0), (255, 255, 255, 255));
+
+    frame
 }
 
 /// Definition for color format

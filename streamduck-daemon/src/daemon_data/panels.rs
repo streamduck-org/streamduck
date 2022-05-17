@@ -2,8 +2,7 @@
 use std::collections::HashMap;
 use std::io::Cursor;
 use serde::{Deserialize, Serialize};
-use streamduck_core::core::methods::{CoreHandle, get_button_image, get_button_images, get_current_screen, get_root_screen, get_stack, pop_screen, push_screen, replace_screen, reset_stack};
-use streamduck_core::core::RawButtonPanel;
+use streamduck_core::core::{CoreHandle, RawButtonPanel};
 use streamduck_core::image::ImageOutputFormat;
 use streamduck_core::socket::{parse_packet_to_data, send_packet, SocketData, SocketHandle, SocketPacket};
 use streamduck_core::util::{make_panel_unique, panel_to_raw};
@@ -41,7 +40,7 @@ impl DaemonRequest for GetStack {
 
                 let mut raw_stack = vec![];
 
-                for stack_item in get_stack(&wrapped_core) {
+                for stack_item in wrapped_core.get_stack() {
                     let raw_item = panel_to_raw(&stack_item);
                     raw_stack.push(raw_item);
                 }
@@ -86,7 +85,7 @@ impl DaemonRequest for GetStackNames {
 
                 let mut raw_stack = vec![];
 
-                for stack_item in get_stack(&wrapped_core) {
+                for stack_item in wrapped_core.get_stack() {
                     let raw_item = panel_to_raw(&stack_item);
                     raw_stack.push(raw_item.display_name);
                 }
@@ -132,7 +131,7 @@ impl DaemonRequest for GetCurrentScreen {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if let Some(screen) = get_current_screen(&wrapped_core) {
+                if let Some(screen) = wrapped_core.get_current_screen() {
                     send_packet(handle, packet, &GetCurrentScreenResult::Screen(panel_to_raw(&screen))).ok();
                 } else {
                     send_packet(handle, packet, &GetCurrentScreenResult::NoScreen).ok();
@@ -176,7 +175,7 @@ impl DaemonRequest for GetButtonImages {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if let Some(images) = get_button_images(&wrapped_core) {
+                if let Some(images) = wrapped_core.get_button_images() {
                     let images = images.into_iter()
                         .map(|(key, image)| {
                             let mut buffer: Vec<u8> = vec![];
@@ -230,7 +229,7 @@ impl DaemonRequest for GetButtonImage {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if let Some(image) = get_button_image(&wrapped_core, request.key) {
+                if let Some(image) = wrapped_core.get_button_image(request.key) {
                     let mut buffer: Vec<u8> = vec![];
                     image.write_to(&mut Cursor::new(&mut buffer), ImageOutputFormat::Png).ok();
 
@@ -276,7 +275,7 @@ impl DaemonRequest for PushScreen {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                push_screen(&wrapped_core, make_panel_unique(request.screen));
+                wrapped_core.push_screen(make_panel_unique(request.screen));
                 send_packet(handle, packet, &PushScreenResult::Pushed).ok();
             } else {
                 send_packet(handle, packet, &PushScreenResult::DeviceNotFound).ok();
@@ -324,7 +323,7 @@ impl DaemonRequest for PopScreen {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
                 if count > 1 {
-                    pop_screen(&wrapped_core);
+                    wrapped_core.pop_screen();
                     send_packet(handle, packet, &PopScreenResult::Popped).ok();
                 } else {
                     send_packet(handle, packet, &PopScreenResult::OnlyOneRemaining).ok();
@@ -366,7 +365,7 @@ impl DaemonRequest for ForciblyPopScreen {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                pop_screen(&wrapped_core);
+                wrapped_core.pop_screen();
                 send_packet(handle, packet, &ForciblyPopScreenResult::Popped).ok();
             } else {
                 send_packet(handle, packet, &ForciblyPopScreenResult::DeviceNotFound).ok();
@@ -406,7 +405,7 @@ impl DaemonRequest for ReplaceScreen {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                replace_screen(&wrapped_core, make_panel_unique(request.screen));
+                wrapped_core.replace_screen(make_panel_unique(request.screen));
                 send_packet(handle, packet, &ReplaceScreenResult::Replaced).ok();
             } else {
                 send_packet(handle, packet, &ReplaceScreenResult::DeviceNotFound).ok();
@@ -446,7 +445,7 @@ impl DaemonRequest for ResetStack {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                reset_stack(&wrapped_core, make_panel_unique(request.screen));
+                wrapped_core.reset_stack(make_panel_unique(request.screen));
                 send_packet(handle, packet, &ResetStackResult::Reset).ok();
             } else {
                 send_packet(handle, packet, &ResetStackResult::DeviceNotFound).ok();
@@ -485,8 +484,8 @@ impl DaemonRequest for DropStackToRoot {
             if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                let first_screen = get_root_screen(&wrapped_core);
-                reset_stack(&wrapped_core, first_screen);
+                let first_screen = wrapped_core.get_root_screen();
+                wrapped_core.reset_stack(first_screen);
                 send_packet(handle, packet, &DropStackToRootResult::Dropped).ok();
             } else {
                 send_packet(handle, packet, &DropStackToRootResult::DeviceNotFound).ok();

@@ -8,7 +8,7 @@ use std::thread::{sleep, spawn};
 use std::time::Duration;
 use enigo::{Enigo, KeyboardControllable};
 use streamduck_core::core::button::{Button, Component};
-use streamduck_core::core::methods::CoreHandle;
+use streamduck_core::core::CoreHandle;
 use streamduck_core::modules::components::{ComponentDefinition, UIValue};
 use streamduck_core::modules::events::SDCoreEvent;
 use streamduck_core::modules::{ModuleManager, PluginMetadata, SDModule};
