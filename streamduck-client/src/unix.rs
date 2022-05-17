@@ -28,14 +28,16 @@ use crate::util::{process_request, process_request_without_data, read_response, 
 
 /// Unix Socket based Streamduck client
 pub struct UnixClient {
-    connection: RwLock<BufReader<UnixStream>>
+    connection: RwLock<BufReader<UnixStream>>,
+    event_buffer: RwLock<Vec<SDGlobalEvent>>
 }
 
 #[allow(dead_code)]
 impl UnixClient {
     fn make_client() -> Result<UnixClient, std::io::Error> {
         let client = UnixClient {
-            connection: RwLock::new(BufReader::new(UnixStream::connect(UNIX_SOCKET_PATH)?))
+            connection: RwLock::new(BufReader::new(UnixStream::connect(UNIX_SOCKET_PATH)?)),
+            event_buffer: Default::default()
         };
 
         let daemon_version = client.version().expect("Failed to retrieve version");
@@ -52,16 +54,6 @@ impl UnixClient {
         Ok(Arc::new(UnixClient::make_client()?))
     }
 
-    /// Initializes client using unix domain socket for use with requests
-    pub fn new_for_requests() -> Result<Arc<dyn SDSyncRequestClient>, std::io::Error> {
-        Ok(Arc::new(UnixClient::make_client()?))
-    }
-
-    /// Initializes client using unix domain socket for use with events
-    pub fn new_for_events() -> Result<Arc<dyn SDSyncEventClient>, std::io::Error> {
-        Ok(Arc::new(UnixClient::make_client()?))
-    }
-
     fn get_handle(&self) -> RwLockWriteGuard<BufReader<UnixStream>> {
         self.connection.write().unwrap()
     }
@@ -69,13 +61,13 @@ impl UnixClient {
 
 impl SDSyncRequestClient for UnixClient {
     fn version(&self) -> Result<String, SDClientError> {
-        let response: SocketAPIVersion = process_request_without_data(self.get_handle().deref_mut())?;
+        let response: SocketAPIVersion = process_request_without_data(self.get_handle().deref_mut(), Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response.version)
     }
 
     fn device_list(&self) -> Result<Vec<Device>, SDClientError> {
-        let response: ListDevices = process_request_without_data(self.get_handle().deref_mut())?;
+        let response: ListDevices = process_request_without_data(self.get_handle().deref_mut(), Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response.devices)
     }
@@ -83,7 +75,7 @@ impl SDSyncRequestClient for UnixClient {
     fn get_device(&self, serial_number: &str) -> Result<GetDeviceResult, SDClientError> {
         let response: GetDeviceResult = process_request(self.get_handle().deref_mut(), &GetDevice {
             serial_number: serial_number.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -91,7 +83,7 @@ impl SDSyncRequestClient for UnixClient {
     fn add_device(&self, serial_number: &str) -> Result<AddDeviceResult, SDClientError> {
         let response: AddDeviceResult = process_request(self.get_handle().deref_mut(), &AddDevice {
             serial_number: serial_number.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -99,13 +91,13 @@ impl SDSyncRequestClient for UnixClient {
     fn remove_device(&self, serial_number: &str) -> Result<RemoveDeviceResult, SDClientError> {
         let response: RemoveDeviceResult = process_request(self.get_handle().deref_mut(), &RemoveDevice {
             serial_number: serial_number.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
 
     fn reload_device_configs(&self) -> Result<ReloadDeviceConfigsResult, SDClientError> {
-        let response: ReloadDeviceConfigsResult = process_request_without_data(self.get_handle().deref_mut())?;
+        let response: ReloadDeviceConfigsResult = process_request_without_data(self.get_handle().deref_mut(), Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -113,13 +105,13 @@ impl SDSyncRequestClient for UnixClient {
     fn reload_device_config(&self, serial_number: &str) -> Result<ReloadDeviceConfigResult, SDClientError> {
         let response: ReloadDeviceConfigResult = process_request(self.get_handle().deref_mut(), &ReloadDeviceConfig {
             serial_number: serial_number.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
 
     fn save_device_configs(&self) -> Result<SaveDeviceConfigsResult, SDClientError> {
-        let response: SaveDeviceConfigsResult = process_request_without_data(self.get_handle().deref_mut())?;
+        let response: SaveDeviceConfigsResult = process_request_without_data(self.get_handle().deref_mut(), Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -127,7 +119,7 @@ impl SDSyncRequestClient for UnixClient {
     fn save_device_config(&self, serial_number: &str) -> Result<SaveDeviceConfigResult, SDClientError> {
         let response: SaveDeviceConfigResult = process_request(self.get_handle().deref_mut(), &SaveDeviceConfig {
             serial_number: serial_number.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -135,7 +127,7 @@ impl SDSyncRequestClient for UnixClient {
     fn get_device_config(&self, serial_number: &str) -> Result<GetDeviceConfigResult, SDClientError> {
         let response: GetDeviceConfigResult = process_request(self.get_handle().deref_mut(), &GetDeviceConfig {
             serial_number: serial_number.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -144,7 +136,7 @@ impl SDSyncRequestClient for UnixClient {
         let response: ImportDeviceConfigResult = process_request(self.get_handle().deref_mut(), &ImportDeviceConfig {
             serial_number: serial_number.to_string(),
             config
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -152,7 +144,7 @@ impl SDSyncRequestClient for UnixClient {
     fn export_device_config(&self, serial_number: &str) -> Result<ExportDeviceConfigResult, SDClientError> {
         let response: ExportDeviceConfigResult = process_request(self.get_handle().deref_mut(), &ExportDeviceConfig {
             serial_number: serial_number.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -161,7 +153,7 @@ impl SDSyncRequestClient for UnixClient {
         let response: SetBrightnessResult = process_request(self.get_handle().deref_mut(), &SetBrightness {
             serial_number: serial_number.to_string(),
             brightness
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -169,7 +161,7 @@ impl SDSyncRequestClient for UnixClient {
     fn list_images(&self, serial_number: &str) -> Result<ListImagesResult, SDClientError> {
         let response: ListImagesResult = process_request(self.get_handle().deref_mut(), &ListImages {
             serial_number: serial_number.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -178,7 +170,7 @@ impl SDSyncRequestClient for UnixClient {
         let response: AddImageResult = process_request(self.get_handle().deref_mut(), &AddImage {
             serial_number: serial_number.to_string(),
             image_data: image_data.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -187,25 +179,25 @@ impl SDSyncRequestClient for UnixClient {
         let response: RemoveImageResult = process_request(self.get_handle().deref_mut(), &RemoveImage {
             serial_number: serial_number.to_string(),
             image_identifier: identifier.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
 
     fn list_fonts(&self) -> Result<Vec<String>, SDClientError> {
-        let response: ListFonts = process_request_without_data(self.get_handle().deref_mut())?;
+        let response: ListFonts = process_request_without_data(self.get_handle().deref_mut(), Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response.font_names)
     }
 
     fn list_modules(&self) -> Result<Vec<PluginMetadata>, SDClientError> {
-        let response: ListModules = process_request_without_data(self.get_handle().deref_mut())?;
+        let response: ListModules = process_request_without_data(self.get_handle().deref_mut(), Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response.modules)
     }
 
     fn list_components(&self) -> Result<HashMap<String, HashMap<String, ComponentDefinition>>, SDClientError> {
-        let response: ListComponents = process_request_without_data(self.get_handle().deref_mut())?;
+        let response: ListComponents = process_request_without_data(self.get_handle().deref_mut(), Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response.components)
     }
@@ -213,7 +205,7 @@ impl SDSyncRequestClient for UnixClient {
     fn get_module_values(&self, module_name: &str) -> Result<GetModuleValuesResult, SDClientError> {
         let response: GetModuleValuesResult = process_request(self.get_handle().deref_mut(), &GetModuleValues {
             module_name: module_name.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -222,7 +214,7 @@ impl SDSyncRequestClient for UnixClient {
         let response: AddModuleValueResult = process_request(self.get_handle().deref_mut(), &AddModuleValue {
             module_name: module_name.to_string(),
             path: path.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -232,7 +224,7 @@ impl SDSyncRequestClient for UnixClient {
             module_name: module_name.to_string(),
             path: path.to_string(),
             index
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -241,7 +233,7 @@ impl SDSyncRequestClient for UnixClient {
         let response: SetModuleValueResult = process_request(self.get_handle().deref_mut(), &SetModuleValue {
             module_name: module_name.to_string(),
             value
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -249,7 +241,7 @@ impl SDSyncRequestClient for UnixClient {
     fn get_stack(&self, serial_number: &str) -> Result<GetStackResult, SDClientError> {
         let response: GetStackResult = process_request(self.get_handle().deref_mut(), &GetStack {
             serial_number: serial_number.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -257,7 +249,7 @@ impl SDSyncRequestClient for UnixClient {
     fn get_stack_names(&self, serial_number: &str) -> Result<GetStackNamesResult, SDClientError> {
         let response: GetStackNamesResult = process_request(self.get_handle().deref_mut(), &GetStackNames {
             serial_number: serial_number.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -265,7 +257,7 @@ impl SDSyncRequestClient for UnixClient {
     fn get_current_screen(&self, serial_number: &str) -> Result<GetCurrentScreenResult, SDClientError> {
         let response: GetCurrentScreenResult = process_request(self.get_handle().deref_mut(), &GetCurrentScreen {
             serial_number: serial_number.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -273,7 +265,7 @@ impl SDSyncRequestClient for UnixClient {
     fn get_button_images(&self, serial_number: &str) -> Result<GetButtonImagesResult, SDClientError> {
         let response: GetButtonImagesResult = process_request(self.get_handle().deref_mut(), &GetButtonImages {
             serial_number: serial_number.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -282,7 +274,7 @@ impl SDSyncRequestClient for UnixClient {
         let response: GetButtonResult = process_request(self.get_handle().deref_mut(), &GetButton {
             serial_number: serial_number.to_string(),
             key
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -292,7 +284,7 @@ impl SDSyncRequestClient for UnixClient {
             serial_number: serial_number.to_string(),
             key,
             button
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -301,13 +293,13 @@ impl SDSyncRequestClient for UnixClient {
         let response: ClearButtonResult = process_request(self.get_handle().deref_mut(), &ClearButton {
             serial_number: serial_number.to_string(),
             key
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
 
     fn clipboard_status(&self) -> Result<ClipboardStatusResult, SDClientError> {
-        let response: ClipboardStatusResult = process_request_without_data(self.get_handle().deref_mut())?;
+        let response: ClipboardStatusResult = process_request_without_data(self.get_handle().deref_mut(), Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -316,7 +308,7 @@ impl SDSyncRequestClient for UnixClient {
         let response: CopyButtonResult = process_request(self.get_handle().deref_mut(), &CopyButton {
             serial_number: serial_number.to_string(),
             key
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -325,7 +317,7 @@ impl SDSyncRequestClient for UnixClient {
         let response: PasteButtonResult = process_request(self.get_handle().deref_mut(), &PasteButton {
             serial_number: serial_number.to_string(),
             key
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -334,7 +326,7 @@ impl SDSyncRequestClient for UnixClient {
         let response: NewButtonResult = process_request(self.get_handle().deref_mut(), &NewButton {
             serial_number: serial_number.to_string(),
             key
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -344,7 +336,7 @@ impl SDSyncRequestClient for UnixClient {
             serial_number: serial_number.to_string(),
             key,
             component_name: component_name.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -354,7 +346,7 @@ impl SDSyncRequestClient for UnixClient {
             serial_number: serial_number.to_string(),
             key,
             component_name: component_name.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -364,7 +356,7 @@ impl SDSyncRequestClient for UnixClient {
             serial_number: serial_number.to_string(),
             key,
             component_name: component_name.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -375,7 +367,7 @@ impl SDSyncRequestClient for UnixClient {
             key,
             component_name: component_name.to_string(),
             path: path.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -387,7 +379,7 @@ impl SDSyncRequestClient for UnixClient {
             component_name: component_name.to_string(),
             path: path.to_string(),
             index
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -398,7 +390,7 @@ impl SDSyncRequestClient for UnixClient {
             key,
             component_name: component_name.to_string(),
             value
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -408,7 +400,7 @@ impl SDSyncRequestClient for UnixClient {
             serial_number: serial_number.to_string(),
             key,
             component_name: component_name.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -417,7 +409,7 @@ impl SDSyncRequestClient for UnixClient {
         let response: PushScreenResult = process_request(self.get_handle().deref_mut(), &PushScreen {
             serial_number: serial_number.to_string(),
             screen
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -425,7 +417,7 @@ impl SDSyncRequestClient for UnixClient {
     fn pop_screen(&self, serial_number: &str) -> Result<PopScreenResult, SDClientError> {
         let response: PopScreenResult = process_request(self.get_handle().deref_mut(), &PopScreen {
             serial_number: serial_number.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -433,7 +425,7 @@ impl SDSyncRequestClient for UnixClient {
     fn forcibly_pop_screen(&self, serial_number: &str) -> Result<ForciblyPopScreenResult, SDClientError> {
         let response: ForciblyPopScreenResult = process_request(self.get_handle().deref_mut(), &ForciblyPopScreen {
             serial_number: serial_number.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -442,7 +434,7 @@ impl SDSyncRequestClient for UnixClient {
         let response: ReplaceScreenResult = process_request(self.get_handle().deref_mut(), &ReplaceScreen {
             serial_number: serial_number.to_string(),
             screen
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -451,7 +443,7 @@ impl SDSyncRequestClient for UnixClient {
         let response: ResetStackResult = process_request(self.get_handle().deref_mut(), &ResetStack {
             serial_number: serial_number.to_string(),
             screen
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -459,7 +451,7 @@ impl SDSyncRequestClient for UnixClient {
     fn drop_stack_to_root(&self, serial_number: &str) -> Result<DropStackToRootResult, SDClientError> {
         let response: DropStackToRootResult = process_request(self.get_handle().deref_mut(), &DropStackToRoot {
             serial_number: serial_number.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -467,7 +459,7 @@ impl SDSyncRequestClient for UnixClient {
     fn commit_changes(&self, serial_number: &str) -> Result<CommitChangesToConfigResult, SDClientError> {
         let response: CommitChangesToConfigResult = process_request(self.get_handle().deref_mut(), &CommitChangesToConfig {
             serial_number: serial_number.to_string()
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -476,7 +468,7 @@ impl SDSyncRequestClient for UnixClient {
         let response: DoButtonActionResult = process_request(self.get_handle().deref_mut(), &DoButtonAction {
             serial_number: serial_number.to_string(),
             key
-        })?;
+        }, Some(self.event_buffer.write().unwrap()))?;
 
         Ok(response)
     }
@@ -488,7 +480,7 @@ impl SDSyncRequestClient for UnixClient {
         let mut handle = self.connection.write().unwrap();
         send_packet_as_is(handle.get_mut(), packet)?;
 
-        read_response(handle.deref_mut(), &id)
+        read_response(handle.deref_mut(), &id, Some(self.event_buffer.write().unwrap()))
     }
 
     fn send_packet_without_response(&self, packet: SocketPacket) -> Result<(), SDClientError> {
@@ -500,13 +492,20 @@ impl SDSyncRequestClient for UnixClient {
 
 impl SDSyncEventClient for UnixClient {
     fn get_event(&self) -> Result<SDGlobalEvent, SDClientError> {
+        let buffer = self.event_buffer.write().unwrap();
+
+        if let Some(event) = buffer.pop() {
+            return Ok(event);
+        }
+
+        drop(buffer);
+
+
         loop {
             let packet = read_socket(self.get_handle().deref_mut())?;
 
-            if packet.ty == "event" {
-                if let Some(data) = packet.data {
-                    return Ok(serde_json::from_value(data)?);
-                }
+            if let Some(data) = packet.data {
+                return Ok(serde_json::from_value(data)?);
             }
         }
     }
