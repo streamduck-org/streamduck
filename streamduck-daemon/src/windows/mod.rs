@@ -54,7 +54,6 @@ fn handle_request_client(client: PipeServer, manager: Arc<SocketManager>) {
         }
 
         if let Ok(message) = String::from_utf8(message.clone()) {
-            log::info!("message {}", message.replace("\u{0004}", ""));
             match serde_json::from_str(&message.replace("\u{0004}", "")) {
                 Ok(packet) => manager.received_message(stream.get_mut(), packet),
                 Err(e) => log::warn!("Invalid message in sockets: {}", e)
