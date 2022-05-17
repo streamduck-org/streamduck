@@ -492,7 +492,7 @@ impl SDSyncRequestClient for UnixClient {
 
 impl SDSyncEventClient for UnixClient {
     fn get_event(&self) -> Result<SDGlobalEvent, SDClientError> {
-        let buffer = self.event_buffer.write().unwrap();
+        let mut buffer = self.event_buffer.write().unwrap();
 
         if let Some(event) = buffer.pop() {
             return Ok(event);
