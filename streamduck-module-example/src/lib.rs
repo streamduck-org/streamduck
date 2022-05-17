@@ -6,10 +6,9 @@ use streamduck_core::modules::{ModuleManager, PluginMetadata, SDModule, SDModule
 use streamduck_core::versions::{CORE_EVENTS, PLUGIN_API, RENDERING, SDMODULE_TRAIT};
 use serde::{Deserialize, Serialize};
 use serde_json::{Number, Value};
-use streamduck_core::core::methods::CoreHandle;
 use streamduck_core::modules::components::{ComponentDefinition, map_ui_values, UIFieldType, UIFieldValue, UIScalar, UIValue};
 use streamduck_core::modules::events::SDCoreEvent;
-use streamduck_core::core::UniqueButton;
+use streamduck_core::core::{CoreHandle, UniqueButton};
 use streamduck_core::image::{DynamicImage, Rgba};
 use streamduck_core::images::convert_image;
 use streamduck_core_derive::component;
