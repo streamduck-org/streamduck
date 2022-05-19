@@ -83,11 +83,12 @@ impl AnimationCounter {
 pub fn process_frame(
     core: &CoreHandle,
     streamdeck: &mut StreamDeck,
-    cache: &mut HashMap<u64, Arc<DeviceImage>>,
+    cache: &mut HashMap<u64, (Arc<DeviceImage>, u64)>,
     counters: &mut HashMap<String, AnimationCounter>,
     renderer_map: &mut HashMap<u8, (RendererComponent, UniqueButton, Vec<UniqueSDModule>)>,
     previous_state: &mut HashMap<u8, u64>,
-    missing: &DynamicImage
+    missing: &DynamicImage,
+    time: u64
 ) {
 
     for key in 0..core.core.key_count {
@@ -133,13 +134,17 @@ pub fn process_frame(
                     let hash = hasher.finish();
 
                     if counter.new_frame || (hash != *previous_state.get(&key).unwrap_or(&1)) {
-                        let variant = cache.get(&hash);
+                        let variant = cache.get_mut(&hash);
 
                         if component.to_cache && variant.is_some() {
+                            let (variant, time_to_die) = variant.unwrap();
+                            *time_to_die = time + 20000;
+
                             let previous = previous_state.get(&key).unwrap_or(&1);
                             if hash != *previous {
-                                streamdeck.write_button_image(key, variant.unwrap().deref()).ok();
+                                streamdeck.write_button_image(key, variant.deref()).ok();
                             }
+
                         } else {
                             let mut buffer = vec![];
 
@@ -151,7 +156,7 @@ pub fn process_frame(
                             let arc = Arc::new(DeviceImage::from(buffer));
 
                             if component.to_cache {
-                                cache.insert(hash, arc.clone());
+                                cache.insert(hash, (arc.clone(), time + 20000));
                             }
 
                             streamdeck.write_button_image(key, arc.deref()).ok();
@@ -175,12 +180,15 @@ pub fn process_frame(
 
             let hash = hasher.finish();
 
-            let variant = cache.get(&hash);
+            let variant = cache.get_mut(&hash);
 
             if component.to_cache && variant.is_some() {
+                let (variant, time_to_die) = variant.unwrap();
+                *time_to_die = time + 20000;
+
                 let previous = previous_state.get(&key).unwrap_or(&1);
                 if hash != *previous {
-                    streamdeck.write_button_image(key, variant.unwrap().deref()).ok();
+                    streamdeck.write_button_image(key, variant.deref()).ok();
                 }
             } else {
                 let mut buffer = vec![];
@@ -193,7 +201,7 @@ pub fn process_frame(
                 let arc = Arc::new(DeviceImage::from(buffer));
 
                 if component.to_cache {
-                    cache.insert(hash, arc.clone());
+                    cache.insert(hash, (arc.clone(), time + 20000));
                 }
 
                 streamdeck.write_button_image(key, arc.deref()).ok();

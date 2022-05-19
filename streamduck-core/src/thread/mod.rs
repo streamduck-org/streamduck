@@ -72,8 +72,10 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
         let mut animation_counters = HashMap::new();
         let mut last_iter = Instant::now();
         let mut renderer_map = HashMap::new();
-        let mut animation_cache: HashMap<u64, Arc<DeviceImage>> = HashMap::new();
+        let mut animation_cache: HashMap<u64, (Arc<DeviceImage>, u64)> = HashMap::new();
         let mut previous_state: HashMap<u8, u64> = HashMap::new();
+        let mut time = 0;
+        let mut last_time = time;
         loop {
             if core.core.is_closed() {
                 break;
@@ -192,7 +194,15 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
                 }
             }
 
-            rendering::process_frame(&core, &mut streamdeck, &mut animation_cache, &mut animation_counters, &mut renderer_map, &mut previous_state, &missing);
+            rendering::process_frame(&core, &mut streamdeck, &mut animation_cache, &mut animation_counters, &mut renderer_map, &mut previous_state, &missing, time);
+            time += 1;
+
+            // Occasionally cleaning cache
+            if time % 3000 == 0 && time != last_time {
+                animation_cache.retain(|_, (_, t)| *t > time);
+            }
+
+            last_time = time;
 
             // Rate limiter
             let rate = 1.0 / core.core.pool_rate as f32;
