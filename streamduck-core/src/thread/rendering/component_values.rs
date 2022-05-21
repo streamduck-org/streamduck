@@ -1,13 +1,10 @@
-use std::io::Cursor;
-use image::DynamicImage;
-use image::io::Reader;
 use strum::VariantNames;
 use std::str::FromStr;
 use crate::core::button::{Button, parse_button_to_component};
 use crate::core::CoreHandle;
 use crate::modules::components::{map_ui_values, map_ui_values_ref, UIField, UIFieldType, UIFieldValue, UIValue};
 use crate::thread::rendering::{ButtonBackground, ButtonText, ButtonTextShadow, RendererComponent};
-use crate::thread::util::{resize_for_streamdeck, TextAlignment};
+use crate::thread::util::TextAlignment;
 use crate::images::SDImage;
 use crate::util::hash_str;
 
@@ -480,28 +477,15 @@ pub fn set_renderer_component_values(core: &CoreHandle, button: &mut Button, val
 
                             ButtonBackground::NewImage(_) => {
                                 if let Ok(blob) = (&value.value).try_into_string() {
-                                    fn decode_blob(blob: &String) -> Option<(String, DynamicImage)> {
-                                        let identifier = hash_str(blob);
-                                        if let Ok(decoded_bytes) = base64::decode(blob) {
-                                            if let Ok(recognized_image) = Reader::new(Cursor::new(&decoded_bytes)).with_guessed_format() {
-                                                if let Ok(decoded_image) = recognized_image.decode() {
-                                                    drop(decoded_bytes);
-                                                    return Some((identifier, decoded_image));
-                                                }
-                                                drop(decoded_bytes);
-                                            }
-                                        }
+                                    let identifier = hash_str(&blob);
 
-                                        None
-                                    }
-
-                                    if let Some((identifier, image)) = decode_blob(&blob) {
+                                    if let Ok(image) = SDImage::from_base64(&blob, core.core.image_size) {
                                         component.background = ButtonBackground::ExistingImage(identifier.clone());
 
                                         let mut handle = core.core.image_collection.write().unwrap();
-                                        handle.insert(identifier, SDImage::SingleImage(resize_for_streamdeck(core.core.image_size, image)));
+                                        handle.insert(identifier, image);
                                     } else {
-                                        component.background = ButtonBackground::NewImage(blob);
+                                        component.background = ButtonBackground::NewImage("".to_string());
                                     }
                                 }
                             }

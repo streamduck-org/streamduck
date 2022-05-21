@@ -53,7 +53,7 @@ pub trait CustomRenderer: Send + Sync {
 }
 
 /// Reference counted renderer object
-pub type UniqueRenderer = Arc<Box<dyn CustomRenderer>>;
+pub type UniqueRenderer = Arc<dyn CustomRenderer>;
 
 /// Manager that keeps a bunch of related things to rendering thread
 #[derive(Default)]

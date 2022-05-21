@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 use streamduck_core::core::button::{Button, parse_unique_button_to_component};
-use streamduck_core::modules::{ModuleManager, PluginMetadata, SDModule, SDModulePointer};
+use streamduck_core::modules::{PluginMetadata, SDModule};
 use streamduck_core::versions::{CORE_EVENTS, PLUGIN_API, RENDERING, SDMODULE_TRAIT};
 use serde::{Deserialize, Serialize};
 use serde_json::{Number, Value};
@@ -11,6 +11,7 @@ use streamduck_core::modules::events::SDCoreEvent;
 use streamduck_core::core::{CoreHandle, UniqueButton};
 use streamduck_core::image::{DynamicImage, Rgba};
 use streamduck_core::images::convert_image;
+use streamduck_core::modules::plugins::PluginModuleManager;
 use streamduck_core_derive::component;
 use streamduck_core_derive::plugin_config;
 use streamduck_core::socket::{SocketHandle, SocketListener, SocketManager, SocketPacket};
@@ -38,23 +39,17 @@ pub fn get_metadata() -> PluginMetadata {
 }
 
 #[no_mangle]
-pub fn get_module() -> SDModulePointer {
-    Box::into_raw(Box::new(ExampleModule))
-}
-
-#[no_mangle]
-pub fn register(socket_manager: Arc<SocketManager>, render_manager: Arc<RenderingManager>, _module_manager: Arc<ModuleManager>) {
-    socket_manager.add_listener(Box::new(ExampleListener));
-    render_manager.add_custom_renderer(Arc::new(Box::new(ExampleRenderer::new())));
+pub fn register(socket_manager: Arc<SocketManager>, render_manager: Arc<RenderingManager>, module_manager: Arc<PluginModuleManager>) {
+    socket_manager.add_listener(Arc::new(ExampleListener));
+    render_manager.add_custom_renderer(Arc::new(ExampleRenderer::new()));
+    module_manager.add_module(Arc::new(ExampleModule)).ok();
 }
 
 pub struct ExampleListener;
 
 impl SocketListener for ExampleListener {
     fn message(&self, _socket: SocketHandle, packet: SocketPacket) {
-        if packet.ty == "set_component_value" {
-            println!("packet: {:?}", packet)
-        }
+        println!("packet: {:?}", packet)
     }
 }
 
@@ -170,10 +165,9 @@ impl SDModule for ExampleModule {
                 display_name: "Float Slider".to_string(),
                 description: "".to_string(),
                 ty: UIFieldType::ValueSliderFloat(UIScalar {
-                    default_value: 5.0,
                     max_value: 100.0,
                     min_value: 0.0,
-                    step: 1.0,
+                    step: 0.1,
                     allow_out_of_bounds: false
                 }),
                 value: UIFieldValue::ValueSliderFloat(23.0)
@@ -183,13 +177,12 @@ impl SDModule for ExampleModule {
                 display_name: "Integer Slider".to_string(),
                 description: "".to_string(),
                 ty: UIFieldType::ValueSliderInteger(UIScalar {
-                    default_value: 5,
                     max_value: 100,
                     min_value: 0,
                     step: 1,
                     allow_out_of_bounds: false
                 }),
-                value: UIFieldValue::ValueSliderInteger(23)
+                value: UIFieldValue::ValueSliderInteger(54)
             }
         ]
     }

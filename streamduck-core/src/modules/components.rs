@@ -534,8 +534,6 @@ impl From<UIPathValue> for UIValue {
 /// Information for running sliders in UI
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UIScalar<T: PartialEq> {
-    /// Default value slider will have
-    pub default_value: T,
     /// Maximum value for the slider
     pub max_value: T,
     /// Minimum value for the slider

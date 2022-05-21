@@ -260,18 +260,12 @@ impl ModuleManager {
 
 /// Loads built-in modules into the module manager
 pub fn load_base_modules(module_manager: Arc<ModuleManager>, socket_manager: Arc<SocketManager>) {
-    module_manager.add_module(Arc::new(Box::new(CoreModule { socket_manager })));
-    module_manager.add_module(Arc::new(Box::new(FolderModule::default())));
+    module_manager.add_module(Arc::new(CoreModule { socket_manager }));
+    module_manager.add_module(Arc::new(FolderModule::default()));
 }
 
 /// Reference counted module object
-pub type UniqueSDModule = Arc<Box<dyn SDModule>>;
-
-/// Boxed module object
-pub type BoxedSDModule = Box<dyn SDModule>;
-
-/// Raw pointer to module object
-pub type SDModulePointer = *mut dyn SDModule;
+pub type UniqueSDModule = Arc<dyn SDModule>;
 
 /// Module trait
 #[allow(unused)]

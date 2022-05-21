@@ -7,7 +7,7 @@ use std::hash::Hasher;
 use std::path::Path;
 use std::sync::Arc;
 use dlopen::Error;
-use crate::modules::{BoxedSDModule, ModuleManager, PluginMetadata, SDModule, SDModulePointer};
+use crate::modules::{ModuleManager, PluginMetadata, SDModule, UniqueSDModule};
 use dlopen::wrapper::{Container, WrapperApi};
 use dlopen_derive::WrapperApi;
 use image::DynamicImage;
@@ -23,15 +23,14 @@ use crate::versions::SUPPORTED_FEATURES;
 #[derive(WrapperApi)]
 struct PluginApi {
     get_metadata: extern fn() -> PluginMetadata,
-    get_module: extern fn() -> SDModulePointer,
-    register: extern fn(socket_manager: Arc<SocketManager>, render_manager: Arc<RenderingManager>, module_manager: Arc<ModuleManager>),
+    register: extern fn(socket_manager: Arc<SocketManager>, render_manager: Arc<RenderingManager>, module_manager: Arc<PluginModuleManager>),
 }
 
 #[allow(dead_code)]
 struct PluginProxy {
-    pub wrapper: Container<PluginApi>,
+    pub wrapper: Arc<Container<PluginApi>>,
     pub metadata: PluginMetadata,
-    pub plugin: BoxedSDModule
+    pub plugin: UniqueSDModule
 }
 
 impl SDModule for PluginProxy {
@@ -104,6 +103,31 @@ impl SDModule for PluginProxy {
     }
 }
 
+/// Wrapper of module manager for plugin initialization to use
+pub struct PluginModuleManager {
+    module_manager: Arc<ModuleManager>,
+    metadata: PluginMetadata,
+    wrapper: Arc<Container<PluginApi>>,
+}
+
+impl PluginModuleManager {
+    pub fn add_module(&self, module: UniqueSDModule) -> Result<(), PluginError> {
+        for component in module.components().keys() {
+            if self.module_manager.get_component(component).is_some() {
+                return Err(PluginError::ComponentConflict(module.name(), component.to_string()))
+            }
+        }
+
+        self.module_manager.add_module(Arc::new(PluginProxy {
+            wrapper: self.wrapper.clone(),
+            metadata: self.metadata.clone(),
+            plugin: module
+        }));
+
+        Ok(())
+    }
+}
+
 /// Returns error if plugin is incompatible
 pub fn compare_plugin_versions(versions: &Vec<(String, String)>) -> Result<(), PluginError> {
     let core_versions = SUPPORTED_FEATURES.clone().into_iter()
@@ -124,9 +148,9 @@ pub fn compare_plugin_versions(versions: &Vec<(String, String)>) -> Result<(), P
 }
 
 /// Warns about essential features
-fn warn_about_essential_features(module: &PluginProxy) {
-    let name = &module.name();
-    let features = module.metadata().used_features;
+fn warn_about_essential_features(meta: &PluginMetadata) {
+    let name = &meta.name;
+    let features = &meta.used_features;
 
     warn_for_feature(name, &features, "plugin_api");
     warn_for_feature(name, &features, "sdmodule_trait");
@@ -137,34 +161,29 @@ pub fn load_plugin<T: AsRef<OsStr>>(module_manager: Arc<ModuleManager>, socket_m
     // Loading file as a library, error if cannot load
     let wrapper: Container<PluginApi> = unsafe { Container::load(path) }?;
 
+    let wrapper = Arc::new(wrapper);
+
     // Retrieving metadata and comparing versions
     let metadata = wrapper.get_metadata();
     compare_plugin_versions(&metadata.used_features)?;
 
-    // Attempting to get module from the plugin
-    let module: BoxedSDModule = unsafe { Box::from_raw(wrapper.get_module()) };
-
-    // Wrapping plugin's module into a wrapper that contains loaded library
-    let proxy = PluginProxy { wrapper, metadata, plugin: module };
-
     // Warn plugin if metadata doesn't contain essential plugins
-    warn_about_essential_features(&proxy);
+    warn_about_essential_features(&metadata);
 
     // Adding module if it wasn't defined before
-    if module_manager.get_module(&proxy.name()).is_none() {
-        for component in proxy.components().keys() {
-            if module_manager.get_component(component).is_some() {
-                return Err(PluginError::ComponentConflict(proxy.name(), component.to_string()))
-            }
-        }
+    if module_manager.get_module(&metadata.name).is_none() {
+        let plugin_manager = Arc::new(PluginModuleManager {
+            module_manager,
+            metadata: metadata.clone(),
+            wrapper
+        });
 
         // Calling register after all checks were done
-        proxy.wrapper.register(socket_manager, render_manager, module_manager.clone());
+        plugin_manager.wrapper.register(socket_manager, render_manager, plugin_manager.clone());
 
-        module_manager.add_module(Arc::new(Box::new(proxy)));
         Ok(())
     } else {
-        Err(PluginError::AlreadyExists(proxy.name()))
+        Err(PluginError::AlreadyExists(metadata.name))
     }
 }
 

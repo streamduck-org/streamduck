@@ -67,7 +67,7 @@ fn main() {
     let core_manager = CoreManager::new(module_manager.clone(), render_manager.clone(), socket_manager.clone(), config.clone());
 
     // Adding daemon listener
-    socket_manager.add_listener(Box::new(DaemonListener {
+    socket_manager.add_listener(Arc::new(DaemonListener {
         core_manager: core_manager.clone(),
         module_manager: module_manager.clone(),
         config: config.clone(),

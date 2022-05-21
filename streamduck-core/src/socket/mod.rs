@@ -13,7 +13,7 @@ use crate::modules::events::SDGlobalEvent;
 pub type SocketHandle<'a> = &'a mut dyn Write;
 
 /// Boxed socket listener
-pub type BoxedSocketListener = Box<dyn SocketListener + Send + Sync>;
+pub type UniqueSocketListener = Arc<dyn SocketListener + Send + Sync>;
 
 /// Socket packet
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -131,7 +131,7 @@ impl From<std::io::Error> for SocketError {
 
 /// Manager of socket listeners
 pub struct SocketManager {
-    listeners: RwLock<Vec<BoxedSocketListener>>,
+    listeners: RwLock<Vec<UniqueSocketListener>>,
     pools: RwLock<Vec<Arc<SocketPool>>>
 }
 
@@ -145,7 +145,7 @@ impl SocketManager {
     }
 
     /// Adds socket listener to manager
-    pub fn add_listener(&self, listener: BoxedSocketListener) {
+    pub fn add_listener(&self, listener: UniqueSocketListener) {
         self.listeners.write().unwrap().push(listener);
     }
 

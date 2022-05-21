@@ -18,7 +18,7 @@ use crate::key_sequence::{KeyAction, KeySequenceComponent};
 use crate::run_command::RunCommandComponent;
 
 pub fn init_module(module_manager: &Arc<ModuleManager>) {
-    module_manager.add_module(Arc::new(Box::new(ActionsModule::new() )));
+    module_manager.add_module(Arc::new(ActionsModule::new() ));
 }
 
 

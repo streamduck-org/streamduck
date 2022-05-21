@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::ops::{DerefMut};
 use std::sync::{Arc, LockResult, MutexGuard};
 use std::thread::spawn;
-use image::{DynamicImage};
+use image::{DynamicImage, Rgba};
 use serde_json::{Map, Value};
 use crate::core::{ButtonPanel, UniqueButton};
 use crate::{Config, ModuleManager, SDCore, SocketManager};
@@ -16,6 +16,7 @@ use crate::modules::components::{UIPathValue, UIValue};
 use crate::socket::send_event_to_socket;
 use crate::thread::DeviceThreadCommunication;
 use crate::thread::rendering::{draw_background, draw_custom_renderer_texture, draw_foreground, draw_missing_texture, RendererComponent};
+use crate::thread::util::image_from_solid;
 use crate::versions::SUPPORTED_FEATURES;
 
 /// Handle that's given out to a module to perform actions on the core
@@ -579,6 +580,7 @@ impl CoreHandle {
     pub fn get_button_images(&self) -> Option<HashMap<u8, DynamicImage>> {
         let missing = draw_missing_texture(self.core.image_size);
         let custom = draw_custom_renderer_texture(self.core.image_size);
+        let blank = image_from_solid(self.core.image_size, Rgba([0, 0, 0, 255]));
 
         let panel = self.get_current_screen()?;
         let current_screen = panel.read().unwrap();
@@ -620,7 +622,7 @@ impl CoreHandle {
 
                     Some((key, image))
                 } else {
-                    None
+                    Some((key, blank.clone()))
                 }
             })
             .collect())
@@ -630,6 +632,7 @@ impl CoreHandle {
     pub fn get_button_image(&self, key: u8) -> Option<DynamicImage> {
         let missing = draw_missing_texture(self.core.image_size);
         let custom = draw_custom_renderer_texture(self.core.image_size);
+        let blank = image_from_solid(self.core.image_size, Rgba([0, 0, 0, 255]));
 
         let button = self.get_button(key)?;
         let renderers = self.core.render_manager.read_renderers();
@@ -666,7 +669,7 @@ impl CoreHandle {
 
             Some(image)
         } else {
-            None
+            Some(blank)
         }
     }
 
