@@ -214,6 +214,44 @@ impl DaemonRequest for RemoveDevice {
     }
 }
 
+/// Request for getting device's current brightness
+#[derive(Serialize, Deserialize)]
+pub struct GetBrightness {
+    pub serial_number: String,
+}
+
+/// Response of [GetBrightness] request
+#[derive(Serialize, Deserialize)]
+pub enum GetBrightnessResult {
+    /// Sent if device wasn't found
+    DeviceNotFound,
+
+    /// Sent if brightness was successfully set
+    Brightness(u8),
+}
+
+impl SocketData for GetBrightness {
+    const NAME: &'static str = "get_brightness";
+}
+
+impl SocketData for GetBrightnessResult {
+    const NAME: &'static str = "get_brightness";
+}
+
+impl DaemonRequest for GetBrightness {
+    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+        if let Ok(request) = parse_packet_to_data::<GetBrightness>(packet) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+                let brightness = device.core.device_config.read().unwrap().brightness;
+
+                send_packet(handle, packet, &GetBrightnessResult::Brightness(brightness)).ok();
+            } else {
+                send_packet(handle, packet, &GetBrightnessResult::DeviceNotFound).ok();
+            }
+        }
+    }
+}
+
 /// Request for setting device's brightness
 #[derive(Serialize, Deserialize)]
 pub struct SetBrightness {

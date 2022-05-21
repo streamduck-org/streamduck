@@ -18,7 +18,7 @@ use streamduck_core::core::button::Button;
 use crate::daemon_data::assets::{AddImage, ListFonts, ListImages, RemoveImage};
 use crate::daemon_data::buttons::{AddComponent, AddComponentValue, ClearButton, ClipboardStatusResult, CopyButton, GetButton, GetComponentValues, NewButton, NewButtonFromComponent, PasteButton, RemoveComponent, RemoveComponentValue, SetButton, SetComponentValue};
 use crate::daemon_data::config::{ExportDeviceConfig, GetDeviceConfig, ImportDeviceConfig, ReloadDeviceConfig, ReloadDeviceConfigsResult, SaveDeviceConfig, SaveDeviceConfigsResult};
-use crate::daemon_data::devices::{AddDevice, GetDevice, ListDevices, RemoveDevice, SetBrightness};
+use crate::daemon_data::devices::{AddDevice, GetBrightness, GetDevice, ListDevices, RemoveDevice, SetBrightness};
 use crate::daemon_data::modules::{AddModuleValue, GetModuleValues, ListComponents, ListModules, RemoveModuleValue, SetModuleValue};
 use crate::daemon_data::ops::{CommitChangesToConfig, DoButtonAction};
 use crate::daemon_data::panels::{DropStackToRoot, ForciblyPopScreen, GetButtonImage, GetButtonImages, GetCurrentScreen, GetStack, GetStackNames, PopScreen, PushScreen, ReplaceScreen, ResetStack};
@@ -53,6 +53,7 @@ impl SocketListener for DaemonListener {
         process_for_type::<ImportDeviceConfig>(self, socket, &packet);
         process_for_type::<ExportDeviceConfig>(self, socket, &packet);
 
+        process_for_type::<GetBrightness>(self, socket, &packet);
         process_for_type::<SetBrightness>(self, socket, &packet);
 
         process_for_type::<ListImages>(self, socket, &packet);
