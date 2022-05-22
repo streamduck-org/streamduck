@@ -6,7 +6,8 @@ Software for managing Stream Deck devices with folders and actions
 
 *Project that will perhaps be better than streamdeck-ui*
 
-### Currently in heavy development, and is not user-ready
+### Currently in beta, expect bugs!
+You can get started here: [docs.streamduck.org](https://docs.streamduck.org)
 
 # Features
 ## Currently supported:
