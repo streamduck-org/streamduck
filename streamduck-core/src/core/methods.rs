@@ -13,6 +13,7 @@ use crate::core::button::{Button, parse_unique_button_to_component};
 use crate::modules::events::{core_event_to_global, SDCoreEvent};
 use crate::modules::{features_to_vec, UniqueSDModule};
 use crate::modules::components::{UIPathValue, UIValue};
+use crate::modules::core_module::CoreSettings;
 use crate::socket::send_event_to_socket;
 use crate::thread::DeviceThreadCommunication;
 use crate::thread::rendering::{draw_background, draw_custom_renderer_texture, draw_foreground, draw_missing_texture, RendererComponent};
@@ -588,12 +589,15 @@ impl CoreHandle {
 
         let renderers = self.core.render_manager.read_renderers();
 
+        let core_settings: CoreSettings = self.core.config.get_plugin_settings().unwrap_or_default();
+
         Some(buttons.into_iter()
             .filter_map(|(key, button)| {
                 if let Ok(component) = parse_unique_button_to_component::<RendererComponent>(&button) {
                     let modules = self.module_manager().get_modules_for_rendering(&button.read().unwrap().component_names());
                     let modules = modules.into_values()
                         .filter(|x| !component.plugin_blacklist.contains(&x.name()))
+                        .filter(|x| !core_settings.renderer.plugin_blacklist.contains(&x.name()))
                         .collect::<Vec<UniqueSDModule>>();
 
                     let image = if component.renderer.is_empty() {
@@ -637,10 +641,13 @@ impl CoreHandle {
         let button = self.get_button(key)?;
         let renderers = self.core.render_manager.read_renderers();
 
+        let core_settings: CoreSettings = self.core.config.get_plugin_settings().unwrap_or_default();
+
         if let Ok(component) = parse_unique_button_to_component::<RendererComponent>(&button) {
             let modules = self.module_manager().get_modules_for_rendering(&button.read().unwrap().component_names());
             let modules = modules.into_values()
                 .filter(|x| !component.plugin_blacklist.contains(&x.name()))
+                .filter(|x| !core_settings.renderer.plugin_blacklist.contains(&x.name()))
                 .collect::<Vec<UniqueSDModule>>();
 
             let image = if component.renderer.is_empty() {

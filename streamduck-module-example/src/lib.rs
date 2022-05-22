@@ -9,6 +9,7 @@ use serde_json::{Number, Value};
 use streamduck_core::modules::components::{ComponentDefinition, map_ui_values, UIFieldType, UIFieldValue, UIScalar, UIValue};
 use streamduck_core::modules::events::SDCoreEvent;
 use streamduck_core::core::{CoreHandle, UniqueButton};
+use streamduck_core::core::manager::CoreManager;
 use streamduck_core::image::{DynamicImage, Rgba};
 use streamduck_core::images::convert_image;
 use streamduck_core::modules::plugins::PluginModuleManager;
@@ -194,6 +195,18 @@ impl SDModule for ExampleModule {
     fn listening_for(&self) -> Vec<String> {
         vec![
             "renderer".to_string()
+        ]
+    }
+
+    fn settings(&self, _: Arc<CoreManager>) -> Vec<UIValue> {
+        vec![
+            UIValue {
+                name: "test".to_string(),
+                display_name: "test".to_string(),
+                description: "".to_string(),
+                ty: UIFieldType::ExistingImage,
+                value: UIFieldValue::ExistingImage("0".to_string())
+            }
         ]
     }
 

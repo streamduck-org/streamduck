@@ -54,7 +54,7 @@ impl CoreManager {
 
         find_decks(&handle).iter()
             .filter(|(.., str)| str.is_some())
-            .filter(|(.., str)| self.get_device(str.clone().unwrap().as_str()).is_none())
+            .filter(|(.., str)| !self.is_device_added(str.as_ref().unwrap()))
             .map(|(vid, pid, serial)| (*vid, *pid, serial.clone().unwrap()))
             .collect()
     }
@@ -155,6 +155,11 @@ impl CoreManager {
         self.devices.read().unwrap().iter()
             .map(|(s, d)| (s.clone(), d.clone()))
             .collect()
+    }
+
+    /// Returns if specific device is in managed list
+    pub fn is_device_added(&self, serial: &str) -> bool {
+        self.devices.read().unwrap().contains_key(serial)
     }
 
     /// Gets device data from managed devices

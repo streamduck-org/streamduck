@@ -74,6 +74,13 @@ pub fn find_decks(hid: &HidApi) -> Vec<(u16, u16, Option<String>)> {
             d.product_id(),
             d.serial_number().map(|f| f.to_string())
         ))
+        .filter(|(_, _, s)| {
+            if let Some(s) = s {
+                return s.chars().all(|c| char::is_ascii_alphanumeric(&c));
+            }
+
+            false
+        })
         .collect()
 }
 
