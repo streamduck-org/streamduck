@@ -1,7 +1,7 @@
 [package]
 name = "streamduck-actions"
 authors = ["TheJebForge"]
-version = "0.1.4"
+version = "0.1.5"
 description = "Actions module for Streamduck project"
 edition = "2021"
 readme = "../Readme.md"
@@ -11,7 +11,7 @@ repository = "https://github.com/streamduck-org/streamduck"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-streamduck-core = {path = "../streamduck-core", version = "0.1.4"}
+streamduck-core = {path = "../streamduck-core", version = "0.1.5"}
 serde = { version = "1.0.130", features = ["derive"] }
 serde_json = "1.0.69"
 log = "0.4"
