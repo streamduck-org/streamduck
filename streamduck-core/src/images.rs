@@ -21,7 +21,21 @@ pub enum SDImage {
 }
 
 impl SDImage {
-    /// Attempts to decode base64 image to SDImage
+    /// Converts [DynamicImage] to [SDImage]
+    pub fn from_dynamic_image(image: DynamicImage, size: (usize, usize)) -> SDImage {
+        SDImage::SingleImage(
+            resize_for_streamdeck(size, image)
+        )
+    }
+
+    /// Converts [Vec<Frame>] to [SDImage]
+    pub fn from_frames(frames: Vec<Frame>, size: (usize, usize)) -> SDImage {
+        SDImage::AnimatedImage(
+            convert_frames(frames, size)
+        )
+    }
+
+    /// Attempts to decode base64 image to [SDImage]
     pub fn from_base64(image: &str, size: (usize, usize)) -> Result<SDImage, ImageDeserializationError> {
         let bytes = base64::decode(image)?;
 
