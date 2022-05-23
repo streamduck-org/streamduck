@@ -4,14 +4,13 @@ pub mod custom;
 pub mod component_values;
 
 use std::hash::{Hash, Hasher};
-use image::{DynamicImage, ImageFormat, Rgba, RgbaImage};
+use image::{DynamicImage, Rgba, RgbaImage};
 use rusttype::Scale;
 use image::imageops::{FilterType, tile};
-use streamdeck::{DeviceImage, ImageMode, StreamDeck};
+use streamdeck::{DeviceImage, StreamDeck};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::collections::hash_map::DefaultHasher;
-use std::io::Cursor;
 use std::time::Instant;
 use std::ops::Deref;
 use serde::{Serialize, Deserialize};
@@ -19,7 +18,7 @@ use serde_json::Value;
 use crate::core::button::Component;
 use crate::core::{CoreHandle, UniqueButton};
 use crate::font::get_font_from_collection;
-use crate::images::{AnimationFrame, SDImage};
+use crate::images::{AnimationFrame, convert_image, SDImage};
 use crate::modules::UniqueSDModule;
 use crate::thread::rendering::custom::DeviceReference;
 use crate::thread::util::{image_from_horiz_gradient, image_from_solid, image_from_vert_gradient, render_aligned_shadowed_text_on_image, render_aligned_text_on_image, TextAlignment};
@@ -146,14 +145,9 @@ pub fn process_frame(
                             }
 
                         } else {
-                            let mut buffer = vec![];
+                            let device_image = convert_image(&core.core.kind, draw_foreground(&component, &button, modules,frame.image.clone(), core));
 
-                            draw_foreground(&component, &button, modules,frame.image.clone(), core).rotate180().write_to(&mut Cursor::new(&mut buffer), match core.core.kind.image_mode() {
-                                ImageMode::Bmp => ImageFormat::Bmp,
-                                ImageMode::Jpeg => ImageFormat::Jpeg,
-                            }).ok();
-
-                            let arc = Arc::new(DeviceImage::from(buffer));
+                            let arc = Arc::new(device_image);
 
                             if component.to_cache {
                                 cache.insert(hash, (arc.clone(), time + 20000));
@@ -191,14 +185,9 @@ pub fn process_frame(
                     streamdeck.write_button_image(key, variant.deref()).ok();
                 }
             } else {
-                let mut buffer = vec![];
+                let device_image = convert_image(&core.core.kind, draw_foreground(&component, &button, modules, draw_background(component, core, missing), core));
 
-                draw_foreground(&component, &button, modules, draw_background(component, core, missing), core).rotate180().write_to(&mut Cursor::new(&mut buffer), match core.core.kind.image_mode() {
-                    ImageMode::Bmp => ImageFormat::Bmp,
-                    ImageMode::Jpeg => ImageFormat::Jpeg,
-                }).ok();
-
-                let arc = Arc::new(DeviceImage::from(buffer));
+                let arc = Arc::new(device_image);
 
                 if component.to_cache {
                     cache.insert(hash, (arc.clone(), time + 20000));

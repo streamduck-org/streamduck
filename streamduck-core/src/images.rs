@@ -280,7 +280,7 @@ impl From<image::ImageError> for ImageDeserializationError {
 pub fn convert_image(kind: &Kind, image: DynamicImage) -> DeviceImage {
     let mut buffer = vec![];
 
-    image.rotate180().write_to(&mut Cursor::new(&mut buffer), match kind.image_mode() {
+    image.rotate180().to_rgba8().write_to(&mut Cursor::new(&mut buffer), match kind.image_mode() {
         ImageMode::Bmp => ImageFormat::Bmp,
         ImageMode::Jpeg => ImageFormat::Jpeg,
     }).ok();

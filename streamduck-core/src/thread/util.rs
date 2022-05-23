@@ -1,15 +1,13 @@
 use serde::{Serialize, Deserialize};
 use strum_macros::{EnumVariantNames, EnumString, Display};
-use std::path::Path;
 use image::{DynamicImage, GenericImage, GenericImageView, Rgba};
 use image::imageops::{FilterType, horizontal_gradient, vertical_gradient};
-use image::io::Reader;
 use rusttype::{Font, Point, point, Scale};
 
 /// Resizes image to specified size
 pub fn resize_for_streamdeck(size: (usize, usize), image: DynamicImage) -> DynamicImage {
     let (sx, sy) = size;
-    image.resize_to_fill(sx as u32, sy as u32, FilterType::Lanczos3)
+    DynamicImage::from(image.to_rgba8()).resize_to_fill(sx as u32, sy as u32, FilterType::Lanczos3)
 }
 
 /// Generates solid color image of specified size
@@ -40,19 +38,6 @@ pub fn image_from_vert_gradient(size: (usize, usize), start: Rgba<u8>, end: Rgba
     vertical_gradient(&mut image, &start, &end);
 
     image
-}
-
-/// Loads image from provided path and resizes it to specified size
-pub fn load_image<P: AsRef<Path>>(size: (usize, usize), path: P) -> Option<DynamicImage> {
-    if let Ok(image) = Reader::open(path) {
-        if let Ok(image) = image.decode() {
-            Some(resize_for_streamdeck(size, image))
-        } else {
-            None
-        }
-    } else {
-        None
-    }
 }
 
 /// Renders text from font and parameters onto provided image
