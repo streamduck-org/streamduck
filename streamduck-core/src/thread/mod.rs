@@ -7,7 +7,7 @@ use std::io::Cursor;
 use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 use std::sync::mpsc::{channel, Sender, TryRecvError};
-use std::thread::{sleep, spawn};
+use std::thread::spawn;
 use std::time::{Duration, Instant};
 use image::{DynamicImage, ImageFormat};
 use streamdeck::{Colour, DeviceImage, ImageMode, StreamDeck};
@@ -79,42 +79,6 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
         loop {
             if core.core.is_closed() {
                 break;
-            }
-
-            // Reading buttons
-            match streamdeck.read_buttons(None) {
-                Ok(buttons) => {
-                    for (key, value) in buttons.iter().enumerate() {
-                        if let Some(last_value) = last_buttons.get(key) {
-                            if last_value != value {
-                                if key_tx.send((key as u8, *last_value == 0)).is_err() {
-                                    log::error!("Key Handler thread crashed, killing connection...");
-                                    core.core.close();
-                                }
-                            }
-                        } else {
-                            if *value > 0 {
-                                if key_tx.send((key as u8, true)).is_err() {
-                                    log::error!("Key Handler thread crashed, killing connection...");
-                                    core.core.close();
-                                }
-                            }
-                        }
-                    }
-                    last_buttons = buttons;
-                }
-                Err(err) => {
-                    match err {
-                        streamdeck::Error::NoData => {}
-                        streamdeck::Error::Hid(_) => {
-                            log::trace!("hid connection failed");
-                            core.core.close()
-                        }
-                        _ => {
-                            panic!("Error on streamdeck thread: {:?}", err);
-                        }
-                    }
-                }
             }
 
             // Reading commands
@@ -207,10 +171,45 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
             // Rate limiter
             let rate = 1.0 / core.core.pool_rate as f32;
             let time_since_last = last_iter.elapsed().as_secs_f32();
+            let to_wait = match rate - time_since_last {
+                n if n < 0.0 => None,
+                n => Some(Duration::from_secs_f32(n)),
+            };
 
-            let to_wait = rate - time_since_last;
-            if to_wait > 0.0 {
-                sleep(Duration::from_secs_f32(to_wait));
+            // Reading buttons
+            match streamdeck.read_buttons(to_wait) {
+                Ok(buttons) => {
+                    for (key, value) in buttons.iter().enumerate() {
+                        if let Some(last_value) = last_buttons.get(key) {
+                            if last_value != value {
+                                if key_tx.send((key as u8, *last_value == 0)).is_err() {
+                                    log::error!("Key Handler thread crashed, killing connection...");
+                                    core.core.close();
+                                }
+                            }
+                        } else {
+                            if *value > 0 {
+                                if key_tx.send((key as u8, true)).is_err() {
+                                    log::error!("Key Handler thread crashed, killing connection...");
+                                    core.core.close();
+                                }
+                            }
+                        }
+                    }
+                    last_buttons = buttons;
+                }
+                Err(err) => {
+                    match err {
+                        streamdeck::Error::NoData => {}
+                        streamdeck::Error::Hid(_) => {
+                            log::trace!("hid connection failed");
+                            core.core.close()
+                        }
+                        _ => {
+                            panic!("Error on streamdeck thread: {:?}", err);
+                        }
+                    }
+                }
             }
 
             last_iter = Instant::now();
