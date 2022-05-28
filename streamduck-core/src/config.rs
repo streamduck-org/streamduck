@@ -15,7 +15,7 @@ use crate::images::{SDImage, SDSerializedImage};
 use crate::util::{hash_image, hash_str};
 use crate::thread::util::resize_for_streamdeck;
 
-pub const DEFAULT_POOL_RATE: u32 = 100;
+pub const DEFAULT_FRAME_RATE: u32 = 100;
 pub const DEFAULT_RECONNECT_TIME: f32 = 1.0;
 pub const DEFAULT_CONFIG_PATH: &'static str = "devices";
 pub const DEFAULT_PLUGIN_PATH: &'static str = "plugins";
@@ -27,8 +27,8 @@ pub type UniqueDeviceConfig = Arc<RwLock<DeviceConfig>>;
 /// Struct to keep daemon settings
 #[derive(Serialize, Deserialize, Default)]
 pub struct Config {
-    /// Frequency of streamdeck event pooling
-    pool_rate: Option<u32>,
+    /// Frame rate
+    frame_rate: Option<u32>,
     /// Frequency of checks for disconnected devices
     reconnect_rate: Option<f32>,
     /// Path to device configs
@@ -69,9 +69,9 @@ impl Config {
         config
     }
 
-    /// Pool rate, defaults to [DEFAULT_POOL_RATE] if not set
-    pub fn pool_rate(&self) -> u32 {
-        self.pool_rate.unwrap_or(DEFAULT_POOL_RATE)
+    /// Pool rate, defaults to [DEFAULT_FRAME_RATE] if not set
+    pub fn frame_rate(&self) -> u32 {
+        self.frame_rate.unwrap_or(DEFAULT_FRAME_RATE)
     }
 
     /// Reconnect rate, defaults to [DEFAULT_RECONNECT_TIME] if not set

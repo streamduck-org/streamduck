@@ -169,7 +169,7 @@ pub fn spawn_device_thread(core: Arc<SDCore>, streamdeck: StreamDeck, key_tx: Se
             last_time = time;
 
             // Rate limiter
-            let rate = 1.0 / core.core.pool_rate as f32;
+            let rate = 1.0 / core.core.frame_rate as f32;
             let time_since_last = last_iter.elapsed().as_secs_f32();
             let to_wait = match rate - time_since_last {
                 n if n < 0.0 => None,

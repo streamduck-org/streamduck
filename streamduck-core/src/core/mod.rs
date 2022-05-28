@@ -114,7 +114,7 @@ pub struct SDCore {
     pub key_count: u8,
 
     /// Pool rate of how often should the core read events from the device
-    pub pool_rate: u32,
+    pub frame_rate: u32,
 
     /// Decides if core is dead
     pub should_close: RwLock<bool>,
@@ -139,13 +139,13 @@ impl SDCore {
             image_collection,
             kind: Kind::Original,
             key_count: 0,
-            pool_rate: 0,
+            frame_rate: 0,
             should_close: RwLock::new(true)
         })
     }
 
     /// Creates an instance of the core over existing streamdeck connection
-    pub fn new(module_manager: Arc<ModuleManager>, render_manager: Arc<RenderingManager>, socket_manager: Arc<SocketManager>, config: Arc<Config>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, mut connection: StreamDeck, pool_rate: u32) -> (Arc<SDCore>, KeyHandler) {
+    pub fn new(module_manager: Arc<ModuleManager>, render_manager: Arc<RenderingManager>, socket_manager: Arc<SocketManager>, config: Arc<Config>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, mut connection: StreamDeck, frame_rate: u32) -> (Arc<SDCore>, KeyHandler) {
         let (key_tx, key_rx) = channel();
 
         let serial_number = connection.serial().unwrap_or_else(|_| device_config.read().unwrap().serial.to_string());
@@ -167,7 +167,7 @@ impl SDCore {
             image_collection,
             kind: connection.kind(),
             key_count: connection.kind().keys(),
-            pool_rate,
+            frame_rate,
             should_close: RwLock::new(false)
         });
 

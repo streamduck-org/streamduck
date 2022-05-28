@@ -102,7 +102,7 @@ impl CoreManager {
             self.config.get_device_config(serial).unwrap()
         };
 
-        if let Ok((core, handler)) = connect(self.module_manager.clone(), self.render_manager.clone(), self.socket_manager.clone(), self.config.clone(), config.clone(), collection,&hid_handle, vid, pid, serial, self.config.pool_rate()) {
+        if let Ok((core, handler)) = connect(self.module_manager.clone(), self.render_manager.clone(), self.socket_manager.clone(), self.config.clone(), config.clone(), collection,&hid_handle, vid, pid, serial, self.config.frame_rate()) {
             spawn(move || {
                 handler.run_loop();
                 log::trace!("key handler closed");
