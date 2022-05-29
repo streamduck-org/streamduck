@@ -104,7 +104,7 @@
                     <Component Id="auto_start_daemon" Guid="1369EAB1-B3D0-4B5E-A52F-1D3E77110D0B">
                         <RegistryValue Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\streamduck_daemon.exe" Type="string" Name="@" Value="[!exe0]" />
                         <RegistryValue Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\streamduck_daemon.exe" Type="string" Name="Path" Value="[APPLICATIONFOLDER]" />
-                        <RegistryValue Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run" Name="Streamduck" Type="string" Value="[!exe0]" />
+                        <RegistryValue Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run" Name="Streamduck" Type="string" Value='cmd /c start /d "[APPLICATIONFOLDER]" streamduck_daemon' />
                     </Component>
 
                     <!--
@@ -143,7 +143,6 @@
                         <CreateFolder>
                               <Permission User="Everyone" GenericAll="yes" ChangePermission="yes"/>
                         </CreateFolder>
-                        <RemoveFile Id="PurgeAppFolder" Name="*.*" On="uninstall"/>
                     </Component>
                     <Component Id='binary1' Guid='8A46D189-C6EC-4FE4-A618-09FD41056826'>
                         <File
