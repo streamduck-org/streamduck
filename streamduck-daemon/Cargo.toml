@@ -5,7 +5,7 @@ version = "0.1.5"
 description = "Daemon of the Streamduck project"
 edition = "2021"
 readme = "../Readme.md"
-license-file = "../LICENSE"
+license = "LGPL-2.1-only"
 repository = "https://github.com/streamduck-org/streamduck"
 
 [lib]
@@ -31,3 +31,6 @@ strum_macros = "0.23"
 
 [target.'cfg(windows)'.dependencies]
 named_pipe = "0.4.1"
+
+[package.metadata.wix]
+name = "Streamduck"

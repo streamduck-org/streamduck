@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 #[cfg(target_family = "unix")]
 mod unix;
 #[cfg(target_family = "windows")]
@@ -5,7 +7,7 @@ mod windows;
 
 use std::sync::{Arc, Mutex};
 use std::thread::spawn;
-use flexi_logger::{DeferredNow, Logger, LogSpecification, style, TS_DASHES_BLANK_COLONS_DOT_BLANK};
+use flexi_logger::{DeferredNow, FileSpec, Logger, LogSpecification, style, TS_DASHES_BLANK_COLONS_DOT_BLANK};
 use log::{LevelFilter, Record};
 use streamduck_core::font::{load_default_font, load_fonts_from_resources};
 use streamduck_core::modules::{load_base_modules, ModuleManager};
@@ -38,6 +40,7 @@ fn main() {
         .module("streamdeck", LevelFilter::Off);
 
     Logger::with(builder.build())
+        .log_to_file(FileSpec::default().suppress_timestamp().basename("streamduck-daemon"))
         .format(logging_format)
         .start().unwrap();
 
