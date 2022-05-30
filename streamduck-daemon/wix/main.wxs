@@ -126,7 +126,7 @@
                         <Environment
                             Id='PATH'
                             Name='PATH'
-                            Value='[ApplicationFolder]'
+                            Value='[APPLICATIONFOLDER]'
                             Permanent='no'
                             Part='last'
                             Action='set'
