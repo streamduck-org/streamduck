@@ -41,6 +41,7 @@ fn main() {
 
     Logger::with(builder.build())
         .log_to_file(FileSpec::default().suppress_timestamp().basename("streamduck-daemon"))
+        .log_to_stdout()
         .format(logging_format)
         .start().unwrap();
 

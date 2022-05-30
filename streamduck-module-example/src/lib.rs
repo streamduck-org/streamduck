@@ -49,8 +49,8 @@ pub fn register(socket_manager: Arc<SocketManager>, render_manager: Arc<Renderin
 pub struct ExampleListener;
 
 impl SocketListener for ExampleListener {
-    fn message(&self, _socket: SocketHandle, packet: SocketPacket) {
-        println!("packet: {:?}", packet)
+    fn message(&self, _socket: SocketHandle, _packet: SocketPacket) {
+        //println!("packet: {:?}", packet)
     }
 }
 
