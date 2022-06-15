@@ -50,8 +50,9 @@ pub fn print_table_with_strings(table: Vec<Vec<String>>, first_separator: &str, 
 
 pub fn parse_string_to_value<T>(value: &str, ty: &UIFieldType) -> Option<UIFieldValue<T>> {
     match ty {
-        UIFieldType::Header => None,
-        UIFieldType::Label => None,
+        UIFieldType::Header |
+        UIFieldType::Label |
+        UIFieldType::ImagePreview => None,
 
         UIFieldType::InputFieldFloat => {
             if let Ok(value) = value.parse::<f32>() {
@@ -172,6 +173,14 @@ pub fn parse_string_to_value<T>(value: &str, ty: &UIFieldType) -> Option<UIField
 
         UIFieldType::Font => {
             Some(UIFieldValue::Font(value.to_string()))
+        }
+
+        UIFieldType::Button { disabled } => {
+            if *disabled {
+                None
+            } else {
+                Some(UIFieldValue::Button)
+            }
         }
     }
 }
