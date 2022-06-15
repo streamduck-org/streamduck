@@ -277,10 +277,12 @@ pub fn set_value_function(value: UIPathValue) -> Box<dyn Fn(&mut UIValue) -> boo
 
     Box::new(move |x| {
         match &x.ty {
-            UIFieldType::Header => false,
-            UIFieldType::Label => false,
-            UIFieldType::Collapsable => false,
-            UIFieldType::Array(_) => false,
+            UIFieldType::Header |
+            UIFieldType::Label |
+            UIFieldType::Collapsable |
+            UIFieldType::Array(_) |
+            UIFieldType::Button { .. } |
+            UIFieldType::ImagePreview => false,
 
             UIFieldType::Choice(variants) => {
                 if let Ok(variant) = value.value.try_into_string() {

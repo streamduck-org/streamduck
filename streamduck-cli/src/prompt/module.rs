@@ -2,6 +2,7 @@ use std::str::Split;
 use streamduck_client::daemon::daemon_data::modules::{AddModuleValueResult, GetModuleValuesResult, RemoveModuleValueResult, SetModuleValueResult};
 use streamduck_core::modules::components::{map_ui_path_values, UIFieldType, UIFieldValue, UIPathValue};
 use crate::prompt::ClientRef;
+use crate::prompt::images::show_image;
 use crate::prompt::utils::{parse_string_to_value, print_table};
 
 pub fn list_modules(client: ClientRef) {
@@ -283,17 +284,29 @@ pub fn module_list_params(client: ClientRef, mut args: Split<&str>) {
                                     println!();
                                 }
                             }
-                            UIFieldValue::ImageData(data) => {
+
+                            UIFieldValue::ImageData(img) => {
                                 println!("{}Type: ImageData", tabs);
-                                println!("{}Data: {}", tabs, data);
+                                show_image(img, 40);
                             }
+
                             UIFieldValue::ExistingImage(identifier) => {
                                 println!("{}Type: ExistingImage", tabs);
                                 println!("{}Identifier: {}", tabs, identifier);
                             }
+
                             UIFieldValue::Font(font) => {
                                 println!("{}Type: Font", tabs);
                                 println!("{}Font Name: {}", tabs, font);
+                            }
+
+                            UIFieldValue::Button => {
+                                println!("{}Type: Button", tabs);
+                            }
+
+                            UIFieldValue::ImagePreview(img) => {
+                                println!("{}Type: ImagePreview", tabs);
+                                show_image(img, 40);
                             }
                         }
 
