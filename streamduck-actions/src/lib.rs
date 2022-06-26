@@ -14,11 +14,12 @@ use streamduck_core::modules::events::SDCoreEvent;
 use streamduck_core::modules::{ModuleManager, PluginMetadata, SDModule};
 use streamduck_core::util::straight_copy;
 use streamduck_core::versions::{CORE, CORE_EVENTS};
+use streamduck_core::async_trait;
 use crate::key_sequence::{KeyAction, KeySequenceComponent};
 use crate::run_command::RunCommandComponent;
 
-pub fn init_module(module_manager: &Arc<ModuleManager>) {
-    module_manager.add_module(Arc::new(ActionsModule::new() ));
+pub async fn init_module(module_manager: &Arc<ModuleManager>) {
+    module_manager.add_module(Arc::new(ActionsModule::new() )).await;
 }
 
 
@@ -66,6 +67,7 @@ impl ActionsModule {
     }
 }
 
+#[async_trait]
 impl SDModule for ActionsModule {
     fn name(&self) -> String {
         "core/actions".to_string()
@@ -80,7 +82,7 @@ impl SDModule for ActionsModule {
         map
     }
 
-    fn add_component(&self, _: CoreHandle, button: &mut Button, name: &str) {
+    async fn add_component(&self, _: CoreHandle, button: &mut Button, name: &str) {
         match name {
             RunCommandComponent::NAME => {
                 button.insert_component(RunCommandComponent::default()).ok();
@@ -94,7 +96,7 @@ impl SDModule for ActionsModule {
         }
     }
 
-    fn remove_component(&self, _: CoreHandle, button: &mut Button, name: &str) {
+    async fn remove_component(&self, _: CoreHandle, button: &mut Button, name: &str) {
         match name {
             RunCommandComponent::NAME => {
                 button.remove_component::<RunCommandComponent>();
@@ -108,12 +110,12 @@ impl SDModule for ActionsModule {
         }
     }
 
-    fn paste_component(&self, _: CoreHandle, reference_button: &Button, new_button: &mut Button) {
+    async fn paste_component(&self, _: CoreHandle, reference_button: &Button, new_button: &mut Button) {
         straight_copy(reference_button, new_button, RunCommandComponent::NAME);
         straight_copy(reference_button, new_button, KeySequenceComponent::NAME);
     }
 
-    fn component_values(&self, _: CoreHandle, button: &Button, name: &str) -> Vec<UIValue> {
+    async fn component_values(&self, _: CoreHandle, button: &Button, name: &str) -> Vec<UIValue> {
         match name {
             RunCommandComponent::NAME => {
                 run_command::get_values(button)
@@ -127,7 +129,7 @@ impl SDModule for ActionsModule {
         }
     }
 
-    fn set_component_value(&self, _: CoreHandle, button: &mut Button, name: &str, value: Vec<UIValue>) {
+    async fn set_component_value(&self, _: CoreHandle, button: &mut Button, name: &str, value: Vec<UIValue>) {
         match name {
             RunCommandComponent::NAME => {
                 run_command::set_values(button, value)
@@ -148,11 +150,11 @@ impl SDModule for ActionsModule {
         ]
     }
 
-    fn event(&self, _: CoreHandle, event: SDCoreEvent) {
+    async fn event(&self, _: CoreHandle, event: SDCoreEvent) {
         match event {
             SDCoreEvent::ButtonAction { pressed_button, .. } => {
-                run_command::action(&pressed_button);
-                key_sequence::action(&pressed_button, &self.key_transmitter);
+                run_command::action(&pressed_button).await;
+                key_sequence::action(&pressed_button, &self.key_transmitter).await;
             }
 
             _ => {}

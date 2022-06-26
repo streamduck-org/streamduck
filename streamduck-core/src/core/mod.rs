@@ -6,15 +6,16 @@ mod methods;
 pub mod manager;
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock};
-use std::sync::mpsc::{channel, Receiver};
+use std::sync::{Arc};
 use streamdeck::{Kind, StreamDeck};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tokio::sync::mpsc::unbounded_channel;
+use tokio::sync::{Mutex, RwLock};
 use crate::config::{Config, UniqueDeviceConfig};
 use crate::core::button::Button;
 use crate::thread::{DeviceThreadCommunication, DeviceThreadHandle, spawn_device_thread};
-use crate::ImageCollection;
+use crate::{ImageCollection};
 use crate::modules::events::SDGlobalEvent;
 use crate::modules::ModuleManager;
 use crate::socket::{send_event_to_socket, SocketManager};
@@ -124,8 +125,8 @@ pub struct SDCore {
 
 impl SDCore {
     /// Creates an instance of core that is already dead
-    pub fn blank(module_manager: Arc<ModuleManager>, render_manager: Arc<RenderingManager>, socket_manager: Arc<SocketManager>, config: Arc<Config>, device_config: UniqueDeviceConfig, image_collection: ImageCollection) -> Arc<SDCore> {
-        let serial_number = device_config.read().unwrap().serial.to_string();
+    pub async fn blank(module_manager: Arc<ModuleManager>, render_manager: Arc<RenderingManager>, socket_manager: Arc<SocketManager>, config: Arc<Config>, device_config: UniqueDeviceConfig, image_collection: ImageCollection) -> Arc<SDCore> {
+        let serial_number = device_config.read().await.serial.to_string();
         Arc::new(SDCore {
             serial_number,
             module_manager,
@@ -145,14 +146,15 @@ impl SDCore {
     }
 
     /// Creates an instance of the core over existing streamdeck connection
-    pub fn new(module_manager: Arc<ModuleManager>, render_manager: Arc<RenderingManager>, socket_manager: Arc<SocketManager>, config: Arc<Config>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, mut connection: StreamDeck, frame_rate: u32) -> (Arc<SDCore>, KeyHandler) {
-        let (key_tx, key_rx) = channel();
+    pub async fn new(module_manager: Arc<ModuleManager>, render_manager: Arc<RenderingManager>, socket_manager: Arc<SocketManager>, config: Arc<Config>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, mut connection: StreamDeck, frame_rate: u32) -> Arc<SDCore> {
+        let (key_tx, mut key_rx) = unbounded_channel();
 
-        let serial_number = connection.serial().unwrap_or_else(|_| device_config.read().unwrap().serial.to_string());
+        let serial_number = device_config.read().await.serial.to_string();
+        let serial_number = connection.serial().unwrap_or_else(|_| serial_number);
 
         send_event_to_socket(&socket_manager, SDGlobalEvent::DeviceConnected {
             serial_number: serial_number.clone()
-        });
+        }).await;
 
         let core = Arc::new(SDCore {
             serial_number,
@@ -173,82 +175,69 @@ impl SDCore {
 
         let renderer = spawn_device_thread(core.clone(), connection, key_tx);
 
-        if let Ok(mut handles) = core.handles.lock() {
-            *handles = Some(
-                ThreadHandles {
-                    renderer
-                }
-            )
-        }
+        *core.handles.lock().await = Some(
+            ThreadHandles {
+                renderer
+            }
+        );
 
-        (core.clone(), KeyHandler {
-            core: CoreHandle::wrap(core.clone()),
-            receiver: key_rx
-        })
+        let task_core = CoreHandle::wrap(core.clone());
+        tokio::spawn(async move {
+            loop {
+                if task_core.core().is_closed().await {
+                    break
+                }
+
+                if let Some((key, state)) = key_rx.recv().await {
+                    if state {
+                        task_core.button_down(key).await;
+                    } else {
+                        task_core.button_up(key).await;
+                    }
+                } else {
+                    break;
+                }
+            }
+        });
+
+        core
     }
 
     /// Tells device thread to refresh screen
-    pub fn mark_for_redraw(&self) {
-        let handles = self.handles.lock().unwrap();
+    pub async fn mark_for_redraw(&self) {
+        let handles = self.handles.lock().await;
 
         handles.as_ref().unwrap().renderer.send(vec![DeviceThreadCommunication::RefreshScreen]);
     }
 
     /// Sends commands to streamdeck thread
-    pub fn send_commands(&self, commands: Vec<DeviceThreadCommunication>) {
-        let handles = self.handles.lock().unwrap();
+    pub async fn send_commands(&self, commands: Vec<DeviceThreadCommunication>) {
+        let handles = self.handles.lock().await;
 
         handles.as_ref().unwrap().renderer.send(commands);
     }
 
     /// Gets serial number of the core
-    pub fn serial_number(&self) -> String {
-        self.device_config.read().unwrap().serial.to_string()
+    pub async fn serial_number(&self) -> String {
+        self.device_config.read().await.serial.to_string()
     }
 
     /// Checks if core is supposed to be closed
-    pub fn is_closed(&self) -> bool {
-        *self.should_close.read().unwrap()
+    pub async fn is_closed(&self) -> bool {
+        *self.should_close.read().await
     }
 
     /// Kills the core and all the related threads
-    pub fn close(&self) {
+    pub async fn close(&self) {
         send_event_to_socket(&self.socket_manager, SDGlobalEvent::DeviceDisconnected {
             serial_number: self.serial_number.to_string()
-        });
+        }).await;
 
-        let mut lock = self.should_close.write().unwrap();
+        let mut lock = self.should_close.write().await;
         *lock = true;
     }
 }
 
 struct ThreadHandles {
     pub renderer: DeviceThreadHandle
-}
-
-/// Routine that acts as a middleman between streamdeck thread and the core, was made as a way to get around Sync restriction
-pub struct KeyHandler {
-    core: CoreHandle,
-    receiver: Receiver<(u8, bool)>
-}
-
-impl KeyHandler {
-    /// Runs the key handling loop in current thread
-    pub fn run_loop(&self) {
-        loop {
-            if self.core.core().is_closed() {
-                break
-            }
-
-            if let Ok((key, state)) = self.receiver.recv() {
-                if state {
-                    self.core.button_down(key);
-                } else {
-                    self.core.button_up(key);
-                }
-            } else {
-                break;
-            }
-        }
-    }
 }

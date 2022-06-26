@@ -8,7 +8,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use streamduck_core::modules::components::ComponentDefinition;
 use streamduck_core::modules::events::SDGlobalEvent;
-use streamduck_core::socket::{parse_packet_to_data, send_no_data_packet_with_requester, send_packet_with_requester, SocketData, SocketPacket};
+use streamduck_core::socket::{parse_packet_to_data, send_no_data_packet_with_requester_sync, send_packet_with_requester_sync, SocketData, SocketPacket};
 use crate::SDClientError;
 
 /// Transforms module-component map into component map, if you don't care about module names for them
@@ -57,7 +57,7 @@ pub fn process_request<Req, Res, Han>(mut handle: &mut BufReader<Han>, request: 
 {
     let id = rand::thread_rng().sample_iter(&Alphanumeric).take(20).map(char::from).collect::<String>();
 
-    send_packet_with_requester(handle.get_mut(), &id, request)?;
+    send_packet_with_requester_sync(handle.get_mut(), &id, request)?;
 
     let packet = read_response(handle.deref_mut(), &id, event_buffer)?;
 
@@ -80,7 +80,7 @@ pub fn process_request_without_data<Res, Han>(mut handle: &mut BufReader<Han>, e
 {
     let id = rand::thread_rng().sample_iter(&Alphanumeric).take(20).map(char::from).collect::<String>();
 
-    send_no_data_packet_with_requester::<Res>(handle.get_mut(), &id)?;
+    send_no_data_packet_with_requester_sync::<Res>(handle.get_mut(), &id)?;
 
     let packet = read_response(handle.deref_mut(), &id, event_buffer)?;
 

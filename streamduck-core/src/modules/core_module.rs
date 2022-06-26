@@ -22,6 +22,7 @@ pub struct CoreModule {
     pub(crate) socket_manager: Arc<SocketManager>
 }
 
+#[async_trait]
 impl SDModule for CoreModule {
     fn name(&self) -> String {
         "core".to_string()
@@ -39,7 +40,7 @@ impl SDModule for CoreModule {
         map
     }
 
-    fn add_component(&self, _: CoreHandle, button: &mut Button, name: &str) {
+    async fn add_component(&self, _: CoreHandle, button: &mut Button, name: &str) {
         match name {
             "renderer" => {
                 button.insert_component(RendererComponent::default()).ok();
@@ -48,7 +49,7 @@ impl SDModule for CoreModule {
         }
     }
 
-    fn remove_component(&self, _: CoreHandle, button: &mut Button, name: &str) {
+    async fn remove_component(&self, _: CoreHandle, button: &mut Button, name: &str) {
         match name {
             "renderer" => {
                 button.remove_component::<RendererComponent>();
@@ -57,24 +58,24 @@ impl SDModule for CoreModule {
         }
     }
 
-    fn paste_component(&self, _: CoreHandle, reference_button: &Button, new_button: &mut Button) {
+    async fn paste_component(&self, _: CoreHandle, reference_button: &Button, new_button: &mut Button) {
         straight_copy(reference_button, new_button, RendererComponent::NAME);
     }
 
-    fn component_values(&self, core: CoreHandle, button: &Button, name: &str) -> Vec<UIValue> {
+    async fn component_values(&self, core: CoreHandle, button: &Button, name: &str) -> Vec<UIValue> {
         match name {
             "renderer" => {
-                get_renderer_component_values(&core, button)
+                get_renderer_component_values(&core, button).await
             }
 
             _ => vec![],
         }
     }
 
-    fn set_component_value(&self, core: CoreHandle, button: &mut Button, name: &str, value: Vec<UIValue>) {
+    async fn set_component_value(&self, core: CoreHandle, button: &mut Button, name: &str, value: Vec<UIValue>) {
         match name {
             "renderer" => {
-                set_renderer_component_values(&core, button, value)
+                set_renderer_component_values(&core, button, value).await
             }
 
             _ => {}
@@ -85,8 +86,8 @@ impl SDModule for CoreModule {
         vec![]
     }
 
-    fn settings(&self, core_manager: Arc<CoreManager>) -> Vec<UIValue> {
-        let settings: CoreSettings = core_manager.config.get_plugin_settings().unwrap_or_default();
+    async fn settings(&self, core_manager: Arc<CoreManager>) -> Vec<UIValue> {
+        let settings: CoreSettings = core_manager.config.get_plugin_settings().await.unwrap_or_default();
 
         let mut fields = vec![];
 
@@ -106,7 +107,7 @@ impl SDModule for CoreModule {
                             description: "Disabled plugins will not appear on buttons".to_string(),
                             ty: UIFieldType::Collapsable,
                             value: UIFieldValue::Collapsable({
-                                core_manager.module_manager.get_modules()
+                                core_manager.module_manager.get_modules().await
                                     .into_values()
                                     .filter_map(|x| if check_feature_list_for_feature(&x.metadata().used_features, "rendering") {
                                         let name = x.name();
@@ -131,8 +132,8 @@ impl SDModule for CoreModule {
         fields
     }
 
-    fn set_setting(&self, core_manager: Arc<CoreManager>, value: Vec<UIValue>) {
-        let mut settings: CoreSettings = core_manager.config.get_plugin_settings().unwrap_or_default();
+    async fn set_setting(&self, core_manager: Arc<CoreManager>, value: Vec<UIValue>) {
+        let mut settings: CoreSettings = core_manager.config.get_plugin_settings().await.unwrap_or_default();
 
         let change_map = map_ui_values(value);
 
@@ -159,16 +160,16 @@ impl SDModule for CoreModule {
         }
 
         // Calling redraw for all devices
-        for device in core_manager.list_added_devices().into_values() {
-            device.core.mark_for_redraw();
+        for device in core_manager.list_added_devices().await.into_values() {
+            device.core.mark_for_redraw().await;
         }
 
-        core_manager.config.set_plugin_settings(settings);
+        core_manager.config.set_plugin_settings(settings).await;
     }
 
-    fn event(&self, core: CoreHandle, event: SDCoreEvent) {
-        let global_event = core_event_to_global(event, &core.core.serial_number());
-        send_event_to_socket(&self.socket_manager, global_event);
+    async fn event(&self, core: CoreHandle, event: SDCoreEvent) {
+        let global_event = core_event_to_global(event, &core.core.serial_number().await).await;
+        send_event_to_socket(&self.socket_manager, global_event).await;
     }
 
     fn metadata(&self) -> PluginMetadata {

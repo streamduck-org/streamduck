@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use streamduck_core::core::CoreHandle;
 use streamduck_core::socket::{parse_packet_to_data, send_packet, SocketData, SocketHandle, SocketPacket};
 use crate::daemon_data::{DaemonListener, DaemonRequest};
+use streamduck_core::async_trait;
 
 /// Request for committing all changes of the stack to device config
 #[derive(Serialize, Deserialize)]
@@ -28,16 +29,17 @@ impl SocketData for CommitChangesToConfigResult {
     const NAME: &'static str = "commit_changes";
 }
 
+#[async_trait]
 impl DaemonRequest for CommitChangesToConfig {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<CommitChangesToConfig>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                wrapped_core.commit_changes();
-                send_packet(handle, packet, &CommitChangesToConfigResult::Committed).ok();
+                wrapped_core.commit_changes().await;
+                send_packet(handle, packet, &CommitChangesToConfigResult::Committed).await.ok();
             } else {
-                send_packet(handle, packet, &CommitChangesToConfigResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &CommitChangesToConfigResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -68,16 +70,17 @@ impl SocketData for DoButtonActionResult {
     const NAME: &'static str = "do_button_action";
 }
 
+#[async_trait]
 impl DaemonRequest for DoButtonAction {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<DoButtonAction>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                wrapped_core.button_action(request.key);
-                send_packet(handle, packet, &DoButtonActionResult::Activated).ok();
+                wrapped_core.button_action(request.key).await;
+                send_packet(handle, packet, &DoButtonActionResult::Activated).await.ok();
             } else {
-                send_packet(handle, packet, &DoButtonActionResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &DoButtonActionResult::DeviceNotFound).await.ok();
             }
         }
     }

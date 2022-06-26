@@ -79,7 +79,7 @@ impl AnimationCounter {
 }
 
 /// Rendering code that's being called every loop
-pub fn process_frame(
+pub async fn process_frame(
     core: &CoreHandle,
     streamdeck: &mut StreamDeck,
     cache: &mut HashMap<u64, (Arc<DeviceImage>, u64)>,
@@ -94,11 +94,11 @@ pub fn process_frame(
         if let Some((component, button, modules)) = renderer_map.get(&key) {
             if !component.renderer.is_empty() {
                 // Custom renderer detected
-                let lock = core.core.render_manager.read_renderers();
+                let lock = core.core.render_manager.read_renderers().await;
 
                 if let Some(renderer) = lock.get(&component.renderer) {
                     // Stopping any further process if custom renderer is found
-                    renderer.render(key, button, core, &mut DeviceReference::new(streamdeck, key));
+                    renderer.render(key, button, core, &mut DeviceReference::new(streamdeck, key)).await;
                     previous_state.insert(key, 1);
                     continue;
                 }
@@ -109,7 +109,7 @@ pub fn process_frame(
                 let counter = if let Some(counter) = counters.get_mut(identifier) {
                     Some(counter)
                 } else {
-                    if let Some(SDImage::AnimatedImage(frames)) = core.core.image_collection.read().unwrap().get(identifier).cloned() {
+                    if let Some(SDImage::AnimatedImage(frames)) = core.core.image_collection.read().await.get(identifier).cloned() {
                         let counter = AnimationCounter::new(frames);
                         counters.insert(identifier.clone(), counter);
                         Some(counters.get_mut(identifier).unwrap())
@@ -145,7 +145,7 @@ pub fn process_frame(
                             }
 
                         } else {
-                            let device_image = convert_image(&core.core.kind, draw_foreground(&component, &button, modules,frame.image.clone(), core));
+                            let device_image = convert_image(&core.core.kind, draw_foreground(&component, &button, modules,frame.image.clone(), core).await);
 
                             let arc = Arc::new(device_image);
 
@@ -185,7 +185,7 @@ pub fn process_frame(
                     streamdeck.write_button_image(key, variant.deref()).ok();
                 }
             } else {
-                let device_image = convert_image(&core.core.kind, draw_foreground(&component, &button, modules, draw_background(component, core, missing), core));
+                let device_image = convert_image(&core.core.kind, draw_foreground(&component, &button, modules, draw_background(component, core, missing).await, core).await);
 
                 let arc = Arc::new(device_image);
 
@@ -218,7 +218,7 @@ pub fn process_frame(
 }
 
 /// Draws background for static images
-pub fn draw_background(renderer: &RendererComponent, core: &CoreHandle, missing: &DynamicImage) -> DynamicImage {
+pub async fn draw_background(renderer: &RendererComponent, core: &CoreHandle, missing: &DynamicImage) -> DynamicImage {
     match &renderer.background {
         ButtonBackground::Solid(color) => {
             image_from_solid(core.core.image_size, Rgba([color.0, color.1, color.2, 255]))
@@ -233,7 +233,7 @@ pub fn draw_background(renderer: &RendererComponent, core: &CoreHandle, missing:
         }
 
         ButtonBackground::ExistingImage(identifier) => {
-            if let Some(image) = core.core.image_collection.read().unwrap().get(identifier) {
+            if let Some(image) = core.core.image_collection.read().await.get(identifier) {
                 match image {
                     SDImage::SingleImage(image) => {
                         image.resize_to_fill(core.core.image_size.0 as u32, core.core.image_size.1 as u32, FilterType::Triangle)
@@ -249,7 +249,7 @@ pub fn draw_background(renderer: &RendererComponent, core: &CoreHandle, missing:
         }
 
         ButtonBackground::NewImage(blob) => {
-            if let Ok(image) = SDImage::from_base64(blob, core.core.image_size) {
+            if let Ok(image) = SDImage::from_base64(blob, core.core.image_size).await {
                 image.get_image()
             } else {
                 missing.clone()
@@ -259,10 +259,10 @@ pub fn draw_background(renderer: &RendererComponent, core: &CoreHandle, missing:
 }
 
 /// Draws foreground of a button (text, plugin layers)
-pub fn draw_foreground(renderer: &RendererComponent, button: &UniqueButton, modules: &Vec<UniqueSDModule>, mut background: DynamicImage, core: &CoreHandle) -> DynamicImage {
+pub async fn draw_foreground(renderer: &RendererComponent, button: &UniqueButton, modules: &Vec<UniqueSDModule>, mut background: DynamicImage, core: &CoreHandle) -> DynamicImage {
     // Render any additional things plugins want displayed
     for module in modules {
-        module.render(core.clone_for(module), button, &mut background);
+        module.render(core.clone_for(module), button, &mut background).await;
     }
 
 

@@ -11,6 +11,7 @@ use streamduck_core::util::make_panel_unique;
 use crate::daemon_data::{DaemonListener, DaemonRequest};
 use std::io::Write;
 use streamduck_core::core::CoreHandle;
+use streamduck_core::async_trait;
 
 /// Request for reloading all device configs
 #[derive(Serialize, Deserialize)]
@@ -26,27 +27,28 @@ impl SocketData for ReloadDeviceConfigsResult {
     const NAME: &'static str = "reload_device_configs";
 }
 
+#[async_trait]
 impl DaemonRequest for ReloadDeviceConfigsResult {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+     async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if check_packet_for_data::<ReloadDeviceConfigsResult>(packet) {
-            match listener.config.reload_device_configs() {
+            match listener.config.reload_device_configs().await {
                 Ok(_) => {
-                    for (serial, device) in listener.core_manager.list_added_devices() {
-                        if !device.core.is_closed() {
-                            if let Some(dvc_cfg) = listener.config.get_device_config(&serial) {
-                                let handle = dvc_cfg.read().unwrap();
+                    for (serial, device) in listener.core_manager.list_added_devices().await {
+                        if !device.core.is_closed().await {
+                            if let Some(dvc_cfg) = listener.config.get_device_config(&serial).await {
+                                let handle = dvc_cfg.read().await;
                                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                                wrapped_core.reset_stack(make_panel_unique(handle.layout.clone()));
+                                wrapped_core.reset_stack(make_panel_unique(handle.layout.clone())).await;
                             }
                         }
                     }
 
-                    send_packet(handle, packet, &ReloadDeviceConfigsResult::Reloaded).ok();
+                    send_packet(handle, packet, &ReloadDeviceConfigsResult::Reloaded).await.ok();
                 },
                 Err(err) => {
                     log::error!("Error encountered while reloading configs: {:?}", err);
-                    send_packet(handle, packet, &ReloadDeviceConfigsResult::ConfigError).ok();
+                    send_packet(handle, packet, &ReloadDeviceConfigsResult::ConfigError).await.ok();
                 }
             };
         }
@@ -80,30 +82,31 @@ impl SocketData for ReloadDeviceConfigResult {
     const NAME: &'static str = "reload_device_config";
 }
 
+#[async_trait]
 impl DaemonRequest for ReloadDeviceConfig {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<ReloadDeviceConfig>(packet) {
-            match listener.config.reload_device_config(&request.serial_number) {
+            match listener.config.reload_device_config(&request.serial_number).await {
                 Ok(_) => {
-                    if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
-                        if !device.core.is_closed() {
-                            if let Some(dvc_cfg) = listener.config.get_device_config(&request.serial_number) {
-                                let handle = dvc_cfg.read().unwrap();
+                    if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
+                        if !device.core.is_closed().await {
+                            if let Some(dvc_cfg) = listener.config.get_device_config(&request.serial_number).await {
+                                let handle = dvc_cfg.read().await;
                                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                                wrapped_core.reset_stack(make_panel_unique(handle.layout.clone()));
+                                wrapped_core.reset_stack(make_panel_unique(handle.layout.clone())).await;
                             }
                         }
                     }
 
-                    send_packet(handle, packet, &ReloadDeviceConfigResult::Reloaded).ok();
+                    send_packet(handle, packet, &ReloadDeviceConfigResult::Reloaded).await.ok();
                 },
                 Err(err) => {
                     if let ConfigError::DeviceNotFound = err {
-                        send_packet(handle, packet, &ReloadDeviceConfigResult::DeviceNotFound).ok();
+                        send_packet(handle, packet, &ReloadDeviceConfigResult::DeviceNotFound).await.ok();
                     } else {
                         log::error!("Error encountered while reloading config for {}: {:?}", request.serial_number, err);
-                        send_packet(handle, packet, &ReloadDeviceConfigResult::ConfigError).ok();
+                        send_packet(handle, packet, &ReloadDeviceConfigResult::ConfigError).await.ok();
                     }
                 }
             }
@@ -125,16 +128,17 @@ impl SocketData for SaveDeviceConfigsResult {
     const NAME: &'static str = "save_device_configs";
 }
 
+#[async_trait]
 impl DaemonRequest for SaveDeviceConfigsResult {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if check_packet_for_data::<SaveDeviceConfigsResult>(packet) {
-            match listener.config.save_device_configs() {
+            match listener.config.save_device_configs().await {
                 Ok(_) => {
-                    send_packet(handle, packet, &SaveDeviceConfigsResult::Saved).ok();
+                    send_packet(handle, packet, &SaveDeviceConfigsResult::Saved).await.ok();
                 },
                 Err(err) => {
                     log::error!("Error encountered while saving configs: {:?}", err);
-                    send_packet(handle, packet, &SaveDeviceConfigsResult::ConfigError).ok();
+                    send_packet(handle, packet, &SaveDeviceConfigsResult::ConfigError).await.ok();
                 }
             };
         }
@@ -168,19 +172,20 @@ impl SocketData for SaveDeviceConfigResult {
     const NAME: &'static str = "save_device_config";
 }
 
+#[async_trait]
 impl DaemonRequest for SaveDeviceConfig {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<SaveDeviceConfig>(packet) {
-            match listener.config.save_device_config(&request.serial_number) {
+            match listener.config.save_device_config(&request.serial_number).await {
                 Ok(_) => {
-                    send_packet(handle, packet, &SaveDeviceConfigResult::Saved).ok();
+                    send_packet(handle, packet, &SaveDeviceConfigResult::Saved).await.ok();
                 },
                 Err(err) => {
                     if let ConfigError::DeviceNotFound = err {
-                        send_packet(handle, packet, &SaveDeviceConfigResult::DeviceNotFound).ok();
+                        send_packet(handle, packet, &SaveDeviceConfigResult::DeviceNotFound).await.ok();
                     } else {
                         log::error!("Error encountered while saving config for {}: {:?}", request.serial_number, err);
-                        send_packet(handle, packet, &SaveDeviceConfigResult::ConfigError).ok();
+                        send_packet(handle, packet, &SaveDeviceConfigResult::ConfigError).await.ok();
                     }
                 }
             }
@@ -212,14 +217,15 @@ impl SocketData for GetDeviceConfigResult {
     const NAME: &'static str = "get_device_config";
 }
 
+#[async_trait]
 impl DaemonRequest for GetDeviceConfig {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<GetDeviceConfig>(packet) {
-            if let Some(config) = listener.config.get_device_config(&request.serial_number) {
-                let config_handle = config.read().unwrap();
-                send_packet(handle, packet, &GetDeviceConfigResult::Config(config_handle.clone())).ok();
+            if let Some(config) = listener.config.get_device_config(&request.serial_number).await {
+                let config_handle = config.read().await;
+                send_packet(handle, packet, &GetDeviceConfigResult::Config(config_handle.clone())).await.ok();
             } else {
-                send_packet(handle, packet, &GetDeviceConfigResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &GetDeviceConfigResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -252,11 +258,12 @@ impl SocketData for ExportDeviceConfigResult {
     const NAME: &'static str = "export_device_config";
 }
 
+#[async_trait]
 impl DaemonRequest for ExportDeviceConfig {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<ExportDeviceConfig>(packet) {
-            if let Some(config) = listener.config.get_device_config(&request.serial_number) {
-                let config_handle = config.read().unwrap();
+            if let Some(config) = listener.config.get_device_config(&request.serial_number).await {
+                let config_handle = config.read().await;
                 let config = serde_json::to_string(config_handle.deref()).unwrap();
 
                 // Compressing data
@@ -264,12 +271,12 @@ impl DaemonRequest for ExportDeviceConfig {
                 write!(encoder, "{}", config).ok();
 
                 if let Ok(byte_array) = encoder.finish() {
-                    send_packet(handle, packet, &ExportDeviceConfigResult::Exported(base64::encode(byte_array))).ok();
+                    send_packet(handle, packet, &ExportDeviceConfigResult::Exported(base64::encode(byte_array))).await.ok();
                 } else {
-                    send_packet(handle, packet, &ExportDeviceConfigResult::FailedToCompress).ok();
+                    send_packet(handle, packet, &ExportDeviceConfigResult::FailedToCompress).await.ok();
                 }
             } else {
-                send_packet(handle, packet, &ExportDeviceConfigResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &ExportDeviceConfigResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -306,8 +313,9 @@ impl SocketData for ImportDeviceConfigResult {
     const NAME: &'static str = "import_device_config";
 }
 
+#[async_trait]
 impl DaemonRequest for ImportDeviceConfig {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<ImportDeviceConfig>(packet) {
             if let Ok(byte_array) = base64::decode(&request.config) {
                 let mut decoder = GzDecoder::new(&byte_array[..]);
@@ -315,46 +323,46 @@ impl DaemonRequest for ImportDeviceConfig {
 
                 if let Ok(_) = decoder.read_to_string(&mut config) {
                     if let Ok(mut config) = serde_json::from_str::<DeviceConfig>(&config) {
-                        if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+                        if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                             config.serial = device.serial.clone();
                             config.vid = device.vid;
                             config.pid = device.pid;
 
-                            listener.config.set_device_config(&request.serial_number, config.clone());
+                            listener.config.set_device_config(&request.serial_number, config.clone()).await;
 
-                            match listener.config.save_device_config(&request.serial_number) {
+                            match listener.config.save_device_config(&request.serial_number).await {
                                 Ok(_) => {
                                     let wrapped_core = CoreHandle::wrap(device.core);
 
-                                    wrapped_core.reset_stack(make_panel_unique(config.layout));
-                                    wrapped_core.set_brightness(config.brightness);
+                                    wrapped_core.reset_stack(make_panel_unique(config.layout)).await;
+                                    wrapped_core.set_brightness(config.brightness).await;
 
-                                    send_packet(handle, packet, &ImportDeviceConfigResult::Imported).ok();
+                                    send_packet(handle, packet, &ImportDeviceConfigResult::Imported).await.ok();
                                 }
 
                                 Err(err) => {
                                     match err {
                                         ConfigError::IoError(_) | ConfigError::ParseError(_) => {
-                                            send_packet(handle, packet, &ImportDeviceConfigResult::FailedToSave).ok();
+                                            send_packet(handle, packet, &ImportDeviceConfigResult::FailedToSave).await.ok();
                                         }
 
                                         ConfigError::DeviceNotFound => {
-                                            send_packet(handle, packet, &ImportDeviceConfigResult::DeviceNotFound).ok();
+                                            send_packet(handle, packet, &ImportDeviceConfigResult::DeviceNotFound).await.ok();
                                         }
                                     }
                                 }
                             }
                         } else {
-                            send_packet(handle, packet, &ImportDeviceConfigResult::DeviceNotFound).ok();
+                            send_packet(handle, packet, &ImportDeviceConfigResult::DeviceNotFound).await.ok();
                         }
                     } else {
-                        send_packet(handle, packet, &ImportDeviceConfigResult::InvalidConfig).ok();
+                        send_packet(handle, packet, &ImportDeviceConfigResult::InvalidConfig).await.ok();
                     }
                 } else {
-                    send_packet(handle, packet, &ImportDeviceConfigResult::InvalidConfig).ok();
+                    send_packet(handle, packet, &ImportDeviceConfigResult::InvalidConfig).await.ok();
                 }
             } else {
-                send_packet(handle, packet, &ImportDeviceConfigResult::InvalidConfig).ok();
+                send_packet(handle, packet, &ImportDeviceConfigResult::InvalidConfig).await.ok();
             }
         }
     }

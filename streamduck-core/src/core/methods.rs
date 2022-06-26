@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::ops::{DerefMut};
-use std::sync::{Arc, LockResult, MutexGuard};
-use std::thread::spawn;
+use std::sync::{Arc};
 use image::{DynamicImage, Rgba};
 use serde_json::{Map, Value};
 use crate::core::{ButtonPanel, UniqueButton};
@@ -9,6 +8,7 @@ use crate::{Config, ModuleManager, SDCore, SocketManager};
 use crate::util::{add_array_function, button_to_raw, change_from_path, convert_value_to_path, deserialize_panel, make_button_unique, panel_to_raw, remove_array_function, serialize_panel, set_value_function};
 use serde::de::Error as DeError;
 use serde_json::Error as JSONError;
+use tokio::sync::MutexGuard;
 use crate::core::button::{Button, parse_unique_button_to_component};
 use crate::modules::events::{core_event_to_global, SDCoreEvent};
 use crate::modules::{features_to_vec, UniqueSDModule};
@@ -100,37 +100,39 @@ impl CoreHandle {
     }
 
     /// Returns current stack lock
-    pub fn current_stack(&self) -> LockResult<MutexGuard<'_, Vec<ButtonPanel>>> {
+    pub async fn current_stack(&self) -> MutexGuard<'_, Vec<ButtonPanel>> {
         self.required_feature("core");
-        self.core.current_stack.lock()
+        self.core.current_stack.lock().await
     }
 
     /// Sends core event to all modules, spawns a separate thread to do it, so doesn't block current thread
-    pub fn send_core_event_to_modules<T: Iterator<Item=UniqueSDModule> + Send + 'static>(&self, event: SDCoreEvent, modules: T) {
+    pub async fn send_core_event_to_modules<T: Iterator<Item=UniqueSDModule> + Send + 'static>(&self, event: SDCoreEvent, modules: T) {
         let core = self.clone();
-        spawn(move || {
-            for module in modules {
-                if module.name() == core.module_name {
-                    continue;
-                }
-
-                module.event(core.clone_for(&module), event.clone())
+        for module in modules {
+            if module.name() == core.module_name {
+                continue;
             }
-        });
+
+            let task_core = core.clone_for(&module);
+            let task_event = event.clone();
+            tokio::spawn(async move {
+                module.event(task_core, task_event).await;
+            });
+        }
     }
 
     /// Gets current panel stack
-    pub fn get_stack(&self) -> Vec<ButtonPanel> {
+    pub async fn get_stack(&self) -> Vec<ButtonPanel> {
         self.required_feature("core_methods");
-        let stack = self.current_stack().unwrap();
+        let stack = self.current_stack().await;
 
         stack.iter().map(|x| x.clone()).collect()
     }
 
     /// Gets panel that's currently on top of the stack
-    pub fn get_current_screen(&self) -> Option<ButtonPanel> {
+    pub async fn get_current_screen(&self) -> Option<ButtonPanel> {
         self.required_feature("core_methods");
-        let stack = self.current_stack().unwrap();
+        let stack = self.current_stack().await;
 
         if let Some(screen) = stack.last() {
             Some(screen.clone())
@@ -140,10 +142,10 @@ impl CoreHandle {
     }
 
     /// Returns a button from current screen on specified position
-    pub fn get_button(&self, key: u8) -> Option<UniqueButton> {
+    pub async fn get_button(&self, key: u8) -> Option<UniqueButton> {
         self.required_feature("core_methods");
-        if let Some(screen) = self.get_current_screen() {
-            let handle = screen.read().unwrap();
+        if let Some(screen) = self.get_current_screen().await {
+            let handle = screen.read().await;
             handle.buttons.get(&key).cloned()
         } else {
             None
@@ -151,10 +153,10 @@ impl CoreHandle {
     }
 
     /// Sets button to current screen with specified position
-    pub fn set_button(&self, key: u8, button: UniqueButton) -> bool {
+    pub async fn set_button(&self, key: u8, button: UniqueButton) -> bool {
         self.required_feature("core_methods");
-        if let Some(screen) = self.get_current_screen() {
-            let mut handle = screen.write().unwrap();
+        if let Some(screen) = self.get_current_screen().await {
+            let mut handle = screen.write().await;
             let previous_button = handle.buttons.get(&key).cloned();
 
             handle.buttons.insert(key, button.clone());
@@ -167,16 +169,16 @@ impl CoreHandle {
                     panel: screen.clone(),
                     new_button: button.clone(),
                     old_button: previous_button.clone()
-                }, self.module_manager().get_module_list().into_iter());
+                }, self.module_manager().get_module_list().await.into_iter()).await;
             } else {
                 self.send_core_event_to_modules( SDCoreEvent::ButtonAdded {
                     key,
                     panel: screen.clone(),
                     added_button: button.clone()
-                }, self.module_manager().get_module_list().into_iter());
+                }, self.module_manager().get_module_list().await.into_iter()).await;
             }
 
-            self.core.mark_for_redraw();
+            self.core.mark_for_redraw().await;
 
             true
         } else {
@@ -185,10 +187,10 @@ impl CoreHandle {
     }
 
     /// Clears button from current screen on specified position
-    pub fn clear_button(&self, key: u8) -> bool {
+    pub async fn clear_button(&self, key: u8) -> bool {
         self.required_feature("core_methods");
-        if let Some(screen) = self.get_current_screen() {
-            let mut handle = screen.write().unwrap();
+        if let Some(screen) = self.get_current_screen().await {
+            let mut handle = screen.write().await;
             if let Some(button) = handle.buttons.remove(&key) {
                 drop(handle);
 
@@ -196,9 +198,9 @@ impl CoreHandle {
                     key,
                     panel: screen.clone(),
                     deleted_button: button.clone()
-                }, self.module_manager().get_module_list().into_iter());
+                }, self.module_manager().get_module_list().await.into_iter()).await;
 
-                self.core.mark_for_redraw();
+                self.core.mark_for_redraw().await;
 
                 true
             } else {
@@ -210,24 +212,24 @@ impl CoreHandle {
     }
 
     /// Adds component onto a button, returns success boolean
-    pub fn add_component(&self, key: u8, component_name: &str) -> bool {
+    pub async fn add_component(&self, key: u8, component_name: &str) -> bool {
         self.required_feature("core_methods");
 
         let module_manager = self.module_manager();
 
-        if let Some(screen) = self.get_current_screen() {
-            let handle = screen.read().unwrap();
+        if let Some(screen) = self.get_current_screen().await {
+            let handle = screen.read().await;
             if let Some(button) = handle.buttons.get(&key).cloned() {
-                let previous = make_button_unique(button_to_raw(&button));
+                let previous = make_button_unique(button_to_raw(&button).await);
 
-                let mut button_handle = button.write().unwrap();
+                let mut button_handle = button.write().await;
                 drop(handle);
 
                 if !button_handle.component_names().contains(&component_name.to_string()) {
-                    let components = module_manager.read_component_map();
+                    let components = module_manager.read_component_map().await;
 
                     if let Some((_, module)) = components.get(component_name) {
-                        module.add_component(self.clone_for(&module), button_handle.deref_mut(), component_name);
+                        module.add_component(self.clone_for(&module), button_handle.deref_mut(), component_name).await;
 
                         drop(button_handle);
                         drop(components);
@@ -237,9 +239,9 @@ impl CoreHandle {
                             panel: screen.clone(),
                             new_button: button.clone(),
                             old_button: previous.clone()
-                        }, self.module_manager().get_module_list().into_iter());
+                        }, self.module_manager().get_module_list().await.into_iter()).await;
 
-                        self.core.mark_for_redraw();
+                        self.core.mark_for_redraw().await;
 
                         return true;
                     }
@@ -251,22 +253,22 @@ impl CoreHandle {
     }
 
     /// Gets component values from a component on a button
-    pub fn get_component_values(&self, key: u8, component_name: &str) -> Option<Vec<UIValue>> {
+    pub async fn get_component_values(&self, key: u8, component_name: &str) -> Option<Vec<UIValue>> {
         self.required_feature("core_methods");
 
         let module_manager = self.module_manager();
 
-        if let Some(screen) = self.get_current_screen() {
-            let handle = screen.read().unwrap();
+        if let Some(screen) = self.get_current_screen().await {
+            let handle = screen.read().await;
             if let Some(button) = handle.buttons.get(&key).cloned() {
-                let mut button_handle = button.write().unwrap();
+                let mut button_handle = button.write().await;
                 drop(handle);
 
                 if button_handle.component_names().contains(&component_name.to_string()) {
-                    let components = module_manager.read_component_map();
+                    let components = module_manager.read_component_map().await;
 
                     if let Some((_, module)) = components.get(component_name) {
-                        return Some(module.component_values(self.clone_for(&module), button_handle.deref_mut(), component_name));
+                        return Some(module.component_values(self.clone_for(&module), button_handle.deref_mut(), component_name).await);
                     }
                 }
             }
@@ -276,10 +278,10 @@ impl CoreHandle {
     }
 
     /// Gets component values from component on a button, but with paths for easier interaction with values
-    pub fn get_component_values_with_paths(&self, key: u8, component_name: &str) -> Option<Vec<UIPathValue>> {
+    pub async fn get_component_values_with_paths(&self, key: u8, component_name: &str) -> Option<Vec<UIPathValue>> {
         self.required_feature("core_methods");
 
-        if let Some(values) = self.get_component_values(key, component_name) {
+        if let Some(values) = self.get_component_values(key, component_name).await {
             Some(values.into_iter().map(|x| convert_value_to_path(x, "")).collect())
         } else {
             None
@@ -287,24 +289,24 @@ impl CoreHandle {
     }
 
     /// Sets component values based on changes for component on a button
-    pub fn set_component_value(&self, key: u8, component_name: &str, value: Vec<UIValue>) -> bool {
+    pub async fn set_component_value(&self, key: u8, component_name: &str, value: Vec<UIValue>) -> bool {
         self.required_feature("core_methods");
 
         let module_manager = self.module_manager();
 
-        if let Some(screen) = self.get_current_screen() {
-            let handle = screen.read().unwrap();
+        if let Some(screen) = self.get_current_screen().await {
+            let handle = screen.read().await;
             if let Some(button) = handle.buttons.get(&key).cloned() {
-                let previous = make_button_unique(button_to_raw(&button));
+                let previous = make_button_unique(button_to_raw(&button).await);
 
-                let mut button_handle = button.write().unwrap();
+                let mut button_handle = button.write().await;
                 drop(handle);
 
                 if button_handle.component_names().contains(&component_name.to_string()) {
-                    let components = module_manager.read_component_map();
+                    let components = module_manager.read_component_map().await;
 
                     if let Some((_, module)) = components.get(component_name) {
-                        module.set_component_value(self.clone_for(&module), button_handle.deref_mut(), component_name, value);
+                        module.set_component_value(self.clone_for(&module), button_handle.deref_mut(), component_name, value).await;
                         drop(button_handle);
                         drop(components);
 
@@ -313,9 +315,9 @@ impl CoreHandle {
                             panel: screen.clone(),
                             new_button: button.clone(),
                             old_button: previous.clone()
-                        }, self.module_manager().get_module_list().into_iter());
+                        }, self.module_manager().get_module_list().await.into_iter()).await;
 
-                        self.core.mark_for_redraw();
+                        self.core.mark_for_redraw().await;
 
                         return true;
                     }
@@ -327,15 +329,15 @@ impl CoreHandle {
     }
 
     /// Adds new array element to a component value
-    pub fn add_element_component_value(&self, key: u8, component_name: &str, path: &str) -> bool {
+    pub async fn add_element_component_value(&self, key: u8, component_name: &str, path: &str) -> bool {
         self.required_feature("core_methods");
 
-        if let Some(values) = self.get_component_values(key, component_name) {
+        if let Some(values) = self.get_component_values(key, component_name).await {
             let (changes, success) = change_from_path(path, values, &add_array_function(), false);
 
             if success {
                 if !changes.is_empty() {
-                    self.set_component_value(key, component_name, changes)
+                    self.set_component_value(key, component_name, changes).await
                 } else {
                     false
                 }
@@ -348,15 +350,15 @@ impl CoreHandle {
     }
 
     /// Removes element from array in component value
-    pub fn remove_element_component_value(&self, key: u8, component_name: &str, path: &str, index: usize) -> bool {
+    pub async fn remove_element_component_value(&self, key: u8, component_name: &str, path: &str, index: usize) -> bool {
         self.required_feature("core_methods");
 
-        if let Some(values) = self.get_component_values(key, component_name) {
+        if let Some(values) = self.get_component_values(key, component_name).await {
             let (changes, success) = change_from_path(path, values, &remove_array_function(index), false);
 
             if success {
                 if !changes.is_empty() {
-                    self.set_component_value(key, component_name, changes)
+                    self.set_component_value(key, component_name, changes).await
                 } else {
                     false
                 }
@@ -369,15 +371,15 @@ impl CoreHandle {
     }
 
     /// Sets value based on path for component value
-    pub fn set_component_value_by_path(&self, key: u8, component_name: &str, value: UIPathValue) -> bool {
+    pub async fn set_component_value_by_path(&self, key: u8, component_name: &str, value: UIPathValue) -> bool {
         self.required_feature("core_methods");
 
-        if let Some(values) = self.get_component_values(key, component_name) {
+        if let Some(values) = self.get_component_values(key, component_name).await {
             let (changes, success) = change_from_path(&value.path, values, &set_value_function(value.clone()), false);
 
             if success {
                 if !changes.is_empty() {
-                    self.set_component_value(key, component_name, changes)
+                    self.set_component_value(key, component_name, changes).await
                 } else {
                     false
                 }
@@ -390,24 +392,24 @@ impl CoreHandle {
     }
 
     /// Removes component from a button
-    pub fn remove_component(&self, key: u8, component_name: &str) -> bool {
+    pub async fn remove_component(&self, key: u8, component_name: &str) -> bool {
         self.required_feature("core_methods");
 
         let module_manager = self.module_manager();
 
-        if let Some(screen) = self.get_current_screen() {
-            let handle = screen.read().unwrap();
+        if let Some(screen) = self.get_current_screen().await {
+            let handle = screen.read().await;
             if let Some(button) = handle.buttons.get(&key).cloned() {
-                let previous = make_button_unique(button_to_raw(&button));
+                let previous = make_button_unique(button_to_raw(&button).await);
 
-                let mut button_handle = button.write().unwrap();
+                let mut button_handle = button.write().await;
                 drop(handle);
 
                 if button_handle.component_names().contains(&component_name.to_string()) {
-                    let components = module_manager.read_component_map();
+                    let components = module_manager.read_component_map().await;
 
                     if let Some((_, module)) = components.get(component_name) {
-                        module.remove_component(self.clone_for(&module), button_handle.deref_mut(), component_name);
+                        module.remove_component(self.clone_for(&module), button_handle.deref_mut(), component_name).await;
 
                         drop(button_handle);
                         drop(components);
@@ -417,9 +419,9 @@ impl CoreHandle {
                             panel: screen.clone(),
                             new_button: button.clone(),
                             old_button: previous.clone()
-                        }, self.module_manager().get_module_list().into_iter());
+                        }, self.module_manager().get_module_list().await.into_iter()).await;
 
-                        self.core.mark_for_redraw();
+                        self.core.mark_for_redraw().await;
 
                         return true;
                     }
@@ -431,38 +433,38 @@ impl CoreHandle {
     }
 
     /// Creates a new button taking provided one as an example and makes all responsible modules handle the paste action
-    pub fn paste_button(&self, key: u8, reference_button: &Button) -> bool {
+    pub async fn paste_button(&self, key: u8, reference_button: &Button) -> bool {
         let mut new_button = Button::new();
 
-        let responsible_modules = self.module_manager().get_modules_for_declared_components(reference_button.component_names().as_slice());
+        let responsible_modules = self.module_manager().get_modules_for_declared_components(reference_button.component_names().as_slice()).await;
         for module in responsible_modules {
-            module.paste_component(self.clone_for(&module), reference_button, &mut new_button);
+            module.paste_component(self.clone_for(&module), reference_button, &mut new_button).await;
         }
 
         println!("resulting button: {:?}", new_button);
 
-        self.set_button(key, make_button_unique(new_button))
+        self.set_button(key, make_button_unique(new_button)).await
     }
 
     /// Pushes new panel into the stack
-    pub fn push_screen(&self, screen: ButtonPanel) {
+    pub async fn push_screen(&self, screen: ButtonPanel) {
         self.required_feature("core_methods");
-        let mut stack = self.current_stack().unwrap();
+        let mut stack = self.current_stack().await;
 
         stack.push(screen.clone());
         drop(stack);
 
         self.send_core_event_to_modules(SDCoreEvent::PanelPushed {
             new_panel: screen.clone()
-        }, self.module_manager().get_module_list().into_iter());
+        }, self.module_manager().get_module_list().await.into_iter()).await;
 
-        self.core.mark_for_redraw();
+        self.core.mark_for_redraw().await;
     }
 
     /// Pops panel from stack
-    pub fn pop_screen(&self) {
+    pub async fn pop_screen(&self) {
         self.required_feature("core_methods");
-        let mut stack = self.current_stack().unwrap();
+        let mut stack = self.current_stack().await;
 
         let old_panel = stack.pop();
         drop(stack);
@@ -470,26 +472,26 @@ impl CoreHandle {
         if let Some(old_panel) = old_panel {
             self.send_core_event_to_modules(SDCoreEvent::PanelPopped {
                 popped_panel: old_panel.clone()
-            }, self.module_manager().get_module_list().into_iter());
+            }, self.module_manager().get_module_list().await.into_iter()).await;
         }
 
-        self.core.mark_for_redraw();
+        self.core.mark_for_redraw().await;
     }
 
     /// Returns first panel of the stack for saving purposes
-    pub fn get_root_screen(&self) -> ButtonPanel {
+    pub async fn get_root_screen(&self) -> ButtonPanel {
         self.required_feature("core_methods");
-        let stack = self.current_stack().unwrap();
+        let stack = self.current_stack().await;
         stack.get(0).unwrap().clone()
     }
 
     /// Returns first panel of the stack that's already been serialized
-    pub fn save_panels_to_value(&self) -> Value {
+    pub async fn save_panels_to_value(&self) -> Value {
         self.required_feature("core_methods");
-        let stack = self.current_stack().unwrap();
+        let stack = self.current_stack().await;
 
         if let Some(panel) = stack.get(0) {
-            let serialized_panel = serialize_panel(panel.clone()).unwrap();
+            let serialized_panel = serialize_panel(panel.clone()).await.unwrap();
             serde_json::to_value(&serialized_panel).unwrap()
         } else {
             Value::Object(Map::new())
@@ -497,9 +499,9 @@ impl CoreHandle {
     }
 
     /// Clears the stack and loads provided panel into the stack
-    pub fn reset_stack(&self, panel: ButtonPanel) {
+    pub async fn reset_stack(&self, panel: ButtonPanel) {
         self.required_feature("core_methods");
-        let mut stack = self.current_stack().unwrap();
+        let mut stack = self.current_stack().await;
 
         stack.clear();
         stack.push(panel.clone());
@@ -507,17 +509,17 @@ impl CoreHandle {
 
         self.send_core_event_to_modules(SDCoreEvent::StackReset {
             new_panel: panel.clone()
-        }, self.module_manager().get_module_list().into_iter());
+        }, self.module_manager().get_module_list().await.into_iter()).await;
 
-        self.core.mark_for_redraw();
+        self.core.mark_for_redraw().await;
     }
 
     /// Clears the stack, attempts to deserialize provided panel value into an actual panel and then pushes it into the stack
-    pub fn load_panels_from_value(&self, panels: Value) -> Result<(), JSONError> {
+    pub async fn load_panels_from_value(&self, panels: Value) -> Result<(), JSONError> {
         self.required_feature("core_methods");
         match deserialize_panel(panels) {
             Ok(panel) => {
-                let mut stack = self.current_stack().unwrap();
+                let mut stack = self.current_stack().await;
 
                 stack.clear();
                 stack.push(panel.clone());
@@ -525,9 +527,9 @@ impl CoreHandle {
 
                 self.send_core_event_to_modules(SDCoreEvent::StackReset {
                     new_panel: panel.clone()
-                }, self.module_manager().get_module_list().into_iter());
+                }, self.module_manager().get_module_list().await.into_iter()).await;
 
-                self.core.mark_for_redraw();
+                self.core.mark_for_redraw().await;
 
                 Ok(())
             }
@@ -538,28 +540,28 @@ impl CoreHandle {
     }
 
     /// Triggers button down event on all modules
-    pub fn button_down(&self, key: u8) {
+    pub async fn button_down(&self, key: u8) {
         self.required_feature("core_methods");
         self.send_core_event_to_modules(SDCoreEvent::ButtonDown {
             key
-        }, self.module_manager().get_module_list().into_iter());
+        }, self.module_manager().get_module_list().await.into_iter()).await;
     }
 
     /// Triggers button up event on all modules
-    pub fn button_up(&self, key: u8) {
+    pub async fn button_up(&self, key: u8) {
         self.required_feature("core_methods");
         self.send_core_event_to_modules(SDCoreEvent::ButtonUp {
             key
-        }, self.module_manager().get_module_list().into_iter());
+        }, self.module_manager().get_module_list().await.into_iter()).await;
 
-        self.button_action(key);
+        self.button_action(key).await;
     }
 
     /// Triggers button action event for modules that are related to components of the button
-    pub fn button_action(&self, key: u8) {
+    pub async fn button_action(&self, key: u8) {
         self.required_feature("core_methods");
-        if let Some(screen) = self.get_current_screen() {
-            let handle = screen.read().unwrap();
+        if let Some(screen) = self.get_current_screen().await {
+            let handle = screen.read().await;
             if let Some(button) = handle.buttons.get(&key).cloned() {
                 drop(handle);
 
@@ -569,82 +571,94 @@ impl CoreHandle {
                     pressed_button: button.clone()
                 };
 
-                self.send_core_event_to_modules(event.clone(), self.module_manager().get_modules_for_components(button.read().unwrap().component_names().as_slice()).into_iter());
-                send_event_to_socket(&self.core.socket_manager, core_event_to_global(event, &self.core.serial_number));
+                self.send_core_event_to_modules(
+                    event.clone(),
+                    self.module_manager()
+                        .get_modules_for_components(button.read().await.component_names().as_slice()).await
+                        .into_iter()
+                ).await;
+                send_event_to_socket(&self.core.socket_manager, core_event_to_global(event, &self.core.serial_number).await).await;
 
-                self.core.mark_for_redraw();
+                self.core.mark_for_redraw().await;
             }
         }
     }
 
     /// Renders what current screen would look like into [DynamicImage] map
-    pub fn get_button_images(&self) -> Option<HashMap<u8, DynamicImage>> {
+    pub async fn get_button_images(&self) -> Option<HashMap<u8, DynamicImage>> {
         let missing = draw_missing_texture(self.core.image_size);
         let custom = draw_custom_renderer_texture(self.core.image_size);
         let blank = image_from_solid(self.core.image_size, Rgba([0, 0, 0, 255]));
 
-        let panel = self.get_current_screen()?;
-        let current_screen = panel.read().unwrap();
+        let panel = self.get_current_screen().await?;
+        let current_screen = panel.read().await;
         let buttons = current_screen.buttons.clone();
 
-        let renderers = self.core.render_manager.read_renderers();
+        let renderers = self.core.render_manager.read_renderers().await;
 
-        let core_settings: CoreSettings = self.core.config.get_plugin_settings().unwrap_or_default();
+        let core_settings: CoreSettings = self.core.config.get_plugin_settings().await.unwrap_or_default();
 
-        Some(buttons.into_iter()
-            .filter_map(|(key, button)| {
-                if let Ok(component) = parse_unique_button_to_component::<RendererComponent>(&button) {
-                    let modules = self.module_manager().get_modules_for_rendering(&button.read().unwrap().component_names());
-                    let modules = modules.into_values()
-                        .filter(|x| !component.plugin_blacklist.contains(&x.name()))
-                        .filter(|x| !core_settings.renderer.plugin_blacklist.contains(&x.name()))
-                        .collect::<Vec<UniqueSDModule>>();
 
-                    let image = if component.renderer.is_empty() {
-                        draw_foreground(
+        let mut images = HashMap::new();
+
+        for (key, button) in buttons {
+            if let Ok(component) = parse_unique_button_to_component::<RendererComponent>(&button).await {
+                let modules = self.module_manager()
+                    .get_modules_for_rendering(
+                        &button.read().await.component_names()
+                    ).await;
+                let modules = modules.into_values()
+                    .filter(|x| !component.plugin_blacklist.contains(&x.name()))
+                    .filter(|x| !core_settings.renderer.plugin_blacklist.contains(&x.name()))
+                    .collect::<Vec<UniqueSDModule>>();
+
+                let image = if component.renderer.is_empty() {
+                    draw_foreground(
+                        &component,
+                        &button,
+                        &modules,
+                        draw_background(
                             &component,
-                            &button,
-                            &modules,
-                            draw_background(
-                                &component,
-                                self,
-                                &missing
-                            ),
-                            self
-                        )
-                    } else {
-                        if let Some(renderer) = renderers.get(&component.renderer) {
-                            if let Some(image) = renderer.representation(key, &button, self) {
-                                image
-                            } else {
-                                custom.clone()
-                            }
+                            self,
+                            &missing
+                        ).await,
+                        self
+                    ).await
+                } else {
+                    if let Some(renderer) = renderers.get(&component.renderer) {
+                        if let Some(image) = renderer.representation(key, &button, self).await {
+                            image
                         } else {
                             custom.clone()
                         }
-                    };
+                    } else {
+                        custom.clone()
+                    }
+                };
 
-                    Some((key, image))
-                } else {
-                    Some((key, blank.clone()))
-                }
-            })
-            .collect())
+                images.insert(key, image);
+            } else {
+                images.insert(key, blank.clone());
+            }
+        }
+
+
+        Some(images)
     }
 
     /// Renders what specified button would look like into [DynamicImage]
-    pub fn get_button_image(&self, key: u8) -> Option<DynamicImage> {
+    pub async fn get_button_image(&self, key: u8) -> Option<DynamicImage> {
         let missing = draw_missing_texture(self.core.image_size);
         let custom = draw_custom_renderer_texture(self.core.image_size);
         let blank = image_from_solid(self.core.image_size, Rgba([0, 0, 0, 255]));
 
-        let button = self.get_button(key)?;
-        let renderers = self.core.render_manager.read_renderers();
+        let button = self.get_button(key).await?;
+        let renderers = self.core.render_manager.read_renderers().await;
 
-        let core_settings: CoreSettings = self.core.config.get_plugin_settings().unwrap_or_default();
+        let core_settings: CoreSettings = self.core.config.get_plugin_settings().await.unwrap_or_default();
 
-        if let Ok(component) = parse_unique_button_to_component::<RendererComponent>(&button) {
-            let modules = self.module_manager().get_modules_for_rendering(&button.read().unwrap().component_names());
+        if let Ok(component) = parse_unique_button_to_component::<RendererComponent>(&button).await {
+            let modules = self.module_manager().get_modules_for_rendering(&button.read().await.component_names()).await;
             let modules = modules.into_values()
                 .filter(|x| !component.plugin_blacklist.contains(&x.name()))
                 .filter(|x| !core_settings.renderer.plugin_blacklist.contains(&x.name()))
@@ -659,12 +673,12 @@ impl CoreHandle {
                         &component,
                         self,
                         &missing
-                    ),
+                    ).await,
                     self
-                )
+                ).await
             } else {
                 if let Some(renderer) = renderers.get(&component.renderer) {
-                    if let Some(image) = renderer.representation(key, &button, self) {
+                    if let Some(image) = renderer.representation(key, &button, self).await {
                         image
                     } else {
                         custom.clone()
@@ -681,9 +695,9 @@ impl CoreHandle {
     }
 
     /// Replaces current screen with specified one
-    pub fn replace_screen(&self, screen: ButtonPanel) {
+    pub async fn replace_screen(&self, screen: ButtonPanel) {
         self.required_feature("core_methods");
-        let mut stack = self.current_stack().unwrap();
+        let mut stack = self.current_stack().await;
 
         let old_panel = stack.pop();
         stack.push(screen.clone());
@@ -691,26 +705,26 @@ impl CoreHandle {
         self.send_core_event_to_modules(SDCoreEvent::PanelReplaced {
             old_panel,
             new_panel: screen
-        }, self.module_manager().get_module_list().into_iter());
+        }, self.module_manager().get_module_list().await.into_iter()).await;
 
-        self.core.mark_for_redraw();
+        self.core.mark_for_redraw().await;
     }
 
     /// Sets brightness of the streamdeck to specified (Range from 0 to 100)
-    pub fn set_brightness(&self, brightness: u8) {
+    pub async fn set_brightness(&self, brightness: u8) {
         self.required_feature("core_methods");
-        self.core.send_commands(vec![DeviceThreadCommunication::SetBrightness(brightness)]);
+        self.core.send_commands(vec![DeviceThreadCommunication::SetBrightness(brightness)]).await;
 
-        let mut handle = self.core.device_config.write().unwrap();
+        let mut handle = self.core.device_config.write().await;
         handle.brightness = brightness;
     }
 
     /// Commits all changes to layout to device config so it can be later saved
-    pub fn commit_changes(&self) {
+    pub async fn commit_changes(&self) {
         self.required_feature("core_methods");
-        let stack = self.get_root_screen();
+        let stack = self.get_root_screen().await;
 
-        let mut handle = self.core.device_config.write().unwrap();
-        handle.layout = panel_to_raw(&stack);
+        let mut handle = self.core.device_config.write().await;
+        handle.layout = panel_to_raw(&stack).await;
     }
 }

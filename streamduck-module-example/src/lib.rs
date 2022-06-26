@@ -12,16 +12,17 @@ use streamduck_core::core::{CoreHandle, UniqueButton};
 use streamduck_core::core::manager::CoreManager;
 use streamduck_core::image::{DynamicImage, Rgba};
 use streamduck_core::images::convert_image;
-use streamduck_core::modules::plugins::PluginModuleManager;
+use streamduck_core::modules::plugins::{PluginModuleManager, PluginRenderingManager, PluginSocketManager};
 use streamduck_core_derive::component;
 use streamduck_core_derive::plugin_config;
-use streamduck_core::socket::{SocketHandle, SocketListener, SocketManager, SocketPacket};
+use streamduck_core::socket::{SocketHandle, SocketListener, SocketPacket};
 use streamduck_core::streamdeck::{DeviceImage, Kind};
 use streamduck_core::thread::rendering::{ButtonBackground, RendererComponent, RendererComponentBuilder};
-use streamduck_core::thread::rendering::custom::{CustomRenderer, DeviceReference, RenderingManager};
+use streamduck_core::thread::rendering::custom::{CustomRenderer, DeviceReference};
 use streamduck_core::thread::util::{image_from_horiz_gradient, image_from_solid, render_box_on_image};
 use streamduck_core::util::rusttype::{Point, Scale};
 use streamduck_core::util::straight_copy;
+use streamduck_core::async_trait;
 
 #[no_mangle]
 pub fn get_metadata() -> PluginMetadata {
@@ -40,23 +41,25 @@ pub fn get_metadata() -> PluginMetadata {
 }
 
 #[no_mangle]
-pub fn register(socket_manager: Arc<SocketManager>, render_manager: Arc<RenderingManager>, module_manager: Arc<PluginModuleManager>) {
+pub fn register(socket_manager: Arc<PluginSocketManager>, render_manager: Arc<PluginRenderingManager>, module_manager: Arc<PluginModuleManager>) {
     socket_manager.add_listener(Arc::new(ExampleListener));
-    render_manager.add_custom_renderer(Arc::new(ExampleRenderer::new()));
-    module_manager.add_module(Arc::new(ExampleModule)).ok();
+    render_manager.add_renderer(Arc::new(ExampleRenderer::new()));
+    module_manager.add_module(Arc::new(ExampleModule));
 }
 
 pub struct ExampleListener;
 
+#[async_trait]
 impl SocketListener for ExampleListener {
-    fn message(&self, _socket: SocketHandle, _packet: SocketPacket) {
-        //println!("packet: {:?}", packet)
+    async fn message(&self, _socket: SocketHandle<'_>, packet: SocketPacket) {
+        println!("packet: {:?}", packet);
     }
 }
 
 #[derive(Debug)]
 pub struct ExampleModule;
 
+#[async_trait]
 impl SDModule for ExampleModule {
     fn name(&self) -> String {
         "example".to_string()
@@ -77,7 +80,7 @@ impl SDModule for ExampleModule {
     }
 
 
-    fn add_component(&self, _: CoreHandle, button: &mut Button, name: &str) {
+    async fn add_component(&self, _: CoreHandle, button: &mut Button, name: &str) {
         match name {
             "example" => {
                 button.insert_component(
@@ -89,7 +92,7 @@ impl SDModule for ExampleModule {
         }
     }
 
-    fn remove_component(&self, _: CoreHandle, button: &mut Button, name: &str) {
+    async fn remove_component(&self, _: CoreHandle, button: &mut Button, name: &str) {
         match name {
             "example" => {
                 button.remove_component::<ExampleComponent>();
@@ -99,11 +102,11 @@ impl SDModule for ExampleModule {
         }
     }
 
-    fn paste_component(&self, _: CoreHandle, reference_button: &Button, new_button: &mut Button) {
+    async fn paste_component(&self, _: CoreHandle, reference_button: &Button, new_button: &mut Button) {
         straight_copy(reference_button, new_button, "example");
     }
 
-    fn component_values(&self, _: CoreHandle, _: &Button, _: &str) -> Vec<UIValue> {
+    async fn component_values(&self, _: CoreHandle, _: &Button, _: &str) -> Vec<UIValue> {
         vec![
             UIValue {
                 name: "header".to_string(),
@@ -188,7 +191,7 @@ impl SDModule for ExampleModule {
         ]
     }
 
-    fn set_component_value(&self, _: CoreHandle, _: &mut Button, _: &str, values: Vec<UIValue>) {
+    async fn set_component_value(&self, _: CoreHandle, _: &mut Button, _: &str, values: Vec<UIValue>) {
         println!("{:?}", values);
     }
 
@@ -198,7 +201,7 @@ impl SDModule for ExampleModule {
         ]
     }
 
-    fn settings(&self, _: Arc<CoreManager>) -> Vec<UIValue> {
+    async fn settings(&self, _: Arc<CoreManager>) -> Vec<UIValue> {
         vec![
             UIValue {
                 name: "test".to_string(),
@@ -210,15 +213,15 @@ impl SDModule for ExampleModule {
         ]
     }
 
-    fn event(&self, core: CoreHandle, event: SDCoreEvent) {
+    async fn event(&self, core: CoreHandle, event: SDCoreEvent) {
         match event {
             SDCoreEvent::ButtonAction { pressed_button, .. } => {
-                if let Ok(_) = parse_unique_button_to_component::<ExampleComponent>(&pressed_button) {
+                if let Ok(_) = parse_unique_button_to_component::<ExampleComponent>(&pressed_button).await {
                     let config = core.config();
 
-                    let mut my_config: ExampleSettings = config.get_plugin_settings().unwrap_or_default();
+                    let mut my_config: ExampleSettings = config.get_plugin_settings().await.unwrap_or_default();
                     my_config.test += 1;
-                    config.set_plugin_settings(my_config);
+                    config.set_plugin_settings(my_config).await;
 
                     println!("Example button pressed");
                 }
@@ -228,7 +231,7 @@ impl SDModule for ExampleModule {
         }
     }
 
-    fn render(&self, _: CoreHandle, _: &UniqueButton, frame: &mut DynamicImage) {
+    async fn render(&self, _: CoreHandle, _: &UniqueButton, frame: &mut DynamicImage) {
         render_box_on_image(frame, Scale::uniform(15.0), Point {x: 10.0, y: 25.0}, (255, 0, 0, 255));
     }
 
@@ -263,16 +266,17 @@ impl ExampleRenderer {
     }
 }
 
+#[async_trait]
 impl CustomRenderer for ExampleRenderer {
     fn name(&self) -> String {
         "example".to_string()
     }
 
-    fn refresh(&self, _: &CoreHandle) {
+    async fn refresh(&self, _: &CoreHandle) {
         self.already_rendered.lock().unwrap().clear();
     }
 
-    fn render(&self, key: u8, _: &UniqueButton, _: &CoreHandle, streamdeck: &mut DeviceReference) {
+    async fn render(&self, key: u8, _: &UniqueButton, _: &CoreHandle, streamdeck: &mut DeviceReference) {
         let mut lock = self.already_rendered.lock().unwrap();
 
         if !lock.contains(&key) {
@@ -281,11 +285,11 @@ impl CustomRenderer for ExampleRenderer {
         }
     }
 
-    fn representation(&self, _: u8, _: &UniqueButton, core: &CoreHandle) -> Option<DynamicImage> {
+    async fn representation(&self, _: u8, _: &UniqueButton, core: &CoreHandle) -> Option<DynamicImage> {
         Some(image_from_solid(core.core().image_size, Rgba([255, 0, 0, 255])))
     }
 
-    fn component_values(&self, _: &Button, component: &RendererComponent, _: &CoreHandle) -> Vec<UIValue> {
+    async fn component_values(&self, _: &Button, component: &RendererComponent, _: &CoreHandle) -> Vec<UIValue> {
         let my_int = component.custom_data.as_i64().unwrap_or_default();
 
         vec![
@@ -299,7 +303,7 @@ impl CustomRenderer for ExampleRenderer {
         ]
     }
 
-    fn set_component_value(&self, _: &mut Button, component: &mut RendererComponent, _: &CoreHandle, value: Vec<UIValue>) {
+    async fn set_component_value(&self, _: &mut Button, component: &mut RendererComponent, _: &CoreHandle, value: Vec<UIValue>) {
         let change_map = map_ui_values(value);
 
         if let Some(value) = change_map.get("my_int") {

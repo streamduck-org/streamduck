@@ -1,8 +1,10 @@
 use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc};
 use serde_json::{Error, Value};
+use tokio::sync::RwLock;
 use crate::core::button::Button;
 use crate::core::{ButtonPanel, Panel, RawButtonPanel, UniqueButton, UniqueButtonMap};
 use crate::font::get_font_names;
@@ -17,8 +19,8 @@ pub fn make_button_unique(button: Button) -> UniqueButton {
 }
 
 /// Parses button panel to Value, serializing all the unique buttons in process
-pub fn serialize_panel(panel: ButtonPanel) -> Result<Value, Error> {
-    let panel = panel_to_raw(&panel);
+pub async fn serialize_panel(panel: ButtonPanel) -> Result<Value, Error> {
+    let panel = panel_to_raw(&panel).await;
 
     serialize_panel_raw(panel)
 }
@@ -51,21 +53,25 @@ pub fn make_panel_unique(raw_panel: RawButtonPanel) -> ButtonPanel {
 
 
 /// Converts button panel to raw button panel
-pub fn panel_to_raw(panel: &ButtonPanel) -> RawButtonPanel {
-    let handle = panel.read().unwrap();
-    let panel = (*handle).clone();
-    drop(handle);
+pub async fn panel_to_raw(panel: &ButtonPanel) -> RawButtonPanel {
+    let panel = (*panel.read().await).clone();
+
+    let mut buttons = HashMap::new();
+
+    for (key, button) in panel.buttons {
+        buttons.insert(key, button_to_raw(&button).await);
+    }
 
     RawButtonPanel {
         display_name: panel.display_name,
         data: panel.data,
-        buttons: panel.buttons.into_iter().map(|(key, button)| (key, button_to_raw(&button))).collect()
+        buttons
     }
 }
 
 /// Converts unique button to raw button
-pub fn button_to_raw(button: &UniqueButton) -> Button {
-    button.read().unwrap().deref().clone()
+pub async fn button_to_raw(button: &UniqueButton) -> Button {
+    button.read().await.deref().clone()
 }
 
 /// Hashes string

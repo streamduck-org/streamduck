@@ -1,14 +1,16 @@
-#![windows_subsystem = "windows"]
-
 #[cfg(target_family = "unix")]
 mod unix;
 #[cfg(target_family = "windows")]
 mod windows;
 
-use std::sync::{Arc, Mutex};
-use std::thread::spawn;
+use std::sync::Arc;
+use std::time::Duration;
 use flexi_logger::{DeferredNow, FileSpec, Logger, LogSpecification, style, TS_DASHES_BLANK_COLONS_DOT_BLANK};
 use log::{LevelFilter, Record};
+use rayon::ThreadPoolBuilder;
+use tokio::runtime::Builder;
+use tokio::signal;
+use tokio::sync::Mutex;
 use streamduck_core::font::{load_default_font, load_fonts_from_resources};
 use streamduck_core::modules::{load_base_modules, ModuleManager};
 use streamduck_core::config::Config;
@@ -34,6 +36,24 @@ fn logging_format(
 }
 
 fn main() {
+    // Setting up Tokio runtime
+    let runtime = Builder::new_multi_thread()
+        .enable_all()
+        .thread_keep_alive(Duration::from_secs(3600))
+        .build().unwrap();
+
+    // Setting up Rayon limitations
+    let cpu_count = num_cpus::get() / 3 * 2;
+
+    ThreadPoolBuilder::new()
+        .num_threads(cpu_count)
+        .build_global().unwrap();
+
+    // Spawning root task
+    runtime.block_on(async { root().await });
+}
+
+async fn root() {
     // Initializing logger
     let mut builder = LogSpecification::builder();
     builder.default(LevelFilter::Debug)
@@ -54,18 +74,18 @@ fn main() {
     let render_manager = RenderingManager::new();
 
     // Reading config
-    let config = Arc::new(Config::get());
+    let config = Arc::new(Config::get().await);
 
     // Initializing socket manager
     let socket_manager = SocketManager::new();
 
     // Initializing core stuff
-    load_base_modules(module_manager.clone(), socket_manager.clone());
+    load_base_modules(module_manager.clone(), socket_manager.clone()).await;
     load_default_font();
     load_fonts_from_resources();
 
     // Initializing built-in modules
-    streamduck_actions::init_module(&module_manager);
+    streamduck_actions::init_module(&module_manager).await;
 
     // Initializing core manager
     let core_manager = CoreManager::new(module_manager.clone(), render_manager.clone(), socket_manager.clone(), config.clone());
@@ -76,45 +96,75 @@ fn main() {
         module_manager: module_manager.clone(),
         config: config.clone(),
         clipboard: Mutex::new(None)
-    }));
+    })).await;
 
     // Loading plugins
-    load_plugins_from_folder(module_manager.clone(), socket_manager.clone(), render_manager.clone(), config.plugin_path());
+    load_plugins_from_folder(module_manager.clone(), socket_manager.clone(), render_manager.clone(), config.plugin_path()).await;
 
     // Announcing loaded modules
-    for (module_name, _) in module_manager.get_modules() {
+    for (module_name, _) in module_manager.get_modules().await {
         log::info!("Loaded module: {}", module_name)
     }
 
     // Loading device configs
-    config.reload_device_configs().ok();
+    config.reload_device_configs().await.ok();
 
     // Adding devices from config
-    core_manager.add_devices_from_config();
+    core_manager.add_devices_from_config().await;
 
     // Spawning reconnect routine
     {
         let manager = core_manager.clone();
-        spawn(move || manager.reconnect_routine());
+        tokio::spawn(async move { manager.reconnect_routine().await });
     }
 
     // Registering interrupt handle
-    ctrlc::set_handler(move || {
+    tokio::spawn(async {
+        signal::ctrl_c().await.ok();
         clean_socket();
         std::process::exit(0);
-    }).expect("Error setting Ctrl-C handler");
+    });
 
-    run_socket(socket_manager.clone());
+    hide_console();
+
+    run_socket(socket_manager.clone()).await;
 }
 
 #[cfg(target_family = "windows")]
-fn run_socket(socket_manager: Arc<SocketManager>) {
-    windows::open_socket(socket_manager)
+fn hide_console() {
+    use itertools::Itertools;
+
+    // Don't hide the console window only if requested
+    if std::env::args().contains(&"c".to_string()) {
+        return;
+    }
+
+    use std::ptr;
+    use winapi::um::wincon::GetConsoleWindow;
+    use winapi::um::winuser::{ShowWindow, SW_HIDE};
+
+    let window = unsafe {GetConsoleWindow()};
+    // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
+    if window != ptr::null_mut() {
+        unsafe {
+            ShowWindow(window, SW_HIDE);
+        }
+    }
+}
+
+#[cfg(target_family = "windows")]
+async fn run_socket(socket_manager: Arc<SocketManager>) {
+    windows::open_socket(socket_manager).await
 }
 
 #[cfg(target_family = "windows")]
 fn clean_socket() {
     // cleanup not needed
+}
+
+#[cfg(target_family = "unix")]
+fn hide_console() {
+    // this is really only needed for windows
 }
 
 #[cfg(target_family = "unix")]

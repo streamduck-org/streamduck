@@ -7,6 +7,7 @@ use streamduck_core::image::ImageOutputFormat;
 use streamduck_core::socket::{parse_packet_to_data, send_packet, SocketData, SocketHandle, SocketPacket};
 use streamduck_core::util::{make_panel_unique, panel_to_raw};
 use crate::daemon_data::{DaemonListener, DaemonRequest};
+use streamduck_core::async_trait;
 
 /// Request for getting current stack on a device
 #[derive(Serialize, Deserialize)]
@@ -32,22 +33,23 @@ impl SocketData for GetStackResult {
     const NAME: &'static str = "get_stack";
 }
 
+#[async_trait]
 impl DaemonRequest for GetStack {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<GetStack>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
                 let mut raw_stack = vec![];
 
-                for stack_item in wrapped_core.get_stack() {
-                    let raw_item = panel_to_raw(&stack_item);
+                for stack_item in wrapped_core.get_stack().await {
+                    let raw_item = panel_to_raw(&stack_item).await;
                     raw_stack.push(raw_item);
                 }
 
-                send_packet(handle, packet, &GetStackResult::Stack(raw_stack)).ok();
+                send_packet(handle, packet, &GetStackResult::Stack(raw_stack)).await.ok();
             } else {
-                send_packet(handle, packet, &GetStackResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &GetStackResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -77,22 +79,23 @@ impl SocketData for GetStackNamesResult {
     const NAME: &'static str = "get_stack_names";
 }
 
+#[async_trait]
 impl DaemonRequest for GetStackNames {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<GetStackNames>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
                 let mut raw_stack = vec![];
 
-                for stack_item in wrapped_core.get_stack() {
-                    let raw_item = panel_to_raw(&stack_item);
+                for stack_item in wrapped_core.get_stack().await {
+                    let raw_item = panel_to_raw(&stack_item).await;
                     raw_stack.push(raw_item.display_name);
                 }
 
-                send_packet(handle, packet, &GetStackNamesResult::Stack(raw_stack)).ok();
+                send_packet(handle, packet, &GetStackNamesResult::Stack(raw_stack)).await.ok();
             } else {
-                send_packet(handle, packet, &GetStackNamesResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &GetStackNamesResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -125,19 +128,20 @@ impl SocketData for GetCurrentScreenResult {
     const NAME: &'static str = "get_current_screen";
 }
 
+#[async_trait]
 impl DaemonRequest for GetCurrentScreen {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<GetCurrentScreen>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if let Some(screen) = wrapped_core.get_current_screen() {
-                    send_packet(handle, packet, &GetCurrentScreenResult::Screen(panel_to_raw(&screen))).ok();
+                if let Some(screen) = wrapped_core.get_current_screen().await {
+                    send_packet(handle, packet, &GetCurrentScreenResult::Screen(panel_to_raw(&screen).await)).await.ok();
                 } else {
-                    send_packet(handle, packet, &GetCurrentScreenResult::NoScreen).ok();
+                    send_packet(handle, packet, &GetCurrentScreenResult::NoScreen).await.ok();
                 }
             } else {
-                send_packet(handle, packet, &GetCurrentScreenResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &GetCurrentScreenResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -169,13 +173,14 @@ impl SocketData for GetButtonImagesResult {
     const NAME: &'static str = "get_button_images";
 }
 
+#[async_trait]
 impl DaemonRequest for GetButtonImages {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<GetButtonImages>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if let Some(images) = wrapped_core.get_button_images() {
+                if let Some(images) = wrapped_core.get_button_images().await {
                     let images = images.into_iter()
                         .map(|(key, image)| {
                             let mut buffer: Vec<u8> = vec![];
@@ -184,12 +189,12 @@ impl DaemonRequest for GetButtonImages {
                         })
                         .collect();
 
-                    send_packet(handle, packet, &GetButtonImagesResult::Images(images)).ok();
+                    send_packet(handle, packet, &GetButtonImagesResult::Images(images)).await.ok();
                     return;
                 }
             }
 
-            send_packet(handle, packet, &GetButtonImagesResult::DeviceNotFound).ok();
+            send_packet(handle, packet, &GetButtonImagesResult::DeviceNotFound).await.ok();
         }
     }
 }
@@ -223,22 +228,23 @@ impl SocketData for GetButtonImageResult {
     const NAME: &'static str = "get_button_image";
 }
 
+#[async_trait]
 impl DaemonRequest for GetButtonImage {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<GetButtonImage>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if let Some(image) = wrapped_core.get_button_image(request.key) {
+                if let Some(image) = wrapped_core.get_button_image(request.key).await {
                     let mut buffer: Vec<u8> = vec![];
                     image.write_to(&mut Cursor::new(&mut buffer), ImageOutputFormat::Png).ok();
 
-                    send_packet(handle, packet, &GetButtonImageResult::Image(base64::encode(buffer))).ok();
+                    send_packet(handle, packet, &GetButtonImageResult::Image(base64::encode(buffer))).await.ok();
                 } else {
-                    send_packet(handle, packet, &GetButtonImageResult::NoButton).ok();
+                    send_packet(handle, packet, &GetButtonImageResult::NoButton).await.ok();
                 }
             } else {
-                send_packet(handle, packet, &GetButtonImageResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &GetButtonImageResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -269,16 +275,17 @@ impl SocketData for PushScreenResult {
     const NAME: &'static str = "push_screen";
 }
 
+#[async_trait]
 impl DaemonRequest for PushScreen {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<PushScreen>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                wrapped_core.push_screen(make_panel_unique(request.screen));
-                send_packet(handle, packet, &PushScreenResult::Pushed).ok();
+                wrapped_core.push_screen(make_panel_unique(request.screen)).await;
+                send_packet(handle, packet, &PushScreenResult::Pushed).await.ok();
             } else {
-                send_packet(handle, packet, &PushScreenResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &PushScreenResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -311,25 +318,26 @@ impl SocketData for PopScreenResult {
     const NAME: &'static str = "pop_screen";
 }
 
+#[async_trait]
 impl DaemonRequest for PopScreen {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<PopScreen>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let count = {
-                    let stack = device.core.current_stack.lock().unwrap();
+                    let stack = device.core.current_stack.lock().await;
                     stack.len()
                 };
 
                 let wrapped_core = CoreHandle::wrap(device.core);
 
                 if count > 1 {
-                    wrapped_core.pop_screen();
-                    send_packet(handle, packet, &PopScreenResult::Popped).ok();
+                    wrapped_core.pop_screen().await;
+                    send_packet(handle, packet, &PopScreenResult::Popped).await.ok();
                 } else {
-                    send_packet(handle, packet, &PopScreenResult::OnlyOneRemaining).ok();
+                    send_packet(handle, packet, &PopScreenResult::OnlyOneRemaining).await.ok();
                 }
             } else {
-                send_packet(handle, packet, &PopScreenResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &PopScreenResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -359,16 +367,17 @@ impl SocketData for ForciblyPopScreenResult {
     const NAME: &'static str = "force_pop_screen";
 }
 
+#[async_trait]
 impl DaemonRequest for ForciblyPopScreen {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<ForciblyPopScreen>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                wrapped_core.pop_screen();
-                send_packet(handle, packet, &ForciblyPopScreenResult::Popped).ok();
+                wrapped_core.pop_screen().await;
+                send_packet(handle, packet, &ForciblyPopScreenResult::Popped).await.ok();
             } else {
-                send_packet(handle, packet, &ForciblyPopScreenResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &ForciblyPopScreenResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -399,16 +408,17 @@ impl SocketData for ReplaceScreenResult {
     const NAME: &'static str = "replace_screen";
 }
 
+#[async_trait]
 impl DaemonRequest for ReplaceScreen {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<ReplaceScreen>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                wrapped_core.replace_screen(make_panel_unique(request.screen));
-                send_packet(handle, packet, &ReplaceScreenResult::Replaced).ok();
+                wrapped_core.replace_screen(make_panel_unique(request.screen)).await;
+                send_packet(handle, packet, &ReplaceScreenResult::Replaced).await.ok();
             } else {
-                send_packet(handle, packet, &ReplaceScreenResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &ReplaceScreenResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -439,16 +449,17 @@ impl SocketData for ResetStackResult {
     const NAME: &'static str = "reset_stack";
 }
 
+#[async_trait]
 impl DaemonRequest for ResetStack {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<ResetStack>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                wrapped_core.reset_stack(make_panel_unique(request.screen));
-                send_packet(handle, packet, &ResetStackResult::Reset).ok();
+                wrapped_core.reset_stack(make_panel_unique(request.screen)).await;
+                send_packet(handle, packet, &ResetStackResult::Reset).await.ok();
             } else {
-                send_packet(handle, packet, &ResetStackResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &ResetStackResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -478,17 +489,18 @@ impl SocketData for DropStackToRootResult {
     const NAME: &'static str = "drop_stack_to_root";
 }
 
+#[async_trait]
 impl DaemonRequest for DropStackToRoot {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<DropStackToRoot>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                let first_screen = wrapped_core.get_root_screen();
-                wrapped_core.reset_stack(first_screen);
-                send_packet(handle, packet, &DropStackToRootResult::Dropped).ok();
+                let first_screen = wrapped_core.get_root_screen().await;
+                wrapped_core.reset_stack(first_screen).await;
+                send_packet(handle, packet, &DropStackToRootResult::Dropped).await.ok();
             } else {
-                send_packet(handle, packet, &DropStackToRootResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &DropStackToRootResult::DeviceNotFound).await.ok();
             }
         }
     }

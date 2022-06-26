@@ -65,36 +65,36 @@ pub enum SDGlobalEvent {
     DeviceDisconnected {serial_number: String},
 }
 
-pub fn core_event_to_global(event: SDCoreEvent, serial: &str) -> SDGlobalEvent {
+pub async fn core_event_to_global(event: SDCoreEvent, serial: &str) -> SDGlobalEvent {
     let serial_number = serial.to_string();
     match event {
         SDCoreEvent::ButtonAdded { key, panel, added_button } => SDGlobalEvent::ButtonAdded {
             serial_number,
             key,
-            panel: panel_to_raw(&panel),
-            added_button: button_to_raw(&added_button)
+            panel: panel_to_raw(&panel).await,
+            added_button: button_to_raw(&added_button).await
         },
 
         SDCoreEvent::ButtonUpdated { key, panel, new_button, old_button } => SDGlobalEvent::ButtonUpdated {
             serial_number,
             key,
-            panel: panel_to_raw(&panel),
-            new_button: button_to_raw(&new_button),
-            old_button: button_to_raw(&old_button)
+            panel: panel_to_raw(&panel).await,
+            new_button: button_to_raw(&new_button).await,
+            old_button: button_to_raw(&old_button).await
         },
 
         SDCoreEvent::ButtonDeleted { key, panel, deleted_button } => SDGlobalEvent::ButtonDeleted {
             serial_number,
             key,
-            panel: panel_to_raw(&panel),
-            deleted_button: button_to_raw(&deleted_button)
+            panel: panel_to_raw(&panel).await,
+            deleted_button: button_to_raw(&deleted_button).await
         },
 
         SDCoreEvent::ButtonAction { key, panel, pressed_button } => SDGlobalEvent::ButtonAction {
             serial_number,
             key,
-            panel: panel_to_raw(&panel),
-            pressed_button: button_to_raw(&pressed_button)
+            panel: panel_to_raw(&panel).await,
+            pressed_button: button_to_raw(&pressed_button).await
         },
 
         SDCoreEvent::ButtonDown { key } => SDGlobalEvent::ButtonDown {
@@ -109,23 +109,23 @@ pub fn core_event_to_global(event: SDCoreEvent, serial: &str) -> SDGlobalEvent {
 
         SDCoreEvent::PanelPushed { new_panel } => SDGlobalEvent::PanelPushed {
             serial_number,
-            new_panel: panel_to_raw(&new_panel)
+            new_panel: panel_to_raw(&new_panel).await
         },
 
         SDCoreEvent::PanelPopped { popped_panel } => SDGlobalEvent::PanelPopped {
             serial_number,
-            popped_panel: panel_to_raw(&popped_panel)
+            popped_panel: panel_to_raw(&popped_panel).await
         },
 
         SDCoreEvent::PanelReplaced { old_panel, new_panel } => SDGlobalEvent::PanelReplaced {
             serial_number,
-            old_panel: if let Some(panel) = old_panel { Some(panel_to_raw(&panel)) } else { None },
-            new_panel: panel_to_raw(&new_panel)
+            old_panel: if let Some(panel) = old_panel { Some(panel_to_raw(&panel).await) } else { None },
+            new_panel: panel_to_raw(&new_panel).await
         },
 
         SDCoreEvent::StackReset { new_panel } => SDGlobalEvent::StackReset {
             serial_number,
-            new_panel: panel_to_raw(&new_panel)
+            new_panel: panel_to_raw(&new_panel).await
         }
     }
 }
