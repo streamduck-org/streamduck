@@ -168,8 +168,8 @@ fn hide_console() {
 }
 
 #[cfg(target_family = "unix")]
-fn run_socket(socket_manager: Arc<SocketManager>) {
-    unix::open_socket(socket_manager)
+async fn run_socket(socket_manager: Arc<SocketManager>) {
+    unix::open_socket(socket_manager).await
 }
 
 #[cfg(target_family = "unix")]
