@@ -18,7 +18,7 @@ fn main() {
 
 #[cfg(target_family = "windows")]
 fn get_client(_args: &Vec<String>) -> Arc<dyn SDSyncRequestClient> {
-    streamduck_client::windows::WinRequestClient::new().expect("Failed to connect to daemon, is it up?")
+    streamduck_client::windows::WinClient::new().expect("Failed to connect to daemon, is it up?").as_request()
 }
 
 #[cfg(target_family = "unix")]
