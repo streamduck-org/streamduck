@@ -12,7 +12,7 @@ use streamduck_core::modules::components::{ComponentDefinition, UIPathValue};
 use streamduck_core::modules::events::SDGlobalEvent;
 use streamduck_core::modules::PluginMetadata;
 use streamduck_core::versions::SOCKET_API;
-use streamduck_core::socket::{send_packet_as_is, SocketPacket};
+use streamduck_core::socket::{send_packet_as_is_sync, SocketPacket};
 use streamduck_daemon::daemon_data::assets::{AddImage, AddImageResult, ListFonts, ListImages, ListImagesResult, RemoveImage, RemoveImageResult};
 use streamduck_daemon::daemon_data::buttons::{AddComponent, AddComponentResult, AddComponentValue, AddComponentValueResult, ClearButton, ClearButtonResult, ClipboardStatusResult, CopyButton, CopyButtonResult, GetButton, GetButtonResult, GetComponentValues, GetComponentValuesResult, NewButton, NewButtonFromComponent, NewButtonFromComponentResult, NewButtonResult, PasteButton, PasteButtonResult, RemoveComponent, RemoveComponentResult, RemoveComponentValue, RemoveComponentValueResult, SetButton, SetButtonResult, SetComponentValue, SetComponentValueResult};
 use streamduck_daemon::daemon_data::config::{ExportDeviceConfig, ExportDeviceConfigResult, GetDeviceConfig, GetDeviceConfigResult, ImportDeviceConfig, ImportDeviceConfigResult, ReloadDeviceConfig, ReloadDeviceConfigResult, ReloadDeviceConfigsResult, SaveDeviceConfig, SaveDeviceConfigResult, SaveDeviceConfigsResult};
@@ -478,14 +478,14 @@ impl SDSyncRequestClient for UnixClient {
         packet.requester = Some(id.clone());
 
         let mut handle = self.connection.write().unwrap();
-        send_packet_as_is(handle.get_mut(), packet)?;
+        send_packet_as_is_sync(handle.get_mut(), packet)?;
 
         read_response(handle.deref_mut(), &id, Some(self.event_buffer.write().unwrap()))
     }
 
     fn send_packet_without_response(&self, packet: SocketPacket) -> Result<(), SDClientError> {
         let mut handle = self.connection.write().unwrap();
-        send_packet_as_is(handle.get_mut(), packet)?;
+        send_packet_as_is_sync(handle.get_mut(), packet)?;
         Ok(())
     }
 }
