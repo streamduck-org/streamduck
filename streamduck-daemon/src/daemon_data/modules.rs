@@ -6,6 +6,7 @@ use streamduck_core::modules::{add_element_module_setting, PluginMetadata, remov
 use streamduck_core::socket::{check_packet_for_data, parse_packet_to_data, send_packet, SocketData, SocketHandle, SocketPacket};
 use streamduck_core::util::convert_value_to_path;
 use crate::daemon_data::{DaemonListener, DaemonRequest};
+use streamduck_core::async_trait;
 
 /// Request for getting all loaded modules
 #[derive(Serialize, Deserialize)]
@@ -17,17 +18,18 @@ impl SocketData for ListModules {
     const NAME: &'static str = "list_modules";
 }
 
+#[async_trait]
 impl DaemonRequest for ListModules {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if check_packet_for_data::<ListModules>(&packet) {
-            let modules = listener.module_manager.get_module_list()
+            let modules = listener.module_manager.get_module_list().await
                 .iter()
                 .map(|m| m.metadata())
                 .collect::<Vec<PluginMetadata>>();
 
             send_packet(handle, &packet, &ListModules {
                 modules
-            }).ok();
+            }).await.ok();
         }
     }
 }
@@ -43,17 +45,18 @@ impl SocketData for ListComponents {
     const NAME: &'static str = "list_components";
 }
 
+#[async_trait]
 impl DaemonRequest for ListComponents {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if check_packet_for_data::<ListComponents>(&packet) {
-            let components = listener.module_manager.get_module_component_map()
+            let components = listener.module_manager.get_module_component_map().await
                 .into_iter()
                 .map(|(n, c)| (n, c.into_iter().collect()))
                 .collect();
 
             send_packet(handle, packet, &ListComponents {
                 components
-            }).ok();
+            }).await.ok();
         }
     }
 }
@@ -82,22 +85,23 @@ impl SocketData for GetModuleValuesResult {
     const NAME: &'static str = "get_module_values";
 }
 
+#[async_trait]
 impl DaemonRequest for GetModuleValues {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<GetModuleValues>(packet) {
-            for module in listener.module_manager.get_module_list() {
+            for module in listener.module_manager.get_module_list().await {
                 if module.name() == request.module_name {
-                    let values = module.settings(listener.core_manager.clone())
+                    let values = module.settings(listener.core_manager.clone()).await
                         .into_iter()
                         .map(|x| convert_value_to_path(x, ""))
                         .collect();
 
-                    send_packet(handle, packet, &GetModuleValuesResult::Values(values)).ok();
+                    send_packet(handle, packet, &GetModuleValuesResult::Values(values)).await.ok();
                     return;
                 }
             }
 
-            send_packet(handle, packet, &GetModuleValuesResult::ModuleNotFound).ok();
+            send_packet(handle, packet, &GetModuleValuesResult::ModuleNotFound).await.ok();
         }
     }
 }
@@ -130,22 +134,23 @@ impl SocketData for AddModuleValueResult {
     const NAME: &'static str = "add_module_value";
 }
 
+#[async_trait]
 impl DaemonRequest for AddModuleValue {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<AddModuleValue>(packet) {
-            for module in listener.module_manager.get_module_list() {
+            for module in listener.module_manager.get_module_list().await {
                 if module.name() == request.module_name {
-                    if add_element_module_setting(listener.core_manager.clone(), &module, &request.path) {
-                        send_packet(handle, packet, &AddModuleValueResult::Added).ok();
+                    if add_element_module_setting(listener.core_manager.clone(), &module, &request.path).await {
+                        send_packet(handle, packet, &AddModuleValueResult::Added).await.ok();
                     } else {
-                        send_packet(handle, packet, &AddModuleValueResult::FailedToAdd).ok();
+                        send_packet(handle, packet, &AddModuleValueResult::FailedToAdd).await.ok();
                     }
 
                     return;
                 }
             }
 
-            send_packet(handle, packet, &AddModuleValueResult::ModuleNotFound).ok();
+            send_packet(handle, packet, &AddModuleValueResult::ModuleNotFound).await.ok();
         }
     }
 }
@@ -179,22 +184,23 @@ impl SocketData for RemoveModuleValueResult {
     const NAME: &'static str = "remove_module_value";
 }
 
+#[async_trait]
 impl DaemonRequest for RemoveModuleValue {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<RemoveModuleValue>(packet) {
-            for module in listener.module_manager.get_module_list() {
+            for module in listener.module_manager.get_module_list().await {
                 if module.name() == request.module_name {
-                    if remove_element_module_setting(listener.core_manager.clone(), &module, &request.path, request.index) {
-                        send_packet(handle, packet, &RemoveModuleValueResult::Removed).ok();
+                    if remove_element_module_setting(listener.core_manager.clone(), &module, &request.path, request.index).await {
+                        send_packet(handle, packet, &RemoveModuleValueResult::Removed).await.ok();
                     } else {
-                        send_packet(handle, packet, &RemoveModuleValueResult::FailedToRemove).ok();
+                        send_packet(handle, packet, &RemoveModuleValueResult::FailedToRemove).await.ok();
                     }
 
                     return;
                 }
             }
 
-            send_packet(handle, packet, &RemoveModuleValueResult::ModuleNotFound).ok();
+            send_packet(handle, packet, &RemoveModuleValueResult::ModuleNotFound).await.ok();
         }
     }
 }
@@ -227,22 +233,23 @@ impl SocketData for SetModuleValueResult {
     const NAME: &'static str = "set_module_value";
 }
 
+#[async_trait]
 impl DaemonRequest for SetModuleValue {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<SetModuleValue>(packet) {
-            for module in listener.module_manager.get_module_list() {
+            for module in listener.module_manager.get_module_list().await {
                 if module.name() == request.module_name {
-                    if set_module_setting(listener.core_manager.clone(), &module, request.value) {
-                        send_packet(handle, packet, &SetModuleValueResult::Set).ok();
+                    if set_module_setting(listener.core_manager.clone(), &module, request.value).await {
+                        send_packet(handle, packet, &SetModuleValueResult::Set).await.ok();
                     } else {
-                        send_packet(handle, packet, &SetModuleValueResult::FailedToSet).ok();
+                        send_packet(handle, packet, &SetModuleValueResult::FailedToSet).await.ok();
                     }
 
                     return;
                 }
             }
 
-            send_packet(handle, packet, &SetModuleValueResult::ModuleNotFound).ok();
+            send_packet(handle, packet, &SetModuleValueResult::ModuleNotFound).await.ok();
         }
     }
 }

@@ -10,7 +10,7 @@ use streamduck_core::core::RawButtonPanel;
 use streamduck_core::modules::components::{ComponentDefinition, UIPathValue};
 use streamduck_core::modules::events::SDGlobalEvent;
 use streamduck_core::modules::PluginMetadata;
-use streamduck_core::socket::{send_packet_as_is, SocketPacket};
+use streamduck_core::socket::{ SocketPacket};
 use streamduck_core::versions::SOCKET_API;
 use streamduck_daemon::daemon_data::assets::{AddImage, AddImageResult, ListFonts, ListImages, ListImagesResult, RemoveImage, RemoveImageResult};
 use streamduck_daemon::daemon_data::buttons::{AddComponent, AddComponentResult, AddComponentValue, AddComponentValueResult, ClearButton, ClearButtonResult, ClipboardStatusResult, CopyButton, CopyButtonResult, GetButton, GetButtonResult, GetComponentValues, GetComponentValuesResult, NewButton, NewButtonFromComponent, NewButtonFromComponentResult, NewButtonResult, PasteButton, PasteButtonResult, RemoveComponent, RemoveComponentResult, RemoveComponentValue, RemoveComponentValueResult, SetButton, SetButtonResult, SetComponentValue, SetComponentValueResult};
@@ -20,7 +20,8 @@ use streamduck_daemon::daemon_data::modules::{AddModuleValue, AddModuleValueResu
 use streamduck_daemon::daemon_data::ops::{CommitChangesToConfig, CommitChangesToConfigResult, DoButtonAction, DoButtonActionResult};
 use streamduck_daemon::daemon_data::panels::{DropStackToRoot, DropStackToRootResult, ForciblyPopScreen, ForciblyPopScreenResult, GetButtonImages, GetButtonImagesResult, GetCurrentScreen, GetCurrentScreenResult, GetStack, GetStackNames, GetStackNamesResult, GetStackResult, PopScreen, PopScreenResult, PushScreen, PushScreenResult, ReplaceScreen, ReplaceScreenResult, ResetStack, ResetStackResult};
 use streamduck_daemon::daemon_data::SocketAPIVersion;
-use streamduck_daemon::{WINDOWS_EVENT_PIPE_NAME, WINDOWS_REQUEST_PIPE_NAME};
+use streamduck_daemon::WINDOWS_PIPE_NAME;
+use std::io::Write;
 use crate::{SDClientError, SDSyncEventClient, SDSyncRequestClient};
 use crate::util::{process_request_no_buffer, process_request_without_data_no_buffer, read_response, read_socket};
 
@@ -32,7 +33,7 @@ pub struct WinEventClient {
 impl WinEventClient {
     pub fn new() -> Result<Arc<dyn SDSyncEventClient>, std::io::Error> {
         let client: Arc<dyn SDSyncEventClient> = Arc::new(WinEventClient {
-            connection: RwLock::new(BufReader::new(PipeClient::connect(WINDOWS_EVENT_PIPE_NAME)?))
+            connection: RwLock::new(BufReader::new(PipeClient::connect(WINDOWS_PIPE_NAME)?))
         });
 
         Ok(client)
@@ -65,7 +66,7 @@ pub struct WinRequestClient {
 impl WinRequestClient {
     pub fn new() -> Result<Arc<dyn SDSyncRequestClient>, std::io::Error> {
         let client: Arc<dyn SDSyncRequestClient> = Arc::new(WinRequestClient {
-            connection: RwLock::new(BufReader::new(PipeClient::connect(WINDOWS_REQUEST_PIPE_NAME)?))
+            connection: RwLock::new(BufReader::new(PipeClient::connect(WINDOWS_PIPE_NAME)?))
         });
 
         let daemon_version = client.version().expect("Failed to retrieve version");
@@ -408,12 +409,12 @@ impl SDSyncRequestClient for WinRequestClient {
         packet.requester = Some(id.clone());
 
         let mut handle = self.get_handle();
-        send_packet_as_is(handle.get_mut(), packet)?;
+        write!(handle.get_mut(), "{}\u{0004}", serde_json::to_string(&packet)?)?;
         read_response(handle.deref_mut(), &id, None)
     }
 
     fn send_packet_without_response(&self, packet: SocketPacket) -> Result<(), SDClientError> {
         let mut handle = self.get_handle();
-        Ok(send_packet_as_is(handle.get_mut(), packet)?)
+        Ok(write!(handle.get_mut(), "{}\u{0004}", serde_json::to_string(&packet)?)?)
     }
 }

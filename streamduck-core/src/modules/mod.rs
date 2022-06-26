@@ -9,8 +9,7 @@ pub mod core_module;
 
 use std::collections::HashMap;
 use std::hash::Hasher;
-use std::sync::{Arc, RwLock, RwLockReadGuard};
-use std::thread::spawn;
+use std::sync::Arc;
 
 use crate::core::button::{Button};
 use crate::modules::components::{ComponentDefinition, UIPathValue, UIValue};
@@ -20,6 +19,7 @@ use crate::modules::folders::FolderModule;
 use serde::{Deserialize, Serialize};
 
 use image::DynamicImage;
+use tokio::sync::{RwLock, RwLockReadGuard};
 use crate::core::manager::CoreManager;
 use crate::core::{check_feature_list_for_feature, CoreHandle, UniqueButton};
 use crate::modules::core_module::CoreModule;
@@ -47,16 +47,16 @@ impl ModuleManager {
     }
 
     /// Adds a new module to be used with core
-    pub fn add_module(&self, module: UniqueSDModule) {
+    pub async fn add_module(&self, module: UniqueSDModule) {
         let module_name = module.name();
 
         // Adding to module map
-        let mut module_map = self.module_map.write().unwrap();
+        let mut module_map = self.module_map.write().await;
         module_map.insert(module_name.clone(), module.clone());
         drop(module_map);
 
         // Adding to module component map
-        let mut module_component_map = self.module_component_map.write().unwrap();
+        let mut module_component_map = self.module_component_map.write().await;
         for (component, definition) in module.components() {
             if let Some(component_map) = module_component_map.get_mut(&module_name) {
                 component_map.insert(component, definition);
@@ -71,14 +71,14 @@ impl ModuleManager {
         drop(module_component_map);
 
         // Adding to component to module map
-        let mut component_map = self.component_map.write().unwrap();
+        let mut component_map = self.component_map.write().await;
         for (component, definition) in module.components() {
             component_map.insert(component, (definition, module.clone()));
         }
         drop(component_map);
 
         // Adding to component listener map
-        let mut component_listener_map = self.component_listener_map.write().unwrap();
+        let mut component_listener_map = self.component_listener_map.write().await;
         for listens_for in module.listening_for() {
             if let Some(array) = component_listener_map.get_mut(&listens_for) {
                 array.push(module.clone());
@@ -89,7 +89,7 @@ impl ModuleManager {
         drop(component_listener_map);
 
         // Adding rendering modules to rendering map
-        let mut rendering_modules = self.rendering_modules.write().unwrap();
+        let mut rendering_modules = self.rendering_modules.write().await;
         if check_feature_list_for_feature(&module.metadata().used_features, "rendering") {
             for component in module.listening_for() {
                 if let Some(map) = rendering_modules.get_mut(&component) {
@@ -109,23 +109,23 @@ impl ModuleManager {
     }
 
     /// Attempts to get module with specified name
-    pub fn get_module(&self, name: &str) -> Option<UniqueSDModule> {
-        self.get_modules().get(name).cloned()
+    pub async fn get_module(&self, name: &str) -> Option<UniqueSDModule> {
+        self.get_modules().await.get(name).cloned()
     }
 
     /// Returns all modules in map format
-    pub fn get_modules(&self) -> HashMap<String, UniqueSDModule> {
-        self.module_map.read().unwrap().clone()
+    pub async fn get_modules(&self) -> HashMap<String, UniqueSDModule> {
+        self.module_map.read().await.clone()
     }
 
     /// Returns all modules in vector format
-    pub fn get_module_list(&self) -> Vec<UniqueSDModule> {
-        self.module_map.read().unwrap().values().cloned().collect()
+    pub async fn get_module_list(&self) -> Vec<UniqueSDModule> {
+        self.module_map.read().await.values().cloned().collect()
     }
 
     /// Returns modules from names provided if they exist
-    pub fn get_modules_from_list(&self, list: &[String]) -> Vec<UniqueSDModule> {
-        let module_map = self.get_modules();
+    pub async fn get_modules_from_list(&self, list: &[String]) -> Vec<UniqueSDModule> {
+        let module_map = self.get_modules().await;
 
         let mut modules = vec![];
 
@@ -139,8 +139,8 @@ impl ModuleManager {
     }
 
     /// Retrieves modules that are listening to a specified component
-    pub fn get_modules_for_component(&self, component: &str) -> Vec<UniqueSDModule> {
-        let handle = self.component_listener_map.read().unwrap();
+    pub async fn get_modules_for_component(&self, component: &str) -> Vec<UniqueSDModule> {
+        let handle = self.component_listener_map.read().await;
 
         if let Some(modules) = handle.get(component) {
             modules.clone()
@@ -150,8 +150,8 @@ impl ModuleManager {
     }
 
     /// Retrieves modules that have added specified components
-    pub fn get_modules_for_declared_components(&self, components: &[String]) -> Vec<UniqueSDModule> {
-        let handle = self.component_map.read().unwrap();
+    pub async fn get_modules_for_declared_components(&self, components: &[String]) -> Vec<UniqueSDModule> {
+        let handle = self.component_map.read().await;
 
         let mut shared_modules = vec![];
 
@@ -168,8 +168,8 @@ impl ModuleManager {
     }
 
     /// Retrieves modules that are listening to specified components
-    pub fn get_modules_for_components(&self, components: &[String]) -> Vec<UniqueSDModule> {
-        let handle = self.component_listener_map.read().unwrap();
+    pub async fn get_modules_for_components(&self, components: &[String]) -> Vec<UniqueSDModule> {
+        let handle = self.component_listener_map.read().await;
 
         let mut shared_modules = vec![];
 
@@ -186,8 +186,8 @@ impl ModuleManager {
     }
 
     /// Retrieves components that module defined
-    pub fn get_components_of_module(&self, module_name: &str) -> Option<HashMap<String, ComponentDefinition>> {
-        let handle = self.module_map.read().unwrap();
+    pub async fn get_components_of_module(&self, module_name: &str) -> Option<HashMap<String, ComponentDefinition>> {
+        let handle = self.module_map.read().await;
 
         if let Some(module) = handle.get(module_name) {
             Some(module.components())
@@ -197,23 +197,23 @@ impl ModuleManager {
     }
 
     /// Retrieves all components that all modules define
-    pub fn get_components(&self) -> HashMap<String, (ComponentDefinition, UniqueSDModule)> {
-        self.component_map.read().unwrap().clone()
+    pub async fn get_components(&self) -> HashMap<String, (ComponentDefinition, UniqueSDModule)> {
+        self.component_map.read().await.clone()
     }
 
     /// Retrieves all components that all modules define, but in module to component map format
-    pub fn get_module_component_map(&self) -> HashMap<String, HashMap<String, ComponentDefinition>> {
-        self.module_component_map.read().unwrap().clone()
+    pub async fn get_module_component_map(&self) -> HashMap<String, HashMap<String, ComponentDefinition>> {
+        self.module_component_map.read().await.clone()
     }
 
     /// Retrieves all modules that can render things
-    pub fn get_rendering_module_map(&self) -> HashMap<String, HashMap<String, UniqueSDModule>> {
-        self.rendering_modules.read().unwrap().clone()
+    pub async fn get_rendering_module_map(&self) -> HashMap<String, HashMap<String, UniqueSDModule>> {
+        self.rendering_modules.read().await.clone()
     }
 
     /// Retrieves all modules that should be able to render according to list of component names
-    pub fn get_modules_for_rendering(&self, names: &Vec<String>) -> HashMap<String, UniqueSDModule> {
-        let rendering_map = self.rendering_modules.read().unwrap();
+    pub async fn get_modules_for_rendering(&self, names: &Vec<String>) -> HashMap<String, UniqueSDModule> {
+        let rendering_map = self.rendering_modules.read().await;
 
         let mut map = HashMap::new();
 
@@ -228,40 +228,40 @@ impl ModuleManager {
 
 
     /// Retrieves component if it exists
-    pub fn get_component(&self, component_name: &str) -> Option<(ComponentDefinition, UniqueSDModule)> {
-        self.component_map.read().unwrap().get(component_name).cloned()
+    pub async fn get_component(&self, component_name: &str) -> Option<(ComponentDefinition, UniqueSDModule)> {
+        self.component_map.read().await.get(component_name).cloned()
     }
 
     /// Returns module map read lock
-    pub fn read_module_map(&self) -> RwLockReadGuard<HashMap<String, UniqueSDModule>> {
-        self.module_map.read().unwrap()
+    pub async fn read_module_map(&self) -> RwLockReadGuard<'_, HashMap<String, UniqueSDModule>> {
+        self.module_map.read().await
     }
 
     /// Returns component map read lock
-    pub fn read_component_map(&self) -> RwLockReadGuard<HashMap<String, (ComponentDefinition, UniqueSDModule)>> {
-        self.component_map.read().unwrap()
+    pub async fn read_component_map(&self) -> RwLockReadGuard<'_, HashMap<String, (ComponentDefinition, UniqueSDModule)>> {
+        self.component_map.read().await
     }
 
     /// Returns module component map read lock
-    pub fn read_module_component_map(&self) -> RwLockReadGuard<HashMap<String, HashMap<String, ComponentDefinition>>> {
-        self.module_component_map.read().unwrap()
+    pub async fn read_module_component_map(&self) -> RwLockReadGuard<'_, HashMap<String, HashMap<String, ComponentDefinition>>> {
+        self.module_component_map.read().await
     }
 
     /// Returns component listener map read lock
-    pub fn read_component_listener_map(&self) -> RwLockReadGuard<HashMap<String, Vec<UniqueSDModule>>> {
-        self.component_listener_map.read().unwrap()
+    pub async fn read_component_listener_map(&self) -> RwLockReadGuard<'_, HashMap<String, Vec<UniqueSDModule>>> {
+        self.component_listener_map.read().await
     }
 
     /// Returns rendering modules map read lock
-    pub fn read_rendering_modules_map(&self) -> RwLockReadGuard<HashMap<String, HashMap<String, UniqueSDModule>>> {
-        self.rendering_modules.read().unwrap()
+    pub async fn read_rendering_modules_map(&self) -> RwLockReadGuard<'_, HashMap<String, HashMap<String, UniqueSDModule>>> {
+        self.rendering_modules.read().await
     }
 }
 
 /// Loads built-in modules into the module manager
-pub fn load_base_modules(module_manager: Arc<ModuleManager>, socket_manager: Arc<SocketManager>) {
-    module_manager.add_module(Arc::new(CoreModule { socket_manager }));
-    module_manager.add_module(Arc::new(FolderModule::default()));
+pub async fn load_base_modules(module_manager: Arc<ModuleManager>, socket_manager: Arc<SocketManager>) {
+    module_manager.add_module(Arc::new(CoreModule { socket_manager })).await;
+    module_manager.add_module(Arc::new(FolderModule::default())).await;
 }
 
 /// Reference counted module object
@@ -269,6 +269,7 @@ pub type UniqueSDModule = Arc<dyn SDModule>;
 
 /// Module trait
 #[allow(unused)]
+#[async_trait]
 pub trait SDModule: Send + Sync {
     // Module data
     /// Module name
@@ -279,37 +280,37 @@ pub trait SDModule: Send + Sync {
     fn components(&self) -> HashMap<String, ComponentDefinition>;
 
     /// Method for adding components onto buttons
-    fn add_component(&self, core: CoreHandle, button: &mut Button, name: &str);
+    async fn add_component(&self, core: CoreHandle, button: &mut Button, name: &str);
 
     /// Method for removing components from buttons
-    fn remove_component(&self, core: CoreHandle, button: &mut Button, name: &str);
+    async fn remove_component(&self, core: CoreHandle, button: &mut Button, name: &str);
 
     /// Method for handling pasting components of plugin, can be used for any additional handling
-    fn paste_component(&self, core: CoreHandle, reference_button: &Button, new_button: &mut Button);
+    async fn paste_component(&self, core: CoreHandle, reference_button: &Button, new_button: &mut Button);
 
     /// Method for letting core know what values component currently has
-    fn component_values(&self, core: CoreHandle, button: &Button, name: &str) -> Vec<UIValue>;
+    async fn component_values(&self, core: CoreHandle, button: &Button, name: &str) -> Vec<UIValue>;
 
     /// Method for setting values on components
-    fn set_component_value(&self, core: CoreHandle, button: &mut Button, name: &str, value: Vec<UIValue>);
+    async fn set_component_value(&self, core: CoreHandle, button: &mut Button, name: &str, value: Vec<UIValue>);
 
     /// Specifies which components the module will be receiving events for
     fn listening_for(&self) -> Vec<String>;
 
     /// Current settings state of the plugin
-    fn settings(&self, core_manager: Arc<CoreManager>) -> Vec<UIValue> { vec![] }
+    async fn settings(&self, core_manager: Arc<CoreManager>) -> Vec<UIValue> { vec![] }
 
     /// Method for updating plugin settings from UI
-    fn set_setting(&self, core_manager: Arc<CoreManager>, value: Vec<UIValue>) { }
+    async fn set_setting(&self, core_manager: Arc<CoreManager>, value: Vec<UIValue>) { }
 
     /// Method for handling global events, add GLOBAL_EVENTS feature to the plugin metadata to receive global events
-    fn global_event(&self, event: SDGlobalEvent) {}
+    async fn global_event(&self, event: SDGlobalEvent) {}
 
     /// Method for handling core events, add CORE_EVENTS feature to the plugin metadata to receive core events
-    fn event(&self, core: CoreHandle, event: SDCoreEvent) {}
+    async fn event(&self, core: CoreHandle, event: SDCoreEvent) {}
 
     /// Method renderer will run for rendering additional information on a button if RENDERING feature was specified
-    fn render(&self, core: CoreHandle, button: &UniqueButton, frame: &mut DynamicImage) {}
+    async fn render(&self, core: CoreHandle, button: &UniqueButton, frame: &mut DynamicImage) {}
 
     /// Method for telling renderer if anything changed
     ///
@@ -356,20 +357,20 @@ impl PluginMetadata {
 }
 
 /// Retrieves module settings in array of UIPathValue
-pub fn get_module_settings(core_manager: Arc<CoreManager>, module: &UniqueSDModule) -> Vec<UIPathValue> {
-    module.settings(core_manager)
+pub async fn get_module_settings(core_manager: Arc<CoreManager>, module: &UniqueSDModule) -> Vec<UIPathValue> {
+    module.settings(core_manager).await
         .into_iter()
         .map(|x| convert_value_to_path(x, ""))
         .collect()
 }
 
 /// Adds new element into module setting's array
-pub fn add_element_module_setting(core_manager: Arc<CoreManager>, module: &UniqueSDModule, path: &str) -> bool {
-    let (changes, success) = change_from_path(path, module.settings(core_manager.clone()), &add_array_function(), false);
+pub async fn add_element_module_setting(core_manager: Arc<CoreManager>, module: &UniqueSDModule, path: &str) -> bool {
+    let (changes, success) = change_from_path(path, module.settings(core_manager.clone()).await, &add_array_function(), false);
 
     if success {
         if !changes.is_empty() {
-            module.set_setting(core_manager, changes);
+            module.set_setting(core_manager, changes).await;
             true
         } else {
             false
@@ -380,12 +381,12 @@ pub fn add_element_module_setting(core_manager: Arc<CoreManager>, module: &Uniqu
 }
 
 /// Removes an element from module setting's array
-pub fn remove_element_module_setting(core_manager: Arc<CoreManager>, module: &UniqueSDModule, path: &str, index: usize) -> bool {
-    let (changes, success) = change_from_path(path, module.settings(core_manager.clone()), &remove_array_function(index), false);
+pub async fn remove_element_module_setting(core_manager: Arc<CoreManager>, module: &UniqueSDModule, path: &str, index: usize) -> bool {
+    let (changes, success) = change_from_path(path, module.settings(core_manager.clone()).await, &remove_array_function(index), false);
 
     if success {
         if !changes.is_empty() {
-            module.set_setting(core_manager, changes);
+            module.set_setting(core_manager, changes).await;
             true
         } else {
             false
@@ -396,12 +397,12 @@ pub fn remove_element_module_setting(core_manager: Arc<CoreManager>, module: &Un
 }
 
 /// Sets value into module's setting
-pub fn set_module_setting(core_manager: Arc<CoreManager>, module: &UniqueSDModule, value: UIPathValue) -> bool {
-    let (changes, success) = change_from_path(&value.path, module.settings(core_manager.clone()), &set_value_function(value.clone()), false);
+pub async fn set_module_setting(core_manager: Arc<CoreManager>, module: &UniqueSDModule, value: UIPathValue) -> bool {
+    let (changes, success) = change_from_path(&value.path, module.settings(core_manager.clone()).await, &set_value_function(value.clone()), false);
 
     if success {
         if !changes.is_empty() {
-            module.set_setting(core_manager, changes);
+            module.set_setting(core_manager, changes).await;
             true
         } else {
             false
@@ -413,8 +414,11 @@ pub fn set_module_setting(core_manager: Arc<CoreManager>, module: &UniqueSDModul
 
 /// Sends global event to all modules, spawns a separate thread to do it, so doesn't block current thread
 pub fn send_global_event_to_modules<T: Iterator<Item=UniqueSDModule> + Send + 'static>(event: SDGlobalEvent, modules: T) {
-    spawn(move || {
-        modules.for_each(|x| x.global_event(event.clone()));
+    modules.for_each(|x| {
+        let task_event = event.clone();
+        tokio::spawn(async move {
+            x.global_event(task_event).await
+        });
     });
 }
 

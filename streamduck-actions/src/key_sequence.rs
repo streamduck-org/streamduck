@@ -363,8 +363,8 @@ pub fn set_values(button: &mut Button, value: Vec<UIValue>) {
     }
 }
 
-pub fn action(button: &UniqueButton, transmitter: &SyncSender<Vec<KeyAction>>) {
-    if let Ok(component) = parse_unique_button_to_component::<KeySequenceComponent>(button) {
+pub async fn action(button: &UniqueButton, transmitter: &SyncSender<Vec<KeyAction>>) {
+    if let Ok(component) = parse_unique_button_to_component::<KeySequenceComponent>(button).await {
         transmitter.send(component.key_actions).ok();
     }
 }

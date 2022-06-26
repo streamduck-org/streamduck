@@ -1,8 +1,9 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::RwLock;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use async_recursion::async_recursion;
+use tokio::sync::RwLock;
 use crate::core::button::{Button, Component, parse_button_to_component, parse_unique_button_to_component};
 use crate::core::{ButtonPanel, CoreHandle, RawButtonPanel};
 use crate::modules::components::{ComponentDefinition, map_ui_values, UIFieldType, UIFieldValue, UIValue};
@@ -28,6 +29,7 @@ impl Default for FolderModule {
     }
 }
 
+#[async_trait]
 impl SDModule for FolderModule {
     fn name(&self) -> String {
         MODULE_NAME.to_string()
@@ -93,11 +95,11 @@ impl SDModule for FolderModule {
         map
     }
 
-    fn add_component(&self, core: CoreHandle, button: &mut Button, name: &str) {
+    async fn add_component(&self, core: CoreHandle, button: &mut Button, name: &str) {
         match name {
             FolderComponent::NAME => {
                 if !button.contains(FolderLinkComponent::NAME) {
-                    let folder_id = self.new_folder(&core);
+                    let folder_id = self.new_folder(&core).await;
 
                     button.insert_component(
                         FolderComponent {
@@ -128,11 +130,11 @@ impl SDModule for FolderModule {
         }
     }
 
-    fn remove_component(&self, core: CoreHandle, button: &mut Button, name: &str) {
+    async fn remove_component(&self, core: CoreHandle, button: &mut Button, name: &str) {
         match name {
             FolderComponent::NAME => {
                 button.remove_component::<FolderComponent>();
-                self.clean_unused_folders(&core);
+                self.clean_unused_folders(&core).await;
             }
 
             FolderLinkComponent::NAME => {
@@ -147,13 +149,16 @@ impl SDModule for FolderModule {
         }
     }
 
-    fn paste_component(&self, core: CoreHandle, reference_button: &Button, new_button: &mut Button) {
+    async fn paste_component(&self, core: CoreHandle, reference_button: &Button, new_button: &mut Button) {
         straight_copy(reference_button, new_button, FolderLinkComponent::NAME);
         straight_copy(reference_button, new_button, FolderUpComponent::NAME);
 
         if let Ok(component) = parse_button_to_component::<FolderComponent>(reference_button) {
-            let new_id = self.copy_folder_recursively(&core, &component.id)
-                .unwrap_or_else(|| self.new_folder(&core));
+            let new_id = if let Some(id) = self.copy_folder_recursively(&core, &component.id).await {
+                id
+            } else {
+                self.new_folder(&core).await
+            };
 
             new_button.insert_component(FolderComponent {
                 id: new_id,
@@ -162,7 +167,7 @@ impl SDModule for FolderModule {
         }
     }
 
-    fn component_values(&self, core: CoreHandle, button: &Button, component: &str) -> Vec<UIValue> {
+    async fn component_values(&self, core: CoreHandle, button: &Button, component: &str) -> Vec<UIValue> {
         match component {
             FolderComponent::NAME => {
                 if let Ok(component) = parse_button_to_component::<FolderComponent>(button) {
@@ -187,12 +192,12 @@ impl SDModule for FolderModule {
 
             FolderLinkComponent::NAME => {
                 if let Ok(component) = parse_button_to_component::<FolderLinkComponent>(button) {
-                    let choices = self.list_folders(&core)
+                    let choices = self.list_folders(&core).await
                         .into_iter()
                         .map(|(id, panel)| format!("{} ({})", panel.display_name, id))
                         .collect::<Vec<String>>();
 
-                    let choice = if let Some(panel) = self.get_folder(&core, &component.id) {
+                    let choice = if let Some(panel) = self.get_folder(&core, &component.id).await {
                         format!("{} ({})", panel.display_name, component.id)
                     } else {
                         "".to_string()
@@ -216,7 +221,7 @@ impl SDModule for FolderModule {
         vec![]
     }
 
-    fn set_component_value(&self, core: CoreHandle, button: &mut Button, component: &str, values: Vec<UIValue>) {
+    async fn set_component_value(&self, core: CoreHandle, button: &mut Button, component: &str, values: Vec<UIValue>) {
         match component {
             FolderComponent::NAME => {
                 if let Ok(mut component) = parse_button_to_component::<FolderComponent>(button) {
@@ -226,14 +231,14 @@ impl SDModule for FolderModule {
                         if let Ok(str) = value.value.try_into_string() {
                             component.name = str;
 
-                            if let Some(mut folder) = self.get_folder(&core, &component.id) {
+                            if let Some(mut folder) = self.get_folder(&core, &component.id).await {
                                 folder.display_name = component.name.clone();
-                                self.update_folder(&core, &component.id, folder);
+                                self.update_folder(&core, &component.id, folder).await;
                             }
 
-                            let handle = self.folder_references.read().unwrap();
+                            let handle = self.folder_references.read().await;
                             if let Some(folder) = handle.get(&component.id).cloned() {
-                                let mut folder_handle = folder.write().unwrap();
+                                let mut folder_handle = folder.write().await;
                                 folder_handle.display_name = component.name.clone()
                             }
                         }
@@ -245,7 +250,7 @@ impl SDModule for FolderModule {
 
             FolderLinkComponent::NAME => {
                 if let Ok(mut component) = parse_button_to_component::<FolderLinkComponent>(button) {
-                    let choices = self.list_folders(&core)
+                    let choices = self.list_folders(&core).await
                         .into_iter()
                         .map(|(id, panel)| format!("{} ({})", panel.display_name, id))
                         .collect::<Vec<String>>();
@@ -278,70 +283,70 @@ impl SDModule for FolderModule {
         ]
     }
 
-    fn event(&self, core: CoreHandle, event: SDCoreEvent) {
+    async fn event(&self, core: CoreHandle, event: SDCoreEvent) {
         match event {
             SDCoreEvent::ButtonAdded { key, added_button, panel } |
             SDCoreEvent::ButtonUpdated { key, new_button: added_button, panel, .. } => {
-                let panel = panel.read().unwrap();
+                let panel = panel.read().await;
 
                 if let Ok(stack_data) = serde_json::from_value::<FolderStackData>(panel.data.clone()) {
-                    if let Some(mut contents) = self.get_folder(&core, &stack_data.folder_id) {
-                        contents.buttons.insert(key, button_to_raw(&added_button));
-                        self.update_folder(&core, &stack_data.folder_id, contents);
+                    if let Some(mut contents) = self.get_folder(&core, &stack_data.folder_id).await {
+                        contents.buttons.insert(key, button_to_raw(&added_button).await);
+                        self.update_folder(&core, &stack_data.folder_id, contents).await;
                     }
                 }
             }
 
             SDCoreEvent::ButtonDeleted { key, panel, .. } => {
-                let panel = panel.read().unwrap();
+                let panel = panel.read().await;
 
                 if let Ok(stack_data) = serde_json::from_value::<FolderStackData>(panel.data.clone()) {
-                    if let Some(mut contents) = self.get_folder(&core, &stack_data.folder_id) {
+                    if let Some(mut contents) = self.get_folder(&core, &stack_data.folder_id).await {
                         contents.buttons.remove(&key);
-                        self.update_folder(&core, &stack_data.folder_id, contents);
+                        self.update_folder(&core, &stack_data.folder_id, contents).await;
                     }
                 }
 
-                self.clean_unused_folders(&core);
+                self.clean_unused_folders(&core).await;
             }
 
             SDCoreEvent::ButtonAction { pressed_button, .. } => {
-                if let Ok(_) = parse_unique_button_to_component::<FolderUpComponent>(&pressed_button) {
-                    if core.current_stack().unwrap().len() > 1 {
-                        core.pop_screen();
+                if let Ok(_) = parse_unique_button_to_component::<FolderUpComponent>(&pressed_button).await {
+                    if core.current_stack().await.len() > 1 {
+                        core.pop_screen().await;
                     }
-                } else if let Ok(folder) = parse_unique_button_to_component::<FolderComponent>(&pressed_button) {
-                    let mut folder_ref_handle = self.folder_references.write().unwrap();
+                } else if let Ok(folder) = parse_unique_button_to_component::<FolderComponent>(&pressed_button).await {
+                    let mut folder_ref_handle = self.folder_references.write().await;
 
                     if let Some(panel) = folder_ref_handle.get(&folder.id).cloned() {
-                        core.push_screen(panel);
+                        core.push_screen(panel).await;
                     } else {
-                        if let Some(mut contents) = self.get_folder(&core, &folder.id) {
+                        if let Some(mut contents) = self.get_folder(&core, &folder.id).await {
                             contents.display_name = folder.name;
                             contents.data = serde_json::to_value(FolderStackData {
                                 folder_id: folder.id.to_string()
                             }).unwrap();
 
                             let panel = make_panel_unique(contents);
-                            core.push_screen(panel.clone());
+                            core.push_screen(panel.clone()).await;
                             folder_ref_handle.insert(folder.id, panel);
                         }
                     }
 
 
-                } else if let Ok(folder_link) = parse_unique_button_to_component::<FolderLinkComponent>(&pressed_button) {
-                    let mut folder_ref_handle = self.folder_references.write().unwrap();
+                } else if let Ok(folder_link) = parse_unique_button_to_component::<FolderLinkComponent>(&pressed_button).await {
+                    let mut folder_ref_handle = self.folder_references.write().await;
 
                     if let Some(panel) = folder_ref_handle.get(&folder_link.id).cloned() {
-                        core.push_screen(panel);
+                        core.push_screen(panel).await;
                     } else {
-                        if let Some(mut contents) = self.get_folder(&core, &folder_link.id) {
+                        if let Some(mut contents) = self.get_folder(&core, &folder_link.id).await {
                             contents.data = serde_json::to_value(FolderStackData {
                                 folder_id: folder_link.id.to_string()
                             }).unwrap();
 
                             let panel = make_panel_unique(contents);
-                            core.push_screen(panel.clone());
+                            core.push_screen(panel.clone()).await;
                             folder_ref_handle.insert(folder_link.id, panel);
                         }
                     }
@@ -377,8 +382,8 @@ impl FolderModule {
     }
 
     /// Generates a random name for folder and ensures it's not used anywhere
-    fn random_unique_name(&self, core: &CoreHandle) -> String {
-        let folder_list = self.list_folders(core);
+    async fn random_unique_name(&self, core: &CoreHandle) -> String {
+        let folder_list = self.list_folders(core).await;
 
         let mut name = self.random_name();
         while folder_list.get(&name).is_some() {
@@ -389,8 +394,8 @@ impl FolderModule {
     }
 
     /// Creates a new folder in plugin data
-    fn new_folder(&self, core: &CoreHandle) -> String {
-        let folder_id = self.random_unique_name(&core);
+    async fn new_folder(&self, core: &CoreHandle) -> String {
+        let folder_id = self.random_unique_name(&core).await;
 
         self.update_folders_data(core, |f| {
             f.insert(folder_id.clone(), RawButtonPanel {
@@ -398,15 +403,15 @@ impl FolderModule {
                 data: Default::default(),
                 buttons: Default::default()
             });
-        });
+        }).await;
 
         folder_id
     }
 
     /// Lists folders in plugin data
-    fn list_folders(&self, core: &CoreHandle) -> FolderMap {
+    async fn list_folders(&self, core: &CoreHandle) -> FolderMap {
         let core = core.core();
-        let config_handle = core.device_config.read().unwrap();
+        let config_handle = core.device_config.read().await;
 
         if let Some(folders) = config_handle.plugin_data.get("folders") {
             if let Ok(folders) = serde_json::from_value::<FolderMap>(folders.clone()) {
@@ -420,9 +425,9 @@ impl FolderModule {
     }
 
     /// Gets folder contents from plugin data
-    fn get_folder(&self, core: &CoreHandle, folder_id: &str) -> Option<RawButtonPanel> {
+    async fn get_folder(&self, core: &CoreHandle, folder_id: &str) -> Option<RawButtonPanel> {
         let core = core.core();
-        let config_handle = core.device_config.read().unwrap();
+        let config_handle = core.device_config.read().await;
 
         if let Some(folders) = config_handle.plugin_data.get("folders") {
             if let Ok(mut folders) = serde_json::from_value::<FolderMap>(folders.clone()) {
@@ -436,9 +441,9 @@ impl FolderModule {
     }
 
     /// Updates folders data
-    fn update_folders_data<F: Fn(&mut FolderMap) -> ()>(&self, core: &CoreHandle, func: F) {
+    async fn update_folders_data<F: Fn(&mut FolderMap) -> ()>(&self, core: &CoreHandle, func: F) {
         let core = core.core();
-        let mut config_handle = core.device_config.write().unwrap();
+        let mut config_handle = core.device_config.write().await;
 
         let mut folders = if let Some(folders_data) = config_handle.plugin_data.get("folders") {
             if let Ok(folders) = serde_json::from_value::<FolderMap>(folders_data.clone()) {
@@ -455,19 +460,20 @@ impl FolderModule {
     }
 
     /// Sets folder in plugin data
-    fn update_folder(&self, core: &CoreHandle, folder_id: &str, folder_content: RawButtonPanel) {
+    async fn update_folder(&self, core: &CoreHandle, folder_id: &str, folder_content: RawButtonPanel) {
         self.update_folders_data(core, |f| {
             f.insert(folder_id.to_string(), folder_content.clone());
-        });
+        }).await;
     }
 
     /// Copies folder recursively
-    fn copy_folder_recursively(&self, core: &CoreHandle, folder_id: &str) -> Option<String> {
-        let mut folder = self.get_folder(core, folder_id)?;
+    #[async_recursion]
+    async fn copy_folder_recursively(&self, core: &CoreHandle, folder_id: &str) -> Option<String> {
+        let mut folder = self.get_folder(core, folder_id).await?;
 
         for val in folder.buttons.values_mut() {
             if let Ok(mut folder) = parse_button_to_component::<FolderComponent>(val) {
-                if let Some(folder_id) = self.copy_folder_recursively(core, &folder.id) {
+                if let Some(folder_id) = self.copy_folder_recursively(core, &folder.id).await {
                     folder.id = folder_id;
                 }
 
@@ -475,13 +481,13 @@ impl FolderModule {
             }
         }
 
-        let str = self.random_unique_name(core);
-        self.update_folder(core, &str, folder);
+        let str = self.random_unique_name(core).await;
+        self.update_folder(core, &str, folder).await;
         Some(str)
     }
 
     /// Deletes folder with all folders that are linked from the folder recursively
-    fn clean_unused_folders(&self, core: &CoreHandle) {
+    async fn clean_unused_folders(&self, core: &CoreHandle) {
         fn count(folders: &FolderMap, folder_id: &str, ids: &mut HashSet<String>) {
             if let Some(folder) = folders.get(folder_id) {
                 ids.insert(folder_id.to_string());
@@ -494,10 +500,10 @@ impl FolderModule {
             }
         }
 
-        let folders = self.list_folders(core);
+        let folders = self.list_folders(core).await;
 
         let mut ids = HashSet::new();
-        let root_buttons = core.core.device_config.read().unwrap().layout.clone();
+        let root_buttons = core.core.device_config.read().await.layout.clone();
 
         for button in root_buttons.buttons.values() {
             if let Ok(folder) = parse_button_to_component::<FolderComponent>(button) {
@@ -509,7 +515,7 @@ impl FolderModule {
 
         self.update_folders_data(core, |f| {
             f.retain(|x, _| ids.contains(x))
-        })
+        }).await
     }
 }
 

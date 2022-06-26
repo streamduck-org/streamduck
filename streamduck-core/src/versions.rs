@@ -8,23 +8,23 @@
 //! are not using unsupported API.
 
 /// API related to plugin definition and initialization, will be updated very rarely if ever
-pub const PLUGIN_API: (&str, &str) = ("plugin_api", "0.1");
+pub const PLUGIN_API: (&str, &str) = ("plugin_api", "0.2");
 /// SDModule trait version, will be updated everytime there's a change to the module trait
-pub const SDMODULE_TRAIT: (&str, &str) = ("sdmodule_trait", "0.1");
+pub const SDMODULE_TRAIT: (&str, &str) = ("sdmodule_trait", "0.2");
 /// Core version, will be updated everytime there's change to core struct, probably never
-pub const CORE: (&str, &str) = ("core", "0.1");
+pub const CORE: (&str, &str) = ("core", "0.2");
 /// Core methods version, will be updated everytime there's changes to existing functions or functions get deleted
-pub const CORE_METHODS: (&str, &str) = ("core_methods", "0.1");
+pub const CORE_METHODS: (&str, &str) = ("core_methods", "0.2");
 /// Config, will be updated everytime there's changes to existing functions or functions get deleted
-pub const CONFIG: (&str, &str) = ("config", "0.1");
+pub const CONFIG: (&str, &str) = ("config", "0.2");
 /// Module manager, will be updated everytime there's changes to existing functions or functions get deleted
-pub const MODULE_MANAGER: (&str, &str) = ("module_manager", "0.1");
+pub const MODULE_MANAGER: (&str, &str) = ("module_manager", "0.2");
 /// Core events, will be updated everytime there's changes to existing events or an event was removed
-pub const CORE_EVENTS: (&str, &str) = ("core_events", "0.1");
+pub const CORE_EVENTS: (&str, &str) = ("core_events", "0.2");
 /// Socket API of daemon, mostly used for socket communication, will be updated everytime there's changes to existing requests or a request was removed
-pub const SOCKET_API: (&str, &str) = ("socket_api", "0.1");
+pub const SOCKET_API: (&str, &str) = ("socket_api", "0.2");
 /// Rendering version, will be updated everytime there's changes to existing rendering API for plugins
-pub const RENDERING: (&str, &str) = ("rendering", "0.1");
+pub const RENDERING: (&str, &str) = ("rendering", "0.2");
 
 /// Constant array of currently supported features, can also be used for plugin to specify using all of the features
 pub const SUPPORTED_FEATURES: &[(&str, &str)] = &[

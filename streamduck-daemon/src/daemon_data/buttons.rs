@@ -7,6 +7,7 @@ use streamduck_core::socket::{check_packet_for_data, parse_packet_to_data, send_
 use streamduck_core::util::{button_to_raw, make_button_unique};
 use crate::daemon_data::{DaemonListener, DaemonRequest};
 use std::ops::Deref;
+use streamduck_core::async_trait;
 
 /// Request for getting a button from current screen on a device
 #[derive(Serialize, Deserialize)]
@@ -36,19 +37,20 @@ impl SocketData for GetButtonResult {
     const NAME: &'static str = "get_button";
 }
 
+#[async_trait]
 impl DaemonRequest for GetButton {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<GetButton>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if let Some(button) = wrapped_core.get_button(request.key) {
-                    send_packet(handle, packet, &GetButtonResult::Button(button_to_raw(&button))).ok();
+                if let Some(button) = wrapped_core.get_button(request.key).await {
+                    send_packet(handle, packet, &GetButtonResult::Button(button_to_raw(&button).await)).await.ok();
                 } else {
-                    send_packet(handle, packet, &GetButtonResult::NoButton).ok();
+                    send_packet(handle, packet, &GetButtonResult::NoButton).await.ok();
                 }
             } else {
-                send_packet(handle, packet, &GetButtonResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &GetButtonResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -83,19 +85,20 @@ impl SocketData for SetButtonResult {
     const NAME: &'static str = "set_button";
 }
 
+#[async_trait]
 impl DaemonRequest for SetButton {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<SetButton>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if wrapped_core.set_button(request.key, make_button_unique(request.button)) {
-                    send_packet(handle, packet, &SetButtonResult::Set).ok();
+                if wrapped_core.set_button(request.key, make_button_unique(request.button)).await {
+                    send_packet(handle, packet, &SetButtonResult::Set).await.ok();
                 } else {
-                    send_packet(handle, packet, &SetButtonResult::NoScreen).ok();
+                    send_packet(handle, packet, &SetButtonResult::NoScreen).await.ok();
                 }
             } else {
-                send_packet(handle, packet, &SetButtonResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &SetButtonResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -129,19 +132,20 @@ impl SocketData for ClearButtonResult {
     const NAME: &'static str = "clear_button";
 }
 
+#[async_trait]
 impl DaemonRequest for ClearButton {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<ClearButton>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if wrapped_core.clear_button(request.key) {
-                    send_packet(handle, packet, &ClearButtonResult::Cleared).ok();
+                if wrapped_core.clear_button(request.key).await {
+                    send_packet(handle, packet, &ClearButtonResult::Cleared).await.ok();
                 } else {
-                    send_packet(handle, packet, &ClearButtonResult::FailedToClear).ok();
+                    send_packet(handle, packet, &ClearButtonResult::FailedToClear).await.ok();
                 }
             } else {
-                send_packet(handle, packet, &ClearButtonResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &ClearButtonResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -175,19 +179,20 @@ impl SocketData for NewButtonResult {
     const NAME: &'static str = "new_button";
 }
 
+#[async_trait]
 impl DaemonRequest for NewButton {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<NewButton>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if wrapped_core.set_button(request.key, make_button_unique(Button::new())) {
-                    send_packet(handle, packet, &NewButtonResult::Created).ok();
+                if wrapped_core.set_button(request.key, make_button_unique(Button::new())).await {
+                    send_packet(handle, packet, &NewButtonResult::Created).await.ok();
                 } else {
-                    send_packet(handle, packet, &NewButtonResult::FailedToCreate).ok();
+                    send_packet(handle, packet, &NewButtonResult::FailedToCreate).await.ok();
                 }
             } else {
-                send_packet(handle, packet, &NewButtonResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &NewButtonResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -225,13 +230,14 @@ impl SocketData for NewButtonFromComponentResult {
     const NAME: &'static str = "new_button_from_component";
 }
 
+#[async_trait]
 impl DaemonRequest for NewButtonFromComponent {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<NewButtonFromComponent>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                let map = listener.module_manager.read_component_map();
+                let map = listener.module_manager.read_component_map().await;
 
                 if let Some((definition, module)) = map.get(&request.component_name).cloned() {
                     drop(map);
@@ -239,20 +245,20 @@ impl DaemonRequest for NewButtonFromComponent {
                     let mut button = Button::new();
                     button.insert_component(definition.default_looks).ok();
 
-                    module.add_component(wrapped_core.clone_for(&module), &mut button, &request.component_name);
+                    module.add_component(wrapped_core.clone_for(&module), &mut button, &request.component_name).await;
 
-                    if wrapped_core.set_button(request.key, make_button_unique(button)) {
-                        send_packet(handle, packet, &NewButtonFromComponentResult::Created).ok();
+                    if wrapped_core.set_button(request.key, make_button_unique(button)).await {
+                        send_packet(handle, packet, &NewButtonFromComponentResult::Created).await.ok();
                     } else {
-                        send_packet(handle, packet, &NewButtonFromComponentResult::FailedToCreate).ok();
+                        send_packet(handle, packet, &NewButtonFromComponentResult::FailedToCreate).await.ok();
                     }
 
                     return;
                 }
 
-                send_packet(handle, packet, &NewButtonFromComponentResult::ComponentNotFound).ok();
+                send_packet(handle, packet, &NewButtonFromComponentResult::ComponentNotFound).await.ok();
             } else {
-                send_packet(handle, packet, &NewButtonFromComponentResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &NewButtonFromComponentResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -288,19 +294,20 @@ impl SocketData for AddComponentResult {
     const NAME: &'static str = "add_component";
 }
 
+#[async_trait]
 impl DaemonRequest for AddComponent {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<AddComponent>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if wrapped_core.add_component(request.key, &request.component_name) {
-                    send_packet(handle, packet, &AddComponentResult::Added).ok();
+                if wrapped_core.add_component(request.key, &request.component_name).await {
+                    send_packet(handle, packet, &AddComponentResult::Added).await.ok();
                 } else {
-                    send_packet(handle, packet, &AddComponentResult::FailedToAdd).ok();
+                    send_packet(handle, packet, &AddComponentResult::FailedToAdd).await.ok();
                 }
             } else {
-                send_packet(handle, packet, &AddComponentResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &AddComponentResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -335,21 +342,22 @@ impl SocketData for GetComponentValuesResult {
     const NAME: &'static str = "get_component_values";
 }
 
+#[async_trait]
 impl DaemonRequest for GetComponentValues {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<GetComponentValues>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                let values = wrapped_core.get_component_values_with_paths(request.key, &request.component_name);
+                let values = wrapped_core.get_component_values_with_paths(request.key, &request.component_name).await;
 
                 if let Some(values) = values {
-                    send_packet(handle, packet, &GetComponentValuesResult::Values(values)).ok();
+                    send_packet(handle, packet, &GetComponentValuesResult::Values(values)).await.ok();
                 } else {
-                    send_packet(handle, packet, &GetComponentValuesResult::FailedToGet).ok();
+                    send_packet(handle, packet, &GetComponentValuesResult::FailedToGet).await.ok();
                 }
             } else {
-                send_packet(handle, packet, &GetComponentValuesResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &GetComponentValuesResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -385,20 +393,21 @@ impl SocketData for AddComponentValueResult {
     const NAME: &'static str = "add_component_value";
 }
 
+#[async_trait]
 impl DaemonRequest for AddComponentValue {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<AddComponentValue>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if wrapped_core.add_element_component_value(request.key, &request.component_name, &request.path) {
-                    listener.config.sync_images(&request.serial_number);
-                    send_packet(handle, packet, &AddComponentValueResult::Added).ok();
+                if wrapped_core.add_element_component_value(request.key, &request.component_name, &request.path).await {
+                    listener.config.sync_images(&request.serial_number).await;
+                    send_packet(handle, packet, &AddComponentValueResult::Added).await.ok();
                 } else {
-                    send_packet(handle, packet, &AddComponentValueResult::FailedToAdd).ok();
+                    send_packet(handle, packet, &AddComponentValueResult::FailedToAdd).await.ok();
                 }
             } else {
-                send_packet(handle, packet, &AddComponentValueResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &AddComponentValueResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -435,20 +444,21 @@ impl SocketData for RemoveComponentValueResult {
     const NAME: &'static str = "remove_component_value";
 }
 
+#[async_trait]
 impl DaemonRequest for RemoveComponentValue {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<RemoveComponentValue>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if wrapped_core.remove_element_component_value(request.key, &request.component_name, &request.path, request.index) {
-                    listener.config.sync_images(&request.serial_number);
-                    send_packet(handle, packet, &RemoveComponentValueResult::Removed).ok();
+                if wrapped_core.remove_element_component_value(request.key, &request.component_name, &request.path, request.index).await {
+                    listener.config.sync_images(&request.serial_number).await;
+                    send_packet(handle, packet, &RemoveComponentValueResult::Removed).await.ok();
                 } else {
-                    send_packet(handle, packet, &RemoveComponentValueResult::FailedToRemove).ok();
+                    send_packet(handle, packet, &RemoveComponentValueResult::FailedToRemove).await.ok();
                 }
             } else {
-                send_packet(handle, packet, &RemoveComponentValueResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &RemoveComponentValueResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -484,20 +494,21 @@ impl SocketData for SetComponentValueResult {
     const NAME: &'static str = "set_component_value";
 }
 
+#[async_trait]
 impl DaemonRequest for SetComponentValue {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<SetComponentValue>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if wrapped_core.set_component_value_by_path(request.key, &request.component_name, request.value) {
-                    listener.config.sync_images(&request.serial_number);
-                    send_packet(handle, packet, &SetComponentValueResult::Set).ok();
+                if wrapped_core.set_component_value_by_path(request.key, &request.component_name, request.value).await {
+                    listener.config.sync_images(&request.serial_number).await;
+                    send_packet(handle, packet, &SetComponentValueResult::Set).await.ok();
                 } else {
-                    send_packet(handle, packet, &SetComponentValueResult::FailedToSet).ok();
+                    send_packet(handle, packet, &SetComponentValueResult::FailedToSet).await.ok();
                 }
             } else {
-                send_packet(handle, packet, &SetComponentValueResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &SetComponentValueResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -532,19 +543,20 @@ impl SocketData for RemoveComponentResult {
     const NAME: &'static str = "remove_component";
 }
 
+#[async_trait]
 impl DaemonRequest for RemoveComponent {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<RemoveComponent>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if wrapped_core.remove_component(request.key, &request.component_name) {
-                    send_packet(handle, packet, &RemoveComponentResult::Removed).ok();
+                if wrapped_core.remove_component(request.key, &request.component_name).await {
+                    send_packet(handle, packet, &RemoveComponentResult::Removed).await.ok();
                 } else {
-                    send_packet(handle, packet, &RemoveComponentResult::FailedToRemove).ok();
+                    send_packet(handle, packet, &RemoveComponentResult::FailedToRemove).await.ok();
                 }
             } else {
-                send_packet(handle, packet, &RemoveComponentResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &RemoveComponentResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -564,12 +576,13 @@ impl SocketData for ClipboardStatusResult {
     const NAME: &'static str = "clipboard_status";
 }
 
+#[async_trait]
 impl DaemonRequest for ClipboardStatusResult {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if check_packet_for_data::<ClipboardStatusResult>(packet) {
-            let lock = listener.clipboard.lock().unwrap();
+            let lock = listener.clipboard.lock().await;
 
-            send_packet(handle, packet, &if lock.is_some() { ClipboardStatusResult::Full } else { ClipboardStatusResult::Empty }).ok();
+            send_packet(handle, packet, &if lock.is_some() { ClipboardStatusResult::Full } else { ClipboardStatusResult::Empty }).await.ok();
         }
     }
 }
@@ -603,21 +616,22 @@ impl SocketData for CopyButtonResult {
     const NAME: &'static str = "copy_button";
 }
 
+#[async_trait]
 impl DaemonRequest for CopyButton {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<CopyButton>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                if let Some(button) = wrapped_core.get_button(request.key) {
-                    let mut lock = listener.clipboard.lock().unwrap();
-                    *lock = Some(button.read().unwrap().deref().clone());
-                    send_packet(handle, packet, &CopyButtonResult::Copied).ok();
+                if let Some(button) = wrapped_core.get_button(request.key).await {
+                    let mut lock = listener.clipboard.lock().await;
+                    *lock = Some(button.read().await.deref().clone());
+                    send_packet(handle, packet, &CopyButtonResult::Copied).await.ok();
                 } else {
-                    send_packet(handle, packet, &CopyButtonResult::NoButton).ok();
+                    send_packet(handle, packet, &CopyButtonResult::NoButton).await.ok();
                 }
             } else {
-                send_packet(handle, packet, &CopyButtonResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &CopyButtonResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -651,24 +665,25 @@ impl SocketData for PasteButtonResult {
     const NAME: &'static str = "paste_button";
 }
 
+#[async_trait]
 impl DaemonRequest for PasteButton {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<PasteButton>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 let wrapped_core = CoreHandle::wrap(device.core);
 
-                let clipboard = listener.clipboard.lock().unwrap();
+                let clipboard = listener.clipboard.lock().await;
 
                 if clipboard.is_some() {
-                    if wrapped_core.paste_button(request.key, clipboard.as_ref().unwrap()) {
-                        send_packet(handle, packet, &PasteButtonResult::Pasted).ok();
+                    if wrapped_core.paste_button(request.key, clipboard.as_ref().unwrap()).await {
+                        send_packet(handle, packet, &PasteButtonResult::Pasted).await.ok();
                         return;
                     }
                 }
 
-                send_packet(handle, packet, &PasteButtonResult::FailedToPaste).ok();
+                send_packet(handle, packet, &PasteButtonResult::FailedToPaste).await.ok();
             } else {
-                send_packet(handle, packet, &PasteButtonResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &PasteButtonResult::DeviceNotFound).await.ok();
             }
         }
     }

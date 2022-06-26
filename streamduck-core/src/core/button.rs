@@ -51,8 +51,8 @@ pub fn parse_button_to_component<T: Component + DeserializeOwned>(button: &Butto
 }
 
 /// Attempts to retrieve a component from reference counted button
-pub fn parse_unique_button_to_component<T: Component + DeserializeOwned>(button: &UniqueButton) -> Result<T, ParseError> {
-    parse_button_to_component(button.read().unwrap().deref())
+pub async fn parse_unique_button_to_component<T: Component + DeserializeOwned>(button: &UniqueButton) -> Result<T, ParseError> {
+    parse_button_to_component(button.read().await.deref())
 }
 
 /// Serializes component into JSON
