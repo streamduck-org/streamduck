@@ -1,7 +1,7 @@
 [package]
 name = "streamduck-daemon"
 authors = ["TheJebForge"]
-version = "0.1.7"
+version = "0.1.8"
 description = "Daemon of the Streamduck project"
 edition = "2021"
 readme = "../Readme.md"
@@ -17,8 +17,8 @@ name = "streamduck_daemon"
 path = "src/main.rs"
 
 [dependencies]
-streamduck-core = {path = "../streamduck-core", version = "0.1.7" }
-streamduck-actions = {path = "../streamduck-actions", version = "0.1.7" }
+streamduck-core = {path = "../streamduck-core", version = "0.1.8" }
+streamduck-actions = {path = "../streamduck-actions", version = "0.1.8" }
 base64 = "0.13.0"
 flate2 = "1.0"
 serde = { version = "1.0.130", features = ["derive"] }
