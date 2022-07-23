@@ -87,7 +87,7 @@ pub fn find_decks(hid: &HidApi) -> Vec<(u16, u16, Option<String>)> {
 /// Checks if PID of the device matches streamdeck
 pub fn check_if_streamdeck(product_id: u16) -> bool {
     match product_id {
-        pids::MINI | pids::ORIGINAL | pids::ORIGINAL_V2 | pids::XL => true,
+        pids::MINI | pids::ORIGINAL | pids::ORIGINAL_V2 | pids::XL | pids::MK2 => true,
         _ => false,
     }
 }
