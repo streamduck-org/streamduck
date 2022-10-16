@@ -5,6 +5,7 @@ use streamduck_core::core::CoreHandle;
 use streamduck_core::socket::{check_packet_for_data, parse_packet_to_data, send_packet, SocketData, SocketHandle, SocketPacket};
 use crate::daemon_data::{DaemonListener, DaemonRequest};
 use streamduck_core::streamdeck;
+use streamduck_core::async_trait;
 
 /// Request for getting device list
 #[derive(Serialize, Deserialize)]
@@ -16,23 +17,24 @@ impl SocketData for ListDevices {
     const NAME: &'static str = "list_devices";
 }
 
+#[async_trait]
 impl DaemonRequest for ListDevices {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if check_packet_for_data::<ListDevices>(&packet) {
             let mut devices = vec![];
 
             // Connected devices
-            for device in listener.core_manager.list_added_devices().values() {
+            for device in listener.core_manager.list_added_devices().await.values() {
                 devices.push(Device {
                     device_type: DeviceType::from_pid(device.pid),
                     serial_number: device.serial.clone(),
                     managed: true,
-                    online: !device.core.is_closed()
+                    online: !device.core.is_closed().await
                 })
             }
 
             // Available devices
-            for (_, pid, serial) in listener.core_manager.list_available_devices() {
+            for (_, pid, serial) in listener.core_manager.list_available_devices().await {
                 devices.push(Device {
                     device_type: DeviceType::from_pid(pid),
                     serial_number: serial,
@@ -43,7 +45,7 @@ impl DaemonRequest for ListDevices {
 
             send_packet(handle, &packet, &ListDevices {
                 devices
-            }).ok();
+            }).await.ok();
         }
     }
 }
@@ -110,21 +112,22 @@ impl SocketData for GetDeviceResult {
     const NAME: &'static str = "get_device";
 }
 
+#[async_trait]
 impl DaemonRequest for GetDevice {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(get_request) = parse_packet_to_data::<GetDevice>(&packet) {
-            let result = if let Some(device) = listener.core_manager.get_device(&get_request.serial_number) {
+            let result = if let Some(device) = listener.core_manager.get_device(&get_request.serial_number).await {
                 GetDeviceResult::Found(Device {
                     device_type: DeviceType::from_pid(device.pid),
                     serial_number: device.serial,
                     managed: true,
-                    online: !device.core.is_closed()
+                    online: !device.core.is_closed().await
                 })
             } else {
                 GetDeviceResult::NotFound
             };
 
-            send_packet(handle, &packet, &result).ok();
+            send_packet(handle, &packet, &result).await.ok();
         }
     }
 }
@@ -157,21 +160,22 @@ impl SocketData for AddDeviceResult {
     const NAME: &'static str = "add_device";
 }
 
+#[async_trait]
 impl DaemonRequest for AddDevice {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(add_request) = parse_packet_to_data::<AddDevice>(&packet) {
-            if listener.core_manager.get_device(&add_request.serial_number).is_none() {
-                for (vid, pid, serial) in listener.core_manager.list_available_devices() {
+            if listener.core_manager.get_device(&add_request.serial_number).await.is_none() {
+                for (vid, pid, serial) in listener.core_manager.list_available_devices().await {
                     if add_request.serial_number == serial {
-                        listener.core_manager.add_device(vid, pid, &serial);
-                        send_packet(handle, &packet, &AddDeviceResult::Added).ok();
+                        listener.core_manager.add_device(vid, pid, &serial).await;
+                        send_packet(handle, &packet, &AddDeviceResult::Added).await.ok();
                         return;
                     }
                 }
 
-                send_packet(handle, &packet, &AddDeviceResult::NotFound).ok();
+                send_packet(handle, &packet, &AddDeviceResult::NotFound).await.ok();
             } else {
-                send_packet(handle, &packet, &AddDeviceResult::AlreadyRegistered).ok();
+                send_packet(handle, &packet, &AddDeviceResult::AlreadyRegistered).await.ok();
             }
         }
     }
@@ -201,14 +205,15 @@ impl SocketData for RemoveDeviceResult {
     const NAME: &'static str = "remove_device";
 }
 
+#[async_trait]
 impl DaemonRequest for RemoveDevice {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(remove_request) = parse_packet_to_data::<RemoveDevice>(&packet) {
-            if listener.core_manager.get_device(&remove_request.serial_number).is_some() {
-                listener.core_manager.remove_device(&remove_request.serial_number);
-                send_packet(handle, &packet, &RemoveDeviceResult::Removed).ok();
+            if listener.core_manager.get_device(&remove_request.serial_number).await.is_some() {
+                listener.core_manager.remove_device(&remove_request.serial_number).await;
+                send_packet(handle, &packet, &RemoveDeviceResult::Removed).await.ok();
             } else {
-                send_packet(handle, &packet, &RemoveDeviceResult::NotRegistered).ok();
+                send_packet(handle, &packet, &RemoveDeviceResult::NotRegistered).await.ok();
             }
         }
     }
@@ -238,15 +243,16 @@ impl SocketData for GetBrightnessResult {
     const NAME: &'static str = "get_brightness";
 }
 
+#[async_trait]
 impl DaemonRequest for GetBrightness {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<GetBrightness>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
-                let brightness = device.core.device_config.read().unwrap().brightness;
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
+                let brightness = device.core.device_config.read().await.brightness;
 
-                send_packet(handle, packet, &GetBrightnessResult::Brightness(brightness)).ok();
+                send_packet(handle, packet, &GetBrightnessResult::Brightness(brightness)).await.ok();
             } else {
-                send_packet(handle, packet, &GetBrightnessResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &GetBrightnessResult::DeviceNotFound).await.ok();
             }
         }
     }
@@ -277,17 +283,18 @@ impl SocketData for SetBrightnessResult {
     const NAME: &'static str = "set_brightness";
 }
 
+#[async_trait]
 impl DaemonRequest for SetBrightness {
-    fn process(listener: &DaemonListener, handle: SocketHandle, packet: &SocketPacket) {
+    async fn process(listener: &DaemonListener, handle: SocketHandle<'_>, packet: &SocketPacket) {
         if let Ok(request) = parse_packet_to_data::<SetBrightness>(packet) {
-            if let Some(device) = listener.core_manager.get_device(&request.serial_number) {
+            if let Some(device) = listener.core_manager.get_device(&request.serial_number).await {
                 // Setting brightness
                 let wrapped_core = CoreHandle::wrap(device.core);
-                wrapped_core.set_brightness(request.brightness);
+                wrapped_core.set_brightness(request.brightness).await;
 
-                send_packet(handle, packet, &SetBrightnessResult::Set).ok();
+                send_packet(handle, packet, &SetBrightnessResult::Set).await.ok();
             } else {
-                send_packet(handle, packet, &SetBrightnessResult::DeviceNotFound).ok();
+                send_packet(handle, packet, &SetBrightnessResult::DeviceNotFound).await.ok();
             }
         }
     }

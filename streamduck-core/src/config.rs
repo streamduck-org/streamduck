@@ -4,13 +4,14 @@ use std::fs;
 use dirs;
 use std::ops::Deref;
 use std::path::PathBuf;
-use std::sync::{Arc, RwLock};
-use image::DynamicImage;
+use std::sync::{Arc};
+use image::{DynamicImage};
 use serde::{Serialize, Deserialize};
 use serde::de::DeserializeOwned;
 use crate::core::RawButtonPanel;
 use serde_json::Value;
 use streamdeck::Kind;
+use tokio::sync::RwLock;
 use crate::ImageCollection;
 use crate::images::{SDImage, SDSerializedImage};
 use crate::util::{hash_image, hash_str};
@@ -127,7 +128,7 @@ impl Config {
             config.sys_config_dir = Some(config_dir);
         }
 
-        config.load_plugin_settings();
+        config.load_plugin_settings().await;
 
         log::debug!("config: {:#?}", config);
         config
@@ -196,9 +197,9 @@ impl Config {
     }
 
     /// Loads plugin settings from file
-    pub fn load_plugin_settings(&self) {
+    pub async fn load_plugin_settings(&self) {
         if let Ok(settings) = fs::read_to_string(self.plugin_settings_path()) {
-            let mut lock = self.plugin_settings.write().unwrap();
+            let mut lock = self.plugin_settings.write().await;
 
             match serde_json::from_str(&settings) {
                 Ok(vals) => *lock = vals,
@@ -208,34 +209,34 @@ impl Config {
     }
 
     /// Retrieves plugin settings if it exists
-    pub fn get_plugin_settings<T: PluginConfig + DeserializeOwned>(&self) -> Option<T> {
-        let lock = self.plugin_settings.read().unwrap();
+    pub async fn get_plugin_settings<T: PluginConfig + DeserializeOwned>(&self) -> Option<T> {
+        let lock = self.plugin_settings.read().await;
         Some(serde_json::from_value(lock.get(T::NAME)?.clone()).ok()?)
     }
 
     /// Sets plugin settings
-    pub fn set_plugin_settings<T: PluginConfig + Serialize>(&self, value: T) {
-        let mut lock = self.plugin_settings.write().unwrap();
+    pub async fn set_plugin_settings<T: PluginConfig + Serialize>(&self, value: T) {
+        let mut lock = self.plugin_settings.write().await;
         lock.insert(T::NAME.to_string(), serde_json::to_value(value).unwrap());
         drop(lock);
 
-        self.write_plugin_settings();
+        self.write_plugin_settings().await;
     }
 
     /// Writes plugin settings to file
-    pub fn write_plugin_settings(&self) {
-        let lock = self.plugin_settings.read().unwrap();
+    pub async fn write_plugin_settings(&self) {
+        let lock = self.plugin_settings.read().await;
         if let Err(err) = fs::write(self.plugin_settings_path(), serde_json::to_string(lock.deref()).unwrap()) {
             log::error!("Failed to write plugin settings: {:?}", err);
         }
     }
 
     /// Reloads device config for specified serial
-    pub fn reload_device_config(&self, serial: &str) -> Result<(), ConfigError> {
+    pub async fn reload_device_config(&self, serial: &str) -> Result<(), ConfigError> {
         // Clearing image collection to make sure it's fresh for reload
-        self.get_image_collection(serial).write().unwrap().clear();
+        self.get_image_collection(serial).await.write().await.clear();
 
-        let mut devices = self.loaded_configs.write().unwrap();
+        let mut devices = self.loaded_configs.write().await;
 
         let mut path = self.device_config_path();
         path.push(format!("{}.json", serial));
@@ -245,19 +246,19 @@ impl Config {
 
 
         if let Some(device_config) = devices.get(serial) {
-            *device_config.write().unwrap() = device;
+            *device_config.write().await = device;
         } else {
             devices.insert(serial.to_string(), Arc::new(RwLock::new(device)));
         }
 
-        self.update_collection(devices.get(serial).unwrap());
+        self.update_collection(devices.get(serial).unwrap()).await;
 
         Ok(())
     }
 
     /// Reloads all device configs
-    pub fn reload_device_configs(&self) -> Result<(), ConfigError> {
-        let mut devices = self.loaded_configs.write().unwrap();
+    pub async fn reload_device_configs(&self) -> Result<(), ConfigError> {
+        let mut devices = self.loaded_configs.write().await;
 
         let dir = fs::read_dir(self.device_config_path())?;
 
@@ -272,14 +273,14 @@ impl Config {
                         let serial = device.serial.to_string();
 
                         // Clearing image collection so it's fresh for reload
-                        self.get_image_collection(&device.serial).write().unwrap().clear();
+                        self.get_image_collection(&device.serial).await.write().await.clear();
                         if let Some(device_config) = devices.get(&serial) {
-                            *device_config.write().unwrap() = device;
+                            *device_config.write().await = device;
                         } else {
                             devices.insert(serial.to_string(), Arc::new(RwLock::new(device)));
                         }
 
-                        self.update_collection(devices.get(&serial).unwrap());
+                        self.update_collection(devices.get(&serial).unwrap()).await;
                     }
                 }
             }
@@ -289,16 +290,16 @@ impl Config {
     }
 
     /// Saves device config for specified serial
-    pub fn save_device_config(&self, serial: &str) -> Result<(), ConfigError> {
-        let devices = self.loaded_configs.read().unwrap();
+    pub async fn save_device_config(&self, serial: &str) -> Result<(), ConfigError> {
+        let devices = self.loaded_configs.read().await;
 
         if let Some(device) = devices.get(serial).cloned() {
-            self.update_collection(&device);
+            self.update_collection(&device).await;
             let mut path = self.device_config_path();
             fs::create_dir_all(&path).ok();
             path.push(format!("{}.json", serial));
 
-            fs::write(path, serde_json::to_string(device.read().unwrap().deref()).unwrap())?;
+            fs::write(path, serde_json::to_string(device.read().await.deref()).unwrap())?;
             Ok(())
         } else {
             Err(ConfigError::DeviceNotFound)
@@ -306,42 +307,42 @@ impl Config {
     }
 
     /// Saves device configs for all serials
-    pub fn save_device_configs(&self) -> Result<(), ConfigError> {
-        let devices = self.loaded_configs.read().unwrap();
+    pub async fn save_device_configs(&self) -> Result<(), ConfigError> {
+        let devices = self.loaded_configs.read().await;
 
         let path = self.device_config_path();
         fs::create_dir_all(&path).ok();
 
         for (serial, device) in devices.iter() {
             let device= device.clone();
-            self.update_collection(&device);
+            self.update_collection(&device).await;
             let mut file_path = path.clone();
             file_path.push(format!("{}.json", serial));
-            fs::write(file_path, serde_json::to_string(device.read().unwrap().deref()).unwrap())?;
+            fs::write(file_path, serde_json::to_string(device.read().await.deref()).unwrap())?;
         }
 
         Ok(())
     }
 
     /// Retrieves device config for specified serial
-    pub fn get_device_config(&self, serial: &str) -> Option<UniqueDeviceConfig> {
-        self.loaded_configs.read().unwrap().get(serial).cloned()
+    pub async fn get_device_config(&self, serial: &str) -> Option<UniqueDeviceConfig> {
+        self.loaded_configs.read().await.get(serial).cloned()
     }
 
     /// Sets device config for specified serial
-    pub fn set_device_config(&self, serial: &str, config: DeviceConfig) {
-        let mut handle = self.loaded_configs.write().unwrap();
+    pub async fn set_device_config(&self, serial: &str, config: DeviceConfig) {
+        let mut handle = self.loaded_configs.write().await;
 
         if let Some(device_config) = handle.get(serial) {
-            *device_config.write().unwrap() = config;
+            *device_config.write().await = config;
         } else {
             handle.insert(serial.to_string(), Arc::new(RwLock::new(config)));
         }
     }
 
     /// Gets an array of all device configs
-    pub fn get_all_device_configs(&self) -> Vec<UniqueDeviceConfig> {
-        self.loaded_configs.read().unwrap().values().map(|x| x.clone()).collect()
+    pub async fn get_all_device_configs(&self) -> Vec<UniqueDeviceConfig> {
+        self.loaded_configs.read().await.values().map(|x| x.clone()).collect()
     }
 
     /// Disables a device config, so it will not be loaded by default
@@ -371,16 +372,16 @@ impl Config {
     }
 
     /// Adds base64 image to device config image collection
-    pub fn add_image(&self, serial: &str, image: String) -> Option<String> {
-        if let Some(config) = self.get_device_config(serial) {
-            let mut config_handle = config.write().unwrap();
+    pub async fn add_image(&self, serial: &str, image: String) -> Option<String> {
+        if let Some(config) = self.get_device_config(serial).await {
+            let mut config_handle = config.write().await;
             let identifier = hash_str(&image);
 
-            if let Ok(image) = SDImage::from_base64(&image, config_handle.kind().image_size()) {
+            if let Ok(image) = SDImage::from_base64(&image, config_handle.kind().image_size()).await {
                 config_handle.images.insert(identifier.clone(), image.into());
                 drop(config_handle);
 
-                self.update_collection(&config);
+                self.update_collection(&config).await;
                 Some(identifier)
             } else {
                 None
@@ -391,15 +392,15 @@ impl Config {
     }
 
     /// Encodes image to base64 and adds it to device config image collection
-    pub fn add_image_encode(&self, serial: &str, image: DynamicImage) -> Option<String> {
-        if let Some(config) = self.get_device_config(serial) {
-            let mut config_handle = config.write().unwrap();
+    pub async fn add_image_encode(&self, serial: &str, image: DynamicImage) -> Option<String> {
+        if let Some(config) = self.get_device_config(serial).await {
+            let mut config_handle = config.write().await;
             let serialized_image = SDImage::SingleImage(resize_for_streamdeck(config_handle.kind().image_size(), image)).into();
             let identifier = hash_image(&serialized_image);
             config_handle.images.insert(identifier.clone(), serialized_image);
             drop(config_handle);
 
-            self.update_collection(&config);
+            self.update_collection(&config).await;
             return Some(identifier);
         }
 
@@ -407,9 +408,9 @@ impl Config {
     }
 
     /// Gets images from device config
-    pub fn get_images(&self, serial: &str) -> Option<HashMap<String, SDSerializedImage>> {
-        if let Some(config) = self.get_device_config(serial) {
-            let config_handle = config.read().unwrap();
+    pub async fn get_images(&self, serial: &str) -> Option<HashMap<String, SDSerializedImage>> {
+        if let Some(config) = self.get_device_config(serial).await {
+            let config_handle = config.read().await;
             Some(config_handle.images.clone())
         } else {
             None
@@ -417,13 +418,13 @@ impl Config {
     }
 
     /// Removes image from device config
-    pub fn remove_image(&self, serial: &str, identifier: &str) -> bool {
-        if let Some(config) = self.get_device_config(serial) {
-            let mut config_handle = config.write().unwrap();
+    pub async fn remove_image(&self, serial: &str, identifier: &str) -> bool {
+        if let Some(config) = self.get_device_config(serial).await {
+            let mut config_handle = config.write().await;
             config_handle.images.remove(identifier);
             drop(config_handle);
 
-            self.remove_from_collection(serial, identifier);
+            self.remove_from_collection(serial, identifier).await;
             true
         } else {
             false
@@ -431,15 +432,15 @@ impl Config {
     }
 
     /// Syncs images with core
-    pub fn sync_images(&self, serial: &str) {
-        if let Some(config) = self.get_device_config(serial) {
-            self.update_collection(&config);
+    pub async fn sync_images(&self, serial: &str) {
+        if let Some(config) = self.get_device_config(serial).await {
+            self.update_collection(&config).await;
         }
     }
 
     /// Retrieves image collection for device if device exists
-    pub fn get_image_collection(&self, serial: &str) -> ImageCollection {
-        let mut handle = self.loaded_images.write().unwrap();
+    pub async fn get_image_collection(&self, serial: &str) -> ImageCollection {
+        let mut handle = self.loaded_images.write().await;
 
         if let Some(collection) = handle.get(serial) {
             collection.clone()
@@ -451,12 +452,12 @@ impl Config {
     }
 
     /// For making sure image collections strictly follow device config
-    fn update_collection(&self, device_config: &UniqueDeviceConfig) {
-        let mut device_config = device_config.write().unwrap();
-        let mut handle = self.loaded_images.write().unwrap();
+    async fn update_collection(&self, device_config: &UniqueDeviceConfig) {
+        let mut device_config = device_config.write().await;
+        let mut handle = self.loaded_images.write().await;
 
         if let Some(collection) = handle.get_mut(&device_config.serial) {
-            let mut collection_handle = collection.write().unwrap();
+            let mut collection_handle = collection.write().await;
 
             // Adding missing images from device config
             for (key, image) in &device_config.images {
@@ -477,11 +478,11 @@ impl Config {
     }
 
     /// For removing images from image collections
-    fn remove_from_collection(&self, serial: &str, identifier: &str) {
-        let mut handle = self.loaded_images.write().unwrap();
+    async fn remove_from_collection(&self, serial: &str, identifier: &str) {
+        let mut handle = self.loaded_images.write().await;
 
         if let Some(collection) = handle.get_mut(serial) {
-            let mut collection_handle = collection.write().unwrap();
+            let mut collection_handle = collection.write().await;
             collection_handle.remove(identifier);
         }
     }

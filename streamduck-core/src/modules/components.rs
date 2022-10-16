@@ -108,6 +108,14 @@ pub enum UIFieldType {
 
     /// Font name
     Font,
+
+    /// Button for receiving impulses from clients
+    Button {
+        disabled: bool
+    },
+
+    /// Previews an image on UI
+    ImagePreview,
 }
 
 /// UI Field value, current state of the settings
@@ -163,6 +171,12 @@ pub enum UIFieldValue<V> {
 
     /// Font name
     Font(String),
+
+    /// Button
+    Button,
+
+    /// Previews an image on UI, png image data encoded in base64
+    ImagePreview(String)
 }
 
 impl<V> UIFieldValue<V> {
@@ -385,7 +399,13 @@ impl<V> TryInto<String> for UIFieldValue<V> {
     type Error = String;
 
     fn try_into(self) -> Result<String, Self::Error> {
-        if let UIFieldValue::InputFieldString(str) | UIFieldValue::Choice(str) | UIFieldValue::ImageData(str) | UIFieldValue::ExistingImage(str) | UIFieldValue::Font(str) | UIFieldValue::Label(str) = self {
+        if let UIFieldValue::InputFieldString(str) |
+                UIFieldValue::Choice(str) |
+                UIFieldValue::ImageData(str) |
+                UIFieldValue::ExistingImage(str) |
+                UIFieldValue::Font(str) |
+                UIFieldValue::Label(str) |
+                UIFieldValue::ImagePreview(str) = self {
             Ok(str)
         } else {
             Err("Incorrect value".to_string())
@@ -397,7 +417,13 @@ impl<V> TryInto<String> for &UIFieldValue<V> {
     type Error = String;
 
     fn try_into(self) -> Result<String, Self::Error> {
-        if let UIFieldValue::InputFieldString(str) | UIFieldValue::Choice(str) | UIFieldValue::ImageData(str) | UIFieldValue::ExistingImage(str) | UIFieldValue::Font(str) | UIFieldValue::Label(str) = self {
+        if let UIFieldValue::InputFieldString(str) |
+                UIFieldValue::Choice(str) |
+                UIFieldValue::ImageData(str) |
+                UIFieldValue::ExistingImage(str) |
+                UIFieldValue::Font(str) |
+                UIFieldValue::Label(str) |
+                UIFieldValue::ImagePreview(str) = self {
             Ok(str.clone())
         } else {
             Err("Incorrect value".to_string())
@@ -452,11 +478,11 @@ impl From<UIFieldValue<UIValue>> for UIFieldValue<UIPathValue> {
             UIFieldValue::ValueSliderInteger(i) => UIFieldValue::ValueSliderInteger(i),
 
             UIFieldValue::Collapsable(_) => {
-                unimplemented!();
+                panic!("Please use convert_value_to_path")
             }
 
             UIFieldValue::Array(_) => {
-                unimplemented!();
+                panic!("Please use convert_value_to_path")
             }
 
             UIFieldValue::Choice(c) => UIFieldValue::Choice(c),
@@ -465,6 +491,8 @@ impl From<UIFieldValue<UIValue>> for UIFieldValue<UIPathValue> {
             UIFieldValue::ImageData(d) => UIFieldValue::ImageData(d),
             UIFieldValue::ExistingImage(i) => UIFieldValue::ExistingImage(i),
             UIFieldValue::Font(f) => UIFieldValue::Font(f),
+            UIFieldValue::Button => UIFieldValue::Button,
+            UIFieldValue::ImagePreview(d) => UIFieldValue::ImagePreview(d)
         }
     }
 }
@@ -515,6 +543,8 @@ impl From<UIFieldValue<UIPathValue>> for UIFieldValue<UIValue> {
             UIFieldValue::ImageData(d) => UIFieldValue::ImageData(d),
             UIFieldValue::ExistingImage(i) => UIFieldValue::ExistingImage(i),
             UIFieldValue::Font(f) => UIFieldValue::Font(f),
+            UIFieldValue::Button => UIFieldValue::Button,
+            UIFieldValue::ImagePreview(d) => UIFieldValue::ImagePreview(d)
         }
     }
 }

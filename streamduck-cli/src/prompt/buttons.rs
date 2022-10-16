@@ -2,6 +2,7 @@ use std::str::Split;
 use streamduck_client::daemon::daemon_data::buttons::{AddComponentResult, AddComponentValueResult, ClearButtonResult, GetComponentValuesResult, NewButtonFromComponentResult, NewButtonResult, RemoveComponentResult, RemoveComponentValueResult, SetComponentValueResult};
 use streamduck_core::modules::components::{map_ui_path_values, UIFieldType, UIFieldValue, UIPathValue};
 use crate::prompt::ClientRef;
+use crate::prompt::images::show_image;
 use crate::prompt::utils::parse_string_to_value;
 
 pub fn button_new(client: ClientRef, current_sn: &str, mut args: Split<&str>) {
@@ -441,9 +442,9 @@ pub fn button_component_list_params(client: ClientRef, current_sn: &str, mut arg
                                             println!();
                                         }
                                     }
-                                    UIFieldValue::ImageData(data) => {
+                                    UIFieldValue::ImageData(img) => {
                                         println!("{}Type: ImageData", tabs);
-                                        println!("{}Data: {}", tabs, data);
+                                        show_image(img, 40);
                                     }
                                     UIFieldValue::ExistingImage(identifier) => {
                                         println!("{}Type: ExistingImage", tabs);
@@ -452,6 +453,15 @@ pub fn button_component_list_params(client: ClientRef, current_sn: &str, mut arg
                                     UIFieldValue::Font(font) => {
                                         println!("{}Type: Font", tabs);
                                         println!("{}Font Name: {}", tabs, font);
+                                    }
+
+                                    UIFieldValue::Button => {
+                                        println!("{}Type: Button", tabs);
+                                    }
+
+                                    UIFieldValue::ImagePreview(img) => {
+                                        println!("{}Type: ImagePreview", tabs);
+                                        show_image(img, 40);
                                     }
                                 }
 
