@@ -170,7 +170,7 @@ impl Config {
 
     /// Plugin folder path, defaults to [config_dir]/[CONFIG_FOLDER]/[PLUGINS_FOLDER] or [CONFIG_FOLDER]/[PLUGINS_FOLDER] if not set
     pub fn plugin_path(&self) -> PathBuf {
-        self.device_config_path.clone().unwrap_or_else(|| {
+        self.plugin_path.clone().unwrap_or_else(|| {
                 let mut dir = self.config_dir().clone();
                 dir.push(CONFIG_FOLDER);
                 dir.push(PLUGINS_FOLDER);
