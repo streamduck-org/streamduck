@@ -1,27 +1,29 @@
-#[cfg(target_family = "unix")]
-mod unix;
-#[cfg(target_family = "windows")]
-mod windows;
-
-use clap::{Arg, command, value_parser, ArgAction};
-use clap::parser::ArgMatches;
 use std::path::PathBuf;
-use flexi_logger::{DeferredNow, FileSpec, Logger, LogSpecification, style, TS_DASHES_BLANK_COLONS_DOT_BLANK};
-use log::{LevelFilter, Record, log_enabled};
 use std::sync::Arc;
 use std::time::Duration;
+
+use clap::{Arg, ArgAction, command, value_parser};
+use clap::parser::ArgMatches;
+use flexi_logger::{DeferredNow, FileSpec, Logger, LogSpecification, style, TS_DASHES_BLANK_COLONS_DOT_BLANK};
+use log::{LevelFilter, log_enabled, Record};
 use rayon::ThreadPoolBuilder;
 use tokio::runtime::Builder;
 use tokio::signal;
 use tokio::sync::Mutex;
-use streamduck_core::font::{load_default_font, load_fonts_from_resources};
-use streamduck_core::modules::{load_base_modules, ModuleManager};
+
 use streamduck_core::config::Config;
 use streamduck_core::core::manager::CoreManager;
-use streamduck_core::socket::SocketManager;
+use streamduck_core::font::{load_default_font, load_fonts_from_resources};
+use streamduck_core::modules::{load_base_modules, ModuleManager};
 use streamduck_core::modules::plugins::load_plugins_from_folder;
+use streamduck_core::socket::SocketManager;
 use streamduck_core::thread::rendering::custom::RenderingManager;
 use streamduck_daemon::daemon_data::DaemonListener;
+
+#[cfg(target_family = "unix")]
+mod unix;
+#[cfg(target_family = "windows")]
+mod windows;
 
 fn logging_format(
     w: &mut dyn std::io::Write,
@@ -78,6 +80,7 @@ fn main() {
 async fn root(matches: ArgMatches) {
     // Initializing logger
     let mut builder = LogSpecification::builder();
+
     let level = || -> LevelFilter {
         match matches
             .get_one::<bool>("debug")
@@ -86,6 +89,7 @@ async fn root(matches: ArgMatches) {
                 false => LevelFilter::Info
             }
     };
+
     let custom_path = || -> Option<PathBuf> {
         match matches
             .get_one::<String>("config") {
@@ -93,6 +97,7 @@ async fn root(matches: ArgMatches) {
                 None => None
             }
     };
+
     builder.default(level())
         .module("streamdeck", LevelFilter::Off);
 

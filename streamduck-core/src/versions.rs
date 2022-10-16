@@ -7,6 +7,11 @@
 //! Versions here do not represent how up to date the features are, versions here are just for making sure plugins
 //! are not using unsupported API.
 
+/// Compiler version used to compile the project, make sure you're using same toolchain version as specified here
+///
+/// Rust doesn't have a stable ABI yet, so only way to ensure that data is ordered the same way,
+/// is to use same version of the compiler
+pub const COMPILER_VERSION: (&str, &str) = ("compiler_version", "1.64");
 /// API related to plugin definition and initialization, will be updated very rarely if ever
 pub const PLUGIN_API: (&str, &str) = ("plugin_api", "0.2");
 /// SDModule trait version, will be updated everytime there's a change to the module trait

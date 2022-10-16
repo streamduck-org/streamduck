@@ -79,7 +79,7 @@ impl CoreManager {
                 serial: serial.to_string()
             };
 
-            self.config.restore_device_config(serial);
+            self.config.restore_device_config(serial).await;
 
             handle.insert(serial.to_string(), data.clone());
         }
@@ -148,7 +148,7 @@ impl CoreManager {
 
         if let Some(data) = data {
             data.core.close().await;
-            self.config.disable_device_config(serial);
+            self.config.disable_device_config(serial).await;
             self.config.reload_device_configs().await.ok();
         }
     }

@@ -1,6 +1,6 @@
 //! Core and device configs
 use std::collections::HashMap;
-use std::fs;
+use tokio::fs;
 use dirs;
 use std::ops::Deref;
 use std::path::PathBuf;
@@ -32,10 +32,13 @@ pub const CONFIG_FILE: &'static str = "config.toml";
 /// Reference counted [DeviceConfig]
 pub type UniqueDeviceConfig = Arc<RwLock<DeviceConfig>>;
 
-// loads system config directory (eg. $HOME/.config) or returns the current dir
+/// Loads config directory (eg. $HOME/.config/streamduck) or returns the current dir
 fn config_dir() -> PathBuf {
     match dirs::config_dir() {
-        Some(dir) => dir,
+        Some(mut dir) => {
+            dir.push(CONFIG_FOLDER);
+            dir
+        },
         None => {
             log::warn!("config_dir not available on this system. Using executable path.");
             PathBuf::new()
@@ -43,10 +46,13 @@ fn config_dir() -> PathBuf {
     }
 }
 
-// loads system data directory (eg. $HOME/.local/share) or returns the current dir
+/// Loads data directory (eg. $HOME/.local/share/streamduck) or returns the current dir
 fn data_dir() -> PathBuf {
     match dirs::data_dir() {
-        Some(dir) => dir,
+        Some(mut dir) => {
+            dir.push(CONFIG_FOLDER);
+            dir
+        },
         None => {
             log::warn!("data_dir not available on this system. Using executable path.");
             PathBuf::new()
@@ -67,13 +73,13 @@ pub struct Config {
     plugin_path: Option<PathBuf>,
     /// Path to plugin settings json
     plugin_settings_path: Option<PathBuf>,
-    // Path to fonts
+    /// Path to fonts
     font_path: Option<PathBuf>,
 
-    // system config dir
-    sys_config_dir: Option<PathBuf>,
-    // system data dir
-    sys_data_dir: Option<PathBuf>,
+    /// Config folder
+    config_dir: Option<PathBuf>,
+    /// Data folder
+    data_dir: Option<PathBuf>,
 
     #[serde(skip)]
     pub plugin_settings: RwLock<HashMap<String, Value>>,
@@ -90,18 +96,20 @@ pub struct Config {
 #[allow(dead_code)]
 impl Config {
     /// Reads config and retrieves config struct
-    pub fn get(custom_config_path: Option<PathBuf>) -> Config {
+    pub async fn get(custom_config_path: Option<PathBuf>) -> Config {
         let config_dir = config_dir();
         let data_dir = data_dir();
+
         let path: PathBuf = custom_config_path.unwrap_or_else(|| {
             let mut dir = config_dir.clone();
             dir.push(CONFIG_FOLDER);
             dir.push(CONFIG_FILE);
             dir
         });
-        log::info!("config path: {}", path.display());
-        let res = fs::read_to_string(path);
-        let mut config: Config = match res {
+
+        log::info!("Config path: {}", path.display());
+
+        let mut config: Config = match fs::read_to_string(path).await {
             Ok(content) => {
                 match toml::from_str(&content) {
                     Ok(config) => config,
@@ -115,17 +123,19 @@ impl Config {
             Err(e) => {
                 match e.kind() {
                     std::io::ErrorKind::NotFound => log::warn!("The config file was not found. Did you create the file yet?"),
-                    _ => log::warn!("Could not access config path. Error: \"{}\".", e)
+                    _ => log::warn!("Could not access config file. Error: \"{}\".", e)
                 }
                 log::warn!("Using default configuration");
                 Default::default()
             }
         };
-        if config.sys_data_dir == None {
-            config.sys_data_dir = Some(data_dir);
+
+        if config.data_dir == None {
+            config.data_dir = Some(data_dir);
         }
-        if config.sys_config_dir == None {
-            config.sys_config_dir = Some(config_dir);
+
+        if config.config_dir == None {
+            config.config_dir = Some(config_dir);
         }
 
         config.load_plugin_settings().await;
@@ -145,60 +155,58 @@ impl Config {
     }
 
 
-    /// Device config path, defaults to [data_dir]/[CONFIG_FOLDER]/[DEVICE_CONFIG_FOLDER] or [CONFIG_FOLDER]/[DEVICE_CONFIG_FOLDER] if not set
+    /// Device config path, defaults to [data_dir]/[DEVICE_CONFIG_FOLDER] or [DEVICE_CONFIG_FOLDER] if not set
     pub fn device_config_path(&self) -> PathBuf {
         self.device_config_path.clone().unwrap_or_else(|| {
                 let mut dir = self.data_dir().clone();
-                dir.push(CONFIG_FOLDER);
                 dir.push(DEVICE_CONFIG_FOLDER);
                 dir
             }
         )
     }
 
-    /// Plugin folder path, defaults to [config_dir]/[CONFIG_FOLDER]/[PLUGINS_FOLDER] or [CONFIG_FOLDER]/[PLUGINS_FOLDER] if not set
+    /// Plugin folder path, defaults to [config_dir]/[PLUGINS_FOLDER] or [PLUGINS_FOLDER] if not set
     pub fn plugin_path(&self) -> PathBuf {
         self.plugin_path.clone().unwrap_or_else(|| {
                 let mut dir = self.config_dir().clone();
-                dir.push(CONFIG_FOLDER);
                 dir.push(PLUGINS_FOLDER);
                 dir
             }
         )
     }
 
-    /// Fonts folder path, defaults to [config_dir]/[CONFIG_FOLDER]/[FONTS_FOLDER] or [CONFIG_FOLDER]/[FONTS_FOLDER] if not set
+    /// Fonts folder path, defaults to [config_dir]/[FONTS_FOLDER] or [FONTS_FOLDER] if not set
     pub fn font_path(&self) -> PathBuf {
         self.font_path.clone().unwrap_or_else(|| {
                 let mut dir = self.config_dir().clone();
-                dir.push(CONFIG_FOLDER);
                 dir.push(FONTS_FOLDER);
                 dir
             }
         )
     }
 
-    /// Plugin settings folder path, defaults to [data_dir]/[CONFIG_FOLDER]/[PLUGINS_SETTINGS_FILE] or [CONFIG_FOLDER]/[PLUGINS_SETTINGS_FILE] if not set
+    /// Plugin settings file path, defaults to [data_dir]/[PLUGINS_SETTINGS_FILE] or [PLUGINS_SETTINGS_FILE] if not set
     pub fn plugin_settings_path(&self) -> PathBuf {
         self.plugin_settings_path.clone().unwrap_or_else(|| {
                 let mut dir = self.data_dir().clone();
-                dir.push(CONFIG_FOLDER);
                 dir.push(PLUGINS_SETTINGS_FILE);
                 dir
         })
     }
 
+    /// Data path, defaults to [dirs::data_dir()] if not set
     pub fn data_dir(&self) -> &PathBuf {
-        &self.sys_data_dir.as_ref().expect("sys_data_dir not available")
+        &self.data_dir.as_ref().expect("data_dir not available")
     }
 
+    /// Config path, defaults to [dirs::config_dir()] if not set
     pub fn config_dir(&self) -> &PathBuf {
-        &self.sys_config_dir.as_ref().expect("sys_config_dir not available")
+        &self.config_dir.as_ref().expect("config_dir not available")
     }
 
     /// Loads plugin settings from file
     pub async fn load_plugin_settings(&self) {
-        if let Ok(settings) = fs::read_to_string(self.plugin_settings_path()) {
+        if let Ok(settings) = fs::read_to_string(self.plugin_settings_path()).await {
             let mut lock = self.plugin_settings.write().await;
 
             match serde_json::from_str(&settings) {
@@ -226,7 +234,7 @@ impl Config {
     /// Writes plugin settings to file
     pub async fn write_plugin_settings(&self) {
         let lock = self.plugin_settings.read().await;
-        if let Err(err) = fs::write(self.plugin_settings_path(), serde_json::to_string(lock.deref()).unwrap()) {
+        if let Err(err) = fs::write(self.plugin_settings_path(), serde_json::to_string(lock.deref()).unwrap()).await {
             log::error!("Failed to write plugin settings: {:?}", err);
         }
     }
@@ -241,7 +249,7 @@ impl Config {
         let mut path = self.device_config_path();
         path.push(format!("{}.json", serial));
 
-        let content = fs::read_to_string(path)?;
+        let content = fs::read_to_string(path).await?;
         let device = serde_json::from_str::<DeviceConfig>(&content)?;
 
 
@@ -260,14 +268,13 @@ impl Config {
     pub async fn reload_device_configs(&self) -> Result<(), ConfigError> {
         let mut devices = self.loaded_configs.write().await;
 
-        let dir = fs::read_dir(self.device_config_path())?;
+        let mut dir = fs::read_dir(self.device_config_path()).await?;
 
-        for item in dir {
-            let item = item?;
+        while let Some(item) = dir.next_entry().await? {
             if item.path().is_file() {
                 if let Some(extension) = item.path().extension() {
                     if extension == "json" {
-                        let content = fs::read_to_string(item.path())?;
+                        let content = fs::read_to_string(item.path()).await?;
 
                         let device = serde_json::from_str::<DeviceConfig>(&content)?;
                         let serial = device.serial.to_string();
@@ -296,10 +303,10 @@ impl Config {
         if let Some(device) = devices.get(serial).cloned() {
             self.update_collection(&device).await;
             let mut path = self.device_config_path();
-            fs::create_dir_all(&path).ok();
+            fs::create_dir_all(&path).await.ok();
             path.push(format!("{}.json", serial));
 
-            fs::write(path, serde_json::to_string(device.read().await.deref()).unwrap())?;
+            fs::write(path, serde_json::to_string(device.read().await.deref()).unwrap()).await?;
             Ok(())
         } else {
             Err(ConfigError::DeviceNotFound)
@@ -311,14 +318,14 @@ impl Config {
         let devices = self.loaded_configs.read().await;
 
         let path = self.device_config_path();
-        fs::create_dir_all(&path).ok();
+        fs::create_dir_all(&path).await.ok();
 
         for (serial, device) in devices.iter() {
             let device= device.clone();
             self.update_collection(&device).await;
             let mut file_path = path.clone();
             file_path.push(format!("{}.json", serial));
-            fs::write(file_path, serde_json::to_string(device.read().await.deref()).unwrap())?;
+            fs::write(file_path, serde_json::to_string(device.read().await.deref()).unwrap()).await?;
         }
 
         Ok(())
@@ -346,7 +353,7 @@ impl Config {
     }
 
     /// Disables a device config, so it will not be loaded by default
-    pub fn disable_device_config(&self, serial: &str) -> bool {
+    pub async fn disable_device_config(&self, serial: &str) -> bool {
         let path = self.device_config_path();
 
         let mut initial_path = path.clone();
@@ -355,11 +362,11 @@ impl Config {
         let mut new_path = path.clone();
         new_path.push(format!("{}.json_disabled", serial));
 
-        fs::rename(initial_path, new_path).is_ok()
+        fs::rename(initial_path, new_path).await.is_ok()
     }
 
     /// Restores device config if it exists
-    pub fn restore_device_config(&self, serial: &str) -> bool {
+    pub async fn restore_device_config(&self, serial: &str) -> bool {
         let path = self.device_config_path();
 
         let mut initial_path = path.clone();
@@ -368,7 +375,7 @@ impl Config {
         let mut new_path = path.clone();
         new_path.push(format!("{}.json", serial));
 
-        fs::rename(initial_path, new_path).is_ok()
+        fs::rename(initial_path, new_path).await.is_ok()
     }
 
     /// Adds base64 image to device config image collection

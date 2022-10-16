@@ -44,7 +44,7 @@ pub fn get_metadata() -> PluginMetadata {
 pub fn register(socket_manager: Arc<PluginSocketManager>, render_manager: Arc<PluginRenderingManager>, module_manager: Arc<PluginModuleManager>) {
     socket_manager.add_listener(Arc::new(ExampleListener));
     render_manager.add_renderer(Arc::new(ExampleRenderer::new()));
-    //module_manager.add_module(Arc::new(ExampleModule));
+    module_manager.add_module(Arc::new(ExampleModule));
 }
 
 pub struct ExampleListener;
