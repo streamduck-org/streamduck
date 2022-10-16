@@ -5,10 +5,12 @@ mod unix;
 #[cfg(target_family = "windows")]
 mod windows;
 
+use clap::{Arg, command, value_parser, ArgAction};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread::spawn;
 use flexi_logger::{DeferredNow, FileSpec, Logger, LogSpecification, style, TS_DASHES_BLANK_COLONS_DOT_BLANK};
-use log::{LevelFilter, Record};
+use log::{LevelFilter, Record, log_enabled};
 use streamduck_core::font::{load_default_font, load_fonts_from_resources};
 use streamduck_core::modules::{load_base_modules, ModuleManager};
 use streamduck_core::config::Config;
@@ -34,9 +36,44 @@ fn logging_format(
 }
 
 fn main() {
+    // Init parser
+    let matches = command!()
+        .arg(
+            Arg::new("debug")
+                .short('d')
+                .long("debug")
+                .action(ArgAction::SetTrue)
+                .value_parser(value_parser!(bool))
+                .help("Turn on debug mode")
+            )
+        .arg(
+            Arg::new("config")
+                .short('c')
+                .long("config-path")
+                .value_parser(value_parser!(String))
+                .help("Specify from where the config should be loaded")
+            )
+        .get_matches();
+    
+
     // Initializing logger
     let mut builder = LogSpecification::builder();
-    builder.default(LevelFilter::Debug)
+    let level = || -> LevelFilter {
+        match matches
+            .get_one::<bool>("debug")
+            .unwrap_or(&false) {
+                true => LevelFilter::Debug,
+                false => LevelFilter::Info
+            }
+    };
+    let custom_path = || -> Option<PathBuf> {
+        match matches
+            .get_one::<String>("config") {
+                Some(v) => Some(PathBuf::from(v)),
+                None => None
+            }
+    };
+    builder.default(level())
         .module("streamdeck", LevelFilter::Off);
 
     Logger::with(builder.build())
@@ -47,6 +84,10 @@ fn main() {
 
     log::info!("Streamduck Daemon");
 
+    if log_enabled!(log::Level::Debug) {
+        log::warn!("Debugging output enabled");
+    }
+
     // Initializing module manager
     let module_manager = ModuleManager::new();
 
@@ -54,7 +95,7 @@ fn main() {
     let render_manager = RenderingManager::new();
 
     // Reading config
-    let config = Arc::new(Config::get());
+    let config = Arc::new(Config::get(custom_path()));
 
     // Initializing socket manager
     let socket_manager = SocketManager::new();
@@ -126,3 +167,4 @@ fn run_socket(socket_manager: Arc<SocketManager>) {
 fn clean_socket() {
     unix::remove_socket()
 }
+
