@@ -1,6 +1,7 @@
 //! Core and device configs
 use std::collections::HashMap;
 use std::fs;
+use dirs;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::sync::{Arc};
@@ -16,17 +17,45 @@ use crate::images::{SDImage, SDSerializedImage};
 use crate::util::{hash_image, hash_str};
 use crate::thread::util::resize_for_streamdeck;
 
+// default folder name
+pub const CONFIG_FOLDER: &'static str = "streamduck";
+
+// sub folders and files
 pub const DEFAULT_FRAME_RATE: u32 = 100;
 pub const DEFAULT_RECONNECT_TIME: f32 = 1.0;
-pub const DEFAULT_CONFIG_PATH: &'static str = "devices";
-pub const DEFAULT_PLUGIN_PATH: &'static str = "plugins";
-pub const DEFAULT_PLUGIN_SETTINGS_PATH: &'static str = "global.json";
+pub const FONTS_FOLDER: &'static str = "fonts";
+pub const DEVICE_CONFIG_FOLDER: &'static str = "devices";
+pub const PLUGINS_FOLDER: &'static str = "plugins";
+pub const PLUGINS_SETTINGS_FILE: &'static str = "global.json";
+pub const CONFIG_FILE: &'static str = "config.toml";
 
 /// Reference counted [DeviceConfig]
 pub type UniqueDeviceConfig = Arc<RwLock<DeviceConfig>>;
 
+// loads system config directory (eg. $HOME/.config) or returns the current dir
+fn config_dir() -> PathBuf {
+    match dirs::config_dir() {
+        Some(dir) => dir,
+        None => {
+            log::warn!("config_dir not available on this system. Using executable path.");
+            PathBuf::new()
+        }
+    }
+}
+
+// loads system data directory (eg. $HOME/.local/share) or returns the current dir
+fn data_dir() -> PathBuf {
+    match dirs::data_dir() {
+        Some(dir) => dir,
+        None => {
+            log::warn!("data_dir not available on this system. Using executable path.");
+            PathBuf::new()
+        }
+    }
+}
+
 /// Struct to keep daemon settings
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 pub struct Config {
     /// Frame rate
     frame_rate: Option<u32>,
@@ -38,6 +67,13 @@ pub struct Config {
     plugin_path: Option<PathBuf>,
     /// Path to plugin settings json
     plugin_settings_path: Option<PathBuf>,
+    // Path to fonts
+    font_path: Option<PathBuf>,
+
+    // system config dir
+    sys_config_dir: Option<PathBuf>,
+    // system data dir
+    sys_data_dir: Option<PathBuf>,
 
     #[serde(skip)]
     pub plugin_settings: RwLock<HashMap<String, Value>>,
@@ -54,19 +90,47 @@ pub struct Config {
 #[allow(dead_code)]
 impl Config {
     /// Reads config and retrieves config struct
-    pub async fn get() -> Config {
-        let config: Config = if let Ok(content) = fs::read_to_string("config.toml") {
-            if let Ok(config) = toml::from_str(&content) {
-                config
-            } else {
+    pub fn get(custom_config_path: Option<PathBuf>) -> Config {
+        let config_dir = config_dir();
+        let data_dir = data_dir();
+        let path: PathBuf = custom_config_path.unwrap_or_else(|| {
+            let mut dir = config_dir.clone();
+            dir.push(CONFIG_FOLDER);
+            dir.push(CONFIG_FILE);
+            dir
+        });
+        log::info!("config path: {}", path.display());
+        let res = fs::read_to_string(path);
+        let mut config: Config = match res {
+            Ok(content) => {
+                match toml::from_str(&content) {
+                    Ok(config) => config,
+                    Err(e) => {
+                        log::error!("Config error: {}", e);
+                        log::warn!("Using default configuration");
+                        Default::default()
+                    }
+                }
+            },
+            Err(e) => {
+                match e.kind() {
+                    std::io::ErrorKind::NotFound => log::warn!("The config file was not found. Did you create the file yet?"),
+                    _ => log::warn!("Could not access config path. Error: \"{}\".", e)
+                }
+                log::warn!("Using default configuration");
                 Default::default()
             }
-        } else {
-            Default::default()
         };
+        if config.sys_data_dir == None {
+            config.sys_data_dir = Some(data_dir);
+        }
+        if config.sys_config_dir == None {
+            config.sys_config_dir = Some(config_dir);
+        }
 
         config.load_plugin_settings().await;
 
+        log::debug!("config: {:#?}", config);
         config
     }
 
@@ -80,19 +144,56 @@ impl Config {
         self.reconnect_rate.unwrap_or(DEFAULT_RECONNECT_TIME)
     }
 
-    /// Device config path, defaults to [DEFAULT_CONFIG_PATH] if not set
+
+    /// Device config path, defaults to [data_dir]/[CONFIG_FOLDER]/[DEVICE_CONFIG_FOLDER] or [CONFIG_FOLDER]/[DEVICE_CONFIG_FOLDER] if not set
     pub fn device_config_path(&self) -> PathBuf {
-        self.device_config_path.clone().unwrap_or(PathBuf::from(DEFAULT_CONFIG_PATH))
+        self.device_config_path.clone().unwrap_or_else(|| {
+                let mut dir = self.data_dir().clone();
+                dir.push(CONFIG_FOLDER);
+                dir.push(DEVICE_CONFIG_FOLDER);
+                dir
+            }
+        )
     }
 
-    /// Plugin folder path, defaults to [DEFAULT_PLUGIN_PATH] if not set
+    /// Plugin folder path, defaults to [config_dir]/[CONFIG_FOLDER]/[PLUGINS_FOLDER] or [CONFIG_FOLDER]/[PLUGINS_FOLDER] if not set
     pub fn plugin_path(&self) -> PathBuf {
-        self.plugin_path.clone().unwrap_or(PathBuf::from(DEFAULT_PLUGIN_PATH))
+        self.plugin_path.clone().unwrap_or_else(|| {
+                let mut dir = self.config_dir().clone();
+                dir.push(CONFIG_FOLDER);
+                dir.push(PLUGINS_FOLDER);
+                dir
+            }
+        )
     }
 
-    /// Global config path, defaults to [DEFAULT_PLUGIN_SETTINGS_PATH] if not set
+    /// Fonts folder path, defaults to [config_dir]/[CONFIG_FOLDER]/[FONTS_FOLDER] or [CONFIG_FOLDER]/[FONTS_FOLDER] if not set
+    pub fn font_path(&self) -> PathBuf {
+        self.font_path.clone().unwrap_or_else(|| {
+                let mut dir = self.config_dir().clone();
+                dir.push(CONFIG_FOLDER);
+                dir.push(FONTS_FOLDER);
+                dir
+            }
+        )
+    }
+
+    /// Plugin settings folder path, defaults to [data_dir]/[CONFIG_FOLDER]/[PLUGINS_SETTINGS_FILE] or [CONFIG_FOLDER]/[PLUGINS_SETTINGS_FILE] if not set
     pub fn plugin_settings_path(&self) -> PathBuf {
-        self.plugin_settings_path.clone().unwrap_or(PathBuf::from(DEFAULT_PLUGIN_SETTINGS_PATH))
+        self.plugin_settings_path.clone().unwrap_or_else(|| {
+                let mut dir = self.data_dir().clone();
+                dir.push(CONFIG_FOLDER);
+                dir.push(PLUGINS_SETTINGS_FILE);
+                dir
+        })
+    }
+
+    pub fn data_dir(&self) -> &PathBuf {
+        &self.sys_data_dir.as_ref().expect("sys_data_dir not available")
+    }
+
+    pub fn config_dir(&self) -> &PathBuf {
+        &self.sys_config_dir.as_ref().expect("sys_config_dir not available")
     }
 
     /// Loads plugin settings from file
@@ -436,4 +537,24 @@ impl DeviceConfig {
             _ => Kind::Original,
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn config_sys_config_dir() {
+        // check if config dir gets created
+        let config = Config::get(None);
+        assert_ne!(config.sys_config_dir, None)
+    }
+
+    #[test]
+    fn config_sys_data_dir() {
+        // check if data dir gets created
+        let config = Config::get(None);
+        assert_ne!(config.sys_data_dir, None)
+    }
+
 }

@@ -13,7 +13,7 @@ use tokio::task::{JoinError, spawn_blocking};
 use crate::thread::util::resize_for_streamdeck;
 
 /// Enum that represents various types of images Streamduck will use
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum SDImage {
     /// Single normal image
     SingleImage(DynamicImage),
@@ -126,7 +126,7 @@ impl SDSerializedImage {
 }
 
 /// Frame of animated image
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AnimationFrame {
     pub image: DynamicImage,
     pub index: usize,
