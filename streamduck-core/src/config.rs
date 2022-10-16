@@ -120,19 +120,6 @@ impl Config {
                 Default::default()
             }
         };
-        /* let mut config: Config = if let Ok(content) = res {
-            match toml::from_str(&content) {
-                Ok(config) => config,
-                Err(e) => {
-                    log::error!("Config error: {}", e);
-                    log::warn!("Using default configuration");
-                    Default::default()
-                }
-            }
-        } else {
-            log::warn!("Could not access \"{}\".\n Error: \"{}\".\n Reverting to default configuration.", path.display(), res);
-            Default::default()
-        };*/
         if config.sys_data_dir == None {
             config.sys_data_dir = Some(data_dir);
         }
@@ -160,7 +147,7 @@ impl Config {
     /// Device config path, defaults to [data_dir]/[CONFIG_FOLDER]/[DEVICE_CONFIG_FOLDER] or [CONFIG_FOLDER]/[DEVICE_CONFIG_FOLDER] if not set
     pub fn device_config_path(&self) -> PathBuf {
         self.device_config_path.clone().unwrap_or_else(|| {
-                let mut dir = self.config_dir().clone();
+                let mut dir = self.data_dir().clone();
                 dir.push(CONFIG_FOLDER);
                 dir.push(DEVICE_CONFIG_FOLDER);
                 dir
