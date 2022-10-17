@@ -7,7 +7,7 @@
 //! Versions here do not represent how up to date the features are, versions here are just for making sure plugins
 //! are not using unsupported API.
 
-/// Compiler version used to compile the project, make sure you're using same toolchain version as specified here
+/// Compiler version used to compile the project, make sure you're using same toolchain version as specified here (1.64)
 ///
 /// Rust doesn't have a stable ABI yet, so only way to ensure that data is ordered the same way,
 /// is to use same version of the compiler
@@ -35,6 +35,7 @@ pub const RENDERING: (&str, &str) = ("rendering", "0.2");
 
 /// Constant array of currently supported features, can also be used for plugin to specify using all of the features
 pub const SUPPORTED_FEATURES: &[(&str, &str)] = &[
+    COMPILER_VERSION,
     PLUGIN_API,
     SDMODULE_TRAIT,
     CORE,

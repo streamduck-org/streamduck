@@ -3,7 +3,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 use streamduck_core::core::button::{Button, parse_unique_button_to_component};
 use streamduck_core::modules::{PluginMetadata, SDModule};
-use streamduck_core::versions::{CORE_EVENTS, PLUGIN_API, RENDERING, SDMODULE_TRAIT};
+use streamduck_core::versions::{COMPILER_VERSION, CORE_EVENTS, PLUGIN_API, RENDERING, SDMODULE_TRAIT};
 use serde::{Deserialize, Serialize};
 use serde_json::{Number, Value};
 use streamduck_core::modules::components::{ComponentDefinition, map_ui_values, UIFieldType, UIFieldValue, UIScalar, UIValue};
@@ -32,6 +32,7 @@ pub fn get_metadata() -> PluginMetadata {
         "Just an example plugin crate",
         "0.1",
         &[
+            COMPILER_VERSION,
             PLUGIN_API,
             SDMODULE_TRAIT,
             CORE_EVENTS,

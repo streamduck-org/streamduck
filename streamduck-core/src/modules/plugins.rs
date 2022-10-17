@@ -224,6 +224,7 @@ fn warn_about_essential_features(meta: &PluginMetadata) {
     let name = &meta.name;
     let features = &meta.used_features;
 
+    warn_for_feature(name, &features, "compiler_version");
     warn_for_feature(name, &features, "plugin_api");
     warn_for_feature(name, &features, "sdmodule_trait");
 }
