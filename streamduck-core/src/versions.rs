@@ -26,6 +26,8 @@ pub const CONFIG: (&str, &str) = ("config", "0.2");
 pub const MODULE_MANAGER: (&str, &str) = ("module_manager", "0.2");
 /// Core events, will be updated everytime there's changes to existing events or an event was removed
 pub const CORE_EVENTS: (&str, &str) = ("core_events", "0.2");
+/// Global events, will be updated everytime there's changes to existing events or an event was removed
+pub const GLOBAL_EVENTS: (&str, &str) = ("global_events", "0.1");
 /// Socket API of daemon, mostly used for socket communication, will be updated everytime there's changes to existing requests or a request was removed
 pub const SOCKET_API: (&str, &str) = ("socket_api", "0.2");
 /// Rendering version, will be updated everytime there's changes to existing rendering API for plugins

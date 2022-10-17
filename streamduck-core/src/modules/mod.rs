@@ -256,6 +256,11 @@ impl ModuleManager {
     pub async fn read_rendering_modules_map(&self) -> RwLockReadGuard<'_, HashMap<String, HashMap<String, UniqueSDModule>>> {
         self.rendering_modules.read().await
     }
+
+    /// Sends global event to all modules, spawns a separate thread to do it, so doesn't block current thread
+    pub async fn send_global_event_to_modules(&self, event: SDGlobalEvent) {
+        send_global_event_to_modules(event, self.get_module_list().await.into_iter());
+    }
 }
 
 /// Loads built-in modules into the module manager
@@ -413,7 +418,7 @@ pub async fn set_module_setting(core_manager: Arc<CoreManager>, module: &UniqueS
 }
 
 /// Sends global event to all modules, spawns a separate thread to do it, so doesn't block current thread
-pub fn send_global_event_to_modules<T: Iterator<Item=UniqueSDModule> + Send + 'static>(event: SDGlobalEvent, modules: T) {
+fn send_global_event_to_modules<T: Iterator<Item=UniqueSDModule> + Send + 'static>(event: SDGlobalEvent, modules: T) {
     modules.for_each(|x| {
         let task_event = event.clone();
         tokio::spawn(async move {

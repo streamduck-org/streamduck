@@ -1,29 +1,31 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use streamdeck::{Kind, StreamDeck};
+use tokio::sync::{Mutex, RwLock};
+use tokio::sync::mpsc::unbounded_channel;
+
+pub use methods::check_feature_list_for_feature;
+pub use methods::CoreHandle;
+pub use methods::warn_for_feature;
+
+use crate::ImageCollection;
+use crate::config::{Config, UniqueDeviceConfig};
+use crate::core::button::Button;
+use crate::modules::events::SDGlobalEvent;
+use crate::modules::ModuleManager;
+use crate::socket::SocketManager;
+use crate::thread::{DeviceThreadCommunication, DeviceThreadHandle, spawn_device_thread};
+use crate::thread::rendering::custom::RenderingManager;
+
 /// Definitions of button structs
 pub mod button;
 
 /// Methods for interacting with the core
 mod methods;
 pub mod manager;
-
-use std::collections::HashMap;
-use std::sync::{Arc};
-use streamdeck::{Kind, StreamDeck};
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use tokio::sync::mpsc::unbounded_channel;
-use tokio::sync::{Mutex, RwLock};
-use crate::config::{Config, UniqueDeviceConfig};
-use crate::core::button::Button;
-use crate::thread::{DeviceThreadCommunication, DeviceThreadHandle, spawn_device_thread};
-use crate::{ImageCollection};
-use crate::modules::events::SDGlobalEvent;
-use crate::modules::ModuleManager;
-use crate::socket::{send_event_to_socket, SocketManager};
-use crate::thread::rendering::custom::RenderingManager;
-
-pub use methods::CoreHandle;
-pub use methods::check_feature_list_for_feature;
-pub use methods::warn_for_feature;
 
 /// Reference counted RwLock of a button, prevents data duplication and lets you edit buttons if they're in many stacks at once
 pub type UniqueButton = Arc<RwLock<Button>>;
@@ -152,7 +154,7 @@ impl SDCore {
         let serial_number = device_config.read().await.serial.to_string();
         let serial_number = connection.serial().unwrap_or_else(|_| serial_number);
 
-        send_event_to_socket(&socket_manager, SDGlobalEvent::DeviceConnected {
+        module_manager.send_global_event_to_modules(SDGlobalEvent::DeviceConnected {
             serial_number: serial_number.clone()
         }).await;
 
@@ -229,7 +231,7 @@ impl SDCore {
 
     /// Kills the core and all the related threads
     pub async fn close(&self) {
-        send_event_to_socket(&self.socket_manager, SDGlobalEvent::DeviceDisconnected {
+        self.module_manager.send_global_event_to_modules(SDGlobalEvent::DeviceDisconnected {
             serial_number: self.serial_number.to_string()
         }).await;
 

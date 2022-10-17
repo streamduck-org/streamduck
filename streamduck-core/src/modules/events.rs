@@ -3,7 +3,7 @@ use serde::{Serialize, Deserialize};
 use crate::core::button::Button;
 use crate::util::{button_to_raw, panel_to_raw};
 
-/// Core event enumeration for events related to specific cores
+/// Core event enumeration for events related to specific cores, needs to be converted to [SDGlobalEvent] to be serialized
 #[derive(Clone, Debug)]
 pub enum SDCoreEvent {
     /// Called when a new button is created on current screen
@@ -31,7 +31,7 @@ pub enum SDCoreEvent {
     StackReset {new_panel: ButtonPanel},
 }
 
-/// Global event enumeration for events that are related to whole program
+/// Global event enumeration for events that are related to whole program, serializable
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum SDGlobalEvent {
     /// Called when a new button is created on a screen

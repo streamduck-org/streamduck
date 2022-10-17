@@ -249,6 +249,7 @@ impl SocketManager {
     }
 }
 
+/// Puts together an event packet and sends it
 pub async fn send_event_to_socket(socket_manager: &Arc<SocketManager>, event: SDGlobalEvent) {
     socket_manager.send_message(SocketPacket {
         ty: "event".to_string(),

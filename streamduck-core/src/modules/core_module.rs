@@ -9,7 +9,7 @@ use crate::core::{check_feature_list_for_feature, CoreHandle};
 use crate::core::manager::CoreManager;
 use crate::modules::components::{ComponentDefinition, map_ui_values, UIFieldType, UIFieldValue, UIValue};
 use crate::modules::{PluginMetadata, SDModule};
-use crate::modules::events::{core_event_to_global, SDCoreEvent};
+use crate::modules::events::{core_event_to_global, SDCoreEvent, SDGlobalEvent};
 use crate::socket::send_event_to_socket;
 use crate::SocketManager;
 use crate::thread::rendering::{RendererComponent, RendererSettings};
@@ -83,7 +83,7 @@ impl SDModule for CoreModule {
     }
 
     fn listening_for(&self) -> Vec<String> {
-        vec![]
+        vec![RendererComponent::NAME.to_string()]
     }
 
     async fn settings(&self, core_manager: Arc<CoreManager>) -> Vec<UIValue> {
@@ -165,6 +165,10 @@ impl SDModule for CoreModule {
         }
 
         core_manager.config.set_plugin_settings(settings).await;
+    }
+
+    async fn global_event(&self, event: SDGlobalEvent) {
+        send_event_to_socket(&self.socket_manager, event).await;
     }
 
     async fn event(&self, core: CoreHandle, event: SDCoreEvent) {

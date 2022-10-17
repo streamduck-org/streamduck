@@ -1,23 +1,24 @@
 use std::collections::HashMap;
-use std::ops::{DerefMut};
-use std::sync::{Arc};
+use std::ops::DerefMut;
+use std::sync::Arc;
+
 use image::{DynamicImage, Rgba};
-use serde_json::{Map, Value};
-use crate::core::{ButtonPanel, UniqueButton};
-use crate::{Config, ModuleManager, SDCore, SocketManager};
-use crate::util::{add_array_function, button_to_raw, change_from_path, convert_value_to_path, deserialize_panel, make_button_unique, panel_to_raw, remove_array_function, serialize_panel, set_value_function};
 use serde::de::Error as DeError;
+use serde_json::{Map, Value};
 use serde_json::Error as JSONError;
 use tokio::sync::MutexGuard;
+
+use crate::{Config, ModuleManager, SDCore, SocketManager};
+use crate::core::{ButtonPanel, UniqueButton};
 use crate::core::button::{Button, parse_unique_button_to_component};
-use crate::modules::events::{core_event_to_global, SDCoreEvent};
 use crate::modules::{features_to_vec, UniqueSDModule};
 use crate::modules::components::{UIPathValue, UIValue};
 use crate::modules::core_module::CoreSettings;
-use crate::socket::send_event_to_socket;
+use crate::modules::events::SDCoreEvent;
 use crate::thread::DeviceThreadCommunication;
 use crate::thread::rendering::{draw_background, draw_custom_renderer_texture, draw_foreground, draw_missing_texture, RendererComponent};
 use crate::thread::util::image_from_solid;
+use crate::util::{add_array_function, button_to_raw, change_from_path, convert_value_to_path, deserialize_panel, make_button_unique, panel_to_raw, remove_array_function, serialize_panel, set_value_function};
 use crate::versions::SUPPORTED_FEATURES;
 
 /// Handle that's given out to a module to perform actions on the core
@@ -577,7 +578,7 @@ impl CoreHandle {
                         .get_modules_for_components(button.read().await.component_names().as_slice()).await
                         .into_iter()
                 ).await;
-                send_event_to_socket(&self.core.socket_manager, core_event_to_global(event, &self.core.serial_number).await).await;
+                //send_event_to_socket(&self.core.socket_manager, core_event_to_global(event, &self.core.serial_number).await).await;
 
                 self.core.mark_for_redraw().await;
             }
