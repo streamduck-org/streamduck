@@ -535,6 +535,7 @@ pub struct DeviceConfig {
     pub plugin_data: HashMap<String, Value>,
     #[serde(skip)]
     pub commit_time: Option<Instant>,
+    #[serde(skip)]
     pub dirty_state: bool
 }
 
