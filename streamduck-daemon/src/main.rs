@@ -213,7 +213,7 @@ async fn check_for_dirty_configs(config: &Arc<Config>) {
             drop(conf);
             let mut conf = lock.write().await;
             // set clean state
-            conf.set_clean();
+            conf.mark_clean();
             let serial = conf.serial.clone();
             // clear the lock
             drop(conf);

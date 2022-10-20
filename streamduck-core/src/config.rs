@@ -557,7 +557,7 @@ impl DeviceConfig {
     }
 
     /// remove dirty state
-    pub fn set_clean(&mut self) {
+    pub fn mark_clean(&mut self) {
         self.dirty_state = false
     }
 
