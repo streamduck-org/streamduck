@@ -305,11 +305,10 @@ impl Config {
 
         if let Some(device) = devices.get(serial).cloned() {
             self.update_collection(&device).await;
-            let mut path = self.device_config_path();
+            let path = self.device_config_path();
             fs::create_dir_all(&path).await.ok();
-            path.push(format!("{}.json", serial));
+            self.write_to_filesystem(device).await?;
 
-            fs::write(path, serde_json::to_string(device.read().await.deref()).unwrap()).await?;
             Ok(())
         } else {
             Err(ConfigError::DeviceNotFound)
@@ -323,13 +322,24 @@ impl Config {
         let path = self.device_config_path();
         fs::create_dir_all(&path).await.ok();
 
-        for (serial, device) in devices.iter() {
-            let device= device.clone();
+        for (_serial, device) in devices.iter() {
+            let device = device.clone();
             self.update_collection(&device).await;
-            let mut file_path = path.clone();
-            file_path.push(format!("{}.json", serial));
-            fs::write(file_path, serde_json::to_string(device.read().await.deref()).unwrap()).await?;
+            self.write_to_filesystem(device).await?
         }
+
+        Ok(())
+    }
+
+    pub async fn write_to_filesystem(&self, device: UniqueDeviceConfig) -> Result<(), ConfigError> {
+        let mut path = self.device_config_path();
+        let device_conf = device.read().await;
+        path.push(format!("{}.json", device_conf.serial));
+        fs::write(path, serde_json::to_string(device_conf.deref()).unwrap()).await?;
+
+        drop(device_conf);
+        let mut device_conf = device.write().await;
+        device_conf.mark_clean();
 
         Ok(())
     }
@@ -572,18 +582,80 @@ impl DeviceConfig {
 mod tests {
     use super::*;
 
-    #[test]
-    fn config_sys_config_dir() {
+    #[tokio::test]
+    async fn config_sys_config_dir() {
         // check if config dir gets created
-        let config = Config::get(None);
-        assert_ne!(config.sys_config_dir, None)
+        let config = Config::get(None).await;
+        assert_ne!(config.config_dir, None)
     }
 
-    #[test]
-    fn config_sys_data_dir() {
+    #[tokio::test]
+    async fn config_sys_data_dir() {
         // check if data dir gets created
-        let config = Config::get(None);
-        assert_ne!(config.sys_data_dir, None)
+        let config = Config::get(None).await;
+        assert_ne!(config.data_dir, None)
     }
 
+    #[tokio::test]
+    async fn config_mark_clean() {
+        // simulate a changed config
+        let mut device_conf = DeviceConfig {
+            vid: Default::default(),
+            pid: Default::default(),
+            serial: String::from("TestSerial1"),
+            brightness: Default::default(),
+            layout: Default::default(),
+            images: Default::default(),
+            plugin_data: Default::default(),
+            commit_time: Default::default(),
+            dirty_state: true
+        };
+        assert_eq!(device_conf.dirty_state, true);
+        device_conf.mark_clean();
+        assert_eq!(device_conf.dirty_state, false);
+    }
+
+    #[tokio::test]
+    async fn config_filesystem_writing() { 
+        let config = Config::get(None).await;
+        // simulate a changed config
+        let device_conf = DeviceConfig {
+            vid: Default::default(),
+            pid: Default::default(),
+            serial: String::from("TestSerial1"),
+            brightness: Default::default(),
+            layout: Default::default(),
+            images: Default::default(),
+            plugin_data: Default::default(),
+            commit_time: Default::default(),
+            dirty_state: true
+        };
+        let serial = device_conf.serial.clone();
+
+        // get the path
+        let mut path = config.device_config_path();
+        fs::create_dir_all(&path).await.ok();
+        path.push(format!("{}.json", serial));
+
+        // delete device data if it exists (clean start)
+        if path.exists() {
+            std::fs::remove_file(&path).unwrap();
+        }
+
+        // is the device config dirty?
+        assert_eq!(device_conf.dirty_state, true);
+        let device_conf = Arc::new(RwLock::new(device_conf));
+
+        // write to the filesystem
+        config.write_to_filesystem(device_conf).await.unwrap();
+
+        // does the path exist?
+        assert_eq!(path.exists(), true);
+
+        // clean up
+        std::fs::remove_file(&path).unwrap();
+
+        // TODO: check if dirty_state is updated
+
+    }
 }

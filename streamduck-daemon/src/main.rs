@@ -210,10 +210,6 @@ async fn check_for_dirty_configs(config: &Arc<Config>) {
         let conf = lock.read().await;
         let timediff = conf.commit_duration();
         if conf.is_dirty() && timediff > Duration::from_secs(30) {
-            drop(conf);
-            let mut conf = lock.write().await;
-            // set clean state
-            conf.mark_clean();
             let serial = conf.serial.clone();
             // clear the lock
             drop(conf);
