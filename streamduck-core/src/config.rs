@@ -106,7 +106,6 @@ impl Config {
 
         let path: PathBuf = custom_config_path.unwrap_or_else(|| {
             let mut dir = config_dir.clone();
-            dir.push(CONFIG_FOLDER);
             dir.push(CONFIG_FILE);
             dir
         });
