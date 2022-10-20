@@ -113,6 +113,7 @@ async fn root(matches: ArgMatches) {
         log::warn!("Debugging output enabled");
     }
 
+
     // Initializing module manager
     let module_manager = ModuleManager::new();
 
@@ -171,6 +172,10 @@ async fn root(matches: ArgMatches) {
         std::process::exit(0);
     });
 
+    if config.autosave == true {
+        tokio::spawn(autosave_task(config));
+    }
+
     hide_console();
 
     run_socket(socket_manager.clone()).await;
@@ -195,6 +200,37 @@ fn hide_console() {
         unsafe {
             ShowWindow(window, SW_HIDE);
         }
+    }
+}
+
+async fn check_for_dirty_configs(config: &Arc<Config>) {
+    let device_config = config.get_all_device_configs().await;
+
+    for lock in device_config {
+        let conf = lock.read().await;
+        let timediff = conf.commit_duration();
+        if conf.is_dirty() && timediff > Duration::from_secs(30) {
+            drop(conf);
+            let mut conf = lock.write().await;
+            // set clean state
+            conf.set_clean();
+            let serial = conf.serial.clone();
+            // clear the lock
+            drop(conf);
+            // write
+            match config.save_device_config(serial.as_str()).await {
+                Ok(_) => log::debug!("Autosaved device configuration"),
+                Err(e) => log::warn!("Could not autosave device configuration. Err: {:?}", e)
+            };
+        }
+    }
+}
+
+async fn autosave_task(config: Arc<Config>) {
+    log::debug!("Started autosave task");
+    loop {
+        check_for_dirty_configs(&config).await;
+        tokio::time::sleep(Duration::from_secs(10)).await
     }
 }
 

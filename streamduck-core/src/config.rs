@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use tokio::fs;
 use dirs;
 use std::ops::Deref;
+use std::time::{Instant, Duration};
 use std::path::PathBuf;
 use std::sync::{Arc};
 use image::{DynamicImage};
@@ -80,6 +81,9 @@ pub struct Config {
     config_dir: Option<PathBuf>,
     /// Data folder
     data_dir: Option<PathBuf>,
+
+    /// Autosave device configuration
+    pub autosave: bool,
 
     #[serde(skip)]
     pub plugin_settings: RwLock<HashMap<String, Value>>,
@@ -530,6 +534,9 @@ pub struct DeviceConfig {
     pub layout: RawButtonPanel,
     pub images: HashMap<String, SDSerializedImage>,
     pub plugin_data: HashMap<String, Value>,
+    #[serde(skip)]
+    pub commit_time: Option<Instant>,
+    pub dirty_state: bool
 }
 
 impl DeviceConfig {
@@ -543,6 +550,21 @@ impl DeviceConfig {
 
             _ => Kind::Original,
         }
+    }
+
+    /// check if there are config changes
+    pub fn is_dirty(&self) -> bool {
+        self.dirty_state
+    }
+
+    /// remove dirty state
+    pub fn set_clean(&mut self) {
+        self.dirty_state = false
+    }
+
+    /// duration from now to the last commit
+    pub fn commit_duration(&self) -> Duration {
+        Instant::now().duration_since(self.commit_time.unwrap_or(Instant::now()))
     }
 }
 
