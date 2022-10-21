@@ -326,7 +326,7 @@ impl Config {
         let path = self.device_config_path();
         fs::create_dir_all(&path).await.ok();
 
-        for (_serial, device) in devices.iter() {
+        for (_, device) in devices.iter() {
             let device = device.clone();
             self.update_collection(&device).await;
             self.write_to_filesystem(device).await?
