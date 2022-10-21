@@ -1,16 +1,18 @@
 //! Socket related definitions
 
 use std::io::Write;
+use tokio::io::{AsyncWrite, AsyncWriteExt};
 use std::ops::Deref;
-use std::sync::{Arc, Condvar, Mutex, RwLock};
-use std::thread::spawn;
+use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use serde::de::{DeserializeOwned, Error};
 use serde_json::Value;
+use tokio::sync::{Mutex, Notify, RwLock};
+use async_recursion::async_recursion;
 use crate::modules::events::SDGlobalEvent;
 
 /// Type for listener's socket handles
-pub type SocketHandle<'a> = &'a mut dyn Write;
+pub type SocketHandle<'a> = &'a mut (dyn AsyncWrite + Unpin + Send);
 
 /// Boxed socket listener
 pub type UniqueSocketListener = Arc<dyn SocketListener + Send + Sync>;
@@ -27,13 +29,15 @@ pub struct SocketPacket {
 }
 
 /// Socket listener, something that can listen in to socket connections
+#[async_trait]
 pub trait SocketListener {
     /// Called when message is received, handle can be used to send back a response
-    fn message(&self, socket: SocketHandle, packet: SocketPacket);
+    async fn message(&self, socket: SocketHandle<'_>, packet: SocketPacket);
 }
 
 /// Trait for serialization and deserialization util functions
 pub trait SocketData {
+    /// Name of the request
     const NAME: &'static str;
 }
 
@@ -56,7 +60,16 @@ pub fn check_packet_for_data<T: SocketData>(packet: &SocketPacket) -> bool {
 }
 
 /// Writes bytes in chunks
-pub fn write_in_chunks(handle: SocketHandle, data: String) -> Result<(), SocketError> {
+pub async fn write_in_chunks(handle: SocketHandle<'_>, data: String) -> Result<(), SocketError> {
+    for chunk in data.into_bytes().chunks(250) {
+        handle.write(chunk).await?;
+    }
+
+    Ok(())
+}
+
+/// Writes bytes in chunks with sync IO
+pub fn write_in_chunks_sync(handle: &mut dyn Write, data: String) -> Result<(), SocketError> {
     for chunk in data.into_bytes().chunks(250) {
         handle.write(chunk)?;
     }
@@ -65,47 +78,93 @@ pub fn write_in_chunks(handle: SocketHandle, data: String) -> Result<(), SocketE
 }
 
 /// Sends a packet with included requester ID from previous package
-pub fn send_packet<T: SocketData + Serialize>(handle: SocketHandle, previous_packet: &SocketPacket, data: &T) -> Result<(), SocketError> {
+pub async fn send_packet<T: SocketData + Serialize>(handle: SocketHandle<'_>, previous_packet: &SocketPacket, data: &T) -> Result<(), SocketError> {
     let packet = SocketPacket {
         ty: T::NAME.to_string(),
         requester: previous_packet.requester.clone(),
         data: Some(serde_json::to_value(data)?)
     };
 
-    send_packet_as_is(handle, packet)?;
+    send_packet_as_is(handle, packet).await?;
+
+    Ok(())
+}
+
+/// Sends a packet with included requester ID from previous package with sync IO
+pub async fn send_packet_sync<T: SocketData + Serialize>(handle: &mut dyn Write, previous_packet: &SocketPacket, data: &T) -> Result<(), SocketError> {
+    let packet = SocketPacket {
+        ty: T::NAME.to_string(),
+        requester: previous_packet.requester.clone(),
+        data: Some(serde_json::to_value(data)?)
+    };
+
+    send_packet_as_is_sync(handle, packet)?;
 
     Ok(())
 }
 
 /// Sends a packet with included requester ID from previous package
-pub fn send_packet_with_requester<T: SocketData + Serialize>(handle: SocketHandle, requester: &str, data: &T) -> Result<(), SocketError> {
+pub async fn send_packet_with_requester<T: SocketData + Serialize>(handle: SocketHandle<'_>, requester: &str, data: &T) -> Result<(), SocketError> {
     let packet = SocketPacket {
         ty: T::NAME.to_string(),
         requester: Some(requester.to_string()),
         data: Some(serde_json::to_value(data)?)
     };
 
-    send_packet_as_is(handle, packet)?;
+    send_packet_as_is(handle, packet).await?;
+
+    Ok(())
+}
+
+/// Sends a packet with included requester ID from previous package with sync IO
+pub fn send_packet_with_requester_sync<T: SocketData + Serialize>(handle: &mut dyn Write, requester: &str, data: &T) -> Result<(), SocketError> {
+    let packet = SocketPacket {
+        ty: T::NAME.to_string(),
+        requester: Some(requester.to_string()),
+        data: Some(serde_json::to_value(data)?)
+    };
+
+    send_packet_as_is_sync(handle, packet)?;
 
     Ok(())
 }
 
 /// Sends a packet with included requester ID from previous package, without data
-pub fn send_no_data_packet_with_requester<T: SocketData>(handle: SocketHandle, requester: &str) -> Result<(), SocketError> {
+pub async fn send_no_data_packet_with_requester<T: SocketData>(handle: SocketHandle<'_>, requester: &str) -> Result<(), SocketError> {
     let packet = SocketPacket {
         ty: T::NAME.to_string(),
         requester: Some(requester.to_string()),
         data: None
     };
 
-    send_packet_as_is(handle, packet)?;
+    send_packet_as_is(handle, packet).await?;
+
+    Ok(())
+}
+
+/// Sends a packet with included requester ID from previous package, without data, with sync IO
+pub fn send_no_data_packet_with_requester_sync<T: SocketData>(handle: &mut dyn Write, requester: &str) -> Result<(), SocketError> {
+    let packet = SocketPacket {
+        ty: T::NAME.to_string(),
+        requester: Some(requester.to_string()),
+        data: None
+    };
+
+    send_packet_as_is_sync(handle, packet)?;
 
     Ok(())
 }
 
 /// Sends a packet as is
-pub fn send_packet_as_is(handle: SocketHandle, data: SocketPacket) -> Result<(), SocketError> {
-    write_in_chunks(handle, format!("{}\u{0004}", serde_json::to_string(&data)?))?;
+pub async fn send_packet_as_is(handle: SocketHandle<'_>, data: SocketPacket) -> Result<(), SocketError> {
+    write_in_chunks(handle, format!("{}\u{0004}", serde_json::to_string(&data)?)).await?;
+
+    Ok(())
+}
+
+/// Sends a packet as is with sync IO
+pub fn send_packet_as_is_sync(handle: &mut dyn Write, data: SocketPacket) -> Result<(), SocketError> {
+    write_in_chunks_sync(handle, format!("{}\u{0004}", serde_json::to_string(&data)?))?;
 
     Ok(())
 }
@@ -113,7 +172,9 @@ pub fn send_packet_as_is(handle: SocketHandle, data: SocketPacket) -> Result<(),
 /// Enumeration of various errors during sending and parsing packets
 #[derive(Debug)]
 pub enum SocketError {
+    /// Failed to (de)serialize
     SerdeError(serde_json::Error),
+    /// Failed to write to the socket
     WriteError(std::io::Error),
 }
 
@@ -145,24 +206,24 @@ impl SocketManager {
     }
 
     /// Adds socket listener to manager
-    pub fn add_listener(&self, listener: UniqueSocketListener) {
-        self.listeners.write().unwrap().push(listener);
+    pub async fn add_listener(&self, listener: UniqueSocketListener) {
+        self.listeners.write().await.push(listener);
     }
 
     /// Sends a message to all listeners, for socket implementation to trigger all listeners when message is received
-    pub fn received_message(&self, handle: SocketHandle, packet: SocketPacket) {
-        for listener in self.listeners.read().unwrap().deref() {
-            listener.message(handle, packet.clone());
+    pub async fn received_message(&self, handle: SocketHandle<'_>, packet: SocketPacket) {
+        for listener in self.listeners.read().await.deref() {
+            listener.message(handle, packet.clone()).await;
         }
     }
 
     /// Creates a new message pool
-    pub fn get_pool(&self) -> Arc<SocketPool> {
-        let mut pools = self.pools.write().unwrap();
+    pub async fn get_pool(&self) -> Arc<SocketPool> {
+        let mut pools = self.pools.write().await;
 
         let new_pool = Arc::new(SocketPool {
             messages: Mutex::new(vec![]),
-            condvar: Default::default(),
+            notification: Default::default(),
             is_open: RwLock::new(true)
         });
 
@@ -172,65 +233,79 @@ impl SocketManager {
     }
 
     /// For listeners or modules to send messages to all active socket connections, for event purposes
-    pub fn send_message(&self, packet: SocketPacket) {
-        let mut pools = self.pools.write().unwrap();
+    pub async fn send_message(&self, packet: SocketPacket) {
+        let mut pools = self.pools.write().await;
 
-        pools.retain(|x| x.is_open());
+        let mut pools_to_delete = vec![];
 
-        for pool in pools.iter() {
-            pool.add_message(packet.clone())
+        for (index, pool) in pools.iter().enumerate() {
+            if *pool.is_open.read().await {
+                pool.add_message(packet.clone()).await
+            } else {
+                pools_to_delete.push(index);
+            }
+        }
+
+        for pool_to_delete in pools_to_delete {
+            pools.remove(pool_to_delete);
         }
     }
 }
 
-/// Sends packet to all socket connections in different thread, so current thread won't have to wait for write locks
-pub fn send_socket_message(socket_manager: &Arc<SocketManager>, packet: SocketPacket) {
-    let socket_manager = socket_manager.clone();
-    spawn(move || {
-        socket_manager.send_message(packet);
-    });
-}
-
-pub fn send_event_to_socket(socket_manager: &Arc<SocketManager>, event: SDGlobalEvent) {
-    send_socket_message(socket_manager, SocketPacket {
+/// Puts together an event packet and sends it
+pub async fn send_event_to_socket(socket_manager: &Arc<SocketManager>, event: SDGlobalEvent) {
+    socket_manager.send_message(SocketPacket {
         ty: "event".to_string(),
         requester: None,
         data: Some(serde_json::to_value(event).unwrap())
-    })
+    }).await
 }
 
 /// Pool of messages for socket implementations
 pub struct SocketPool {
     messages: Mutex<Vec<SocketPacket>>,
-    condvar: Condvar,
+    notification: Notify,
     is_open: RwLock<bool>
 }
 
 impl SocketPool {
     /// Puts message into the pool
-    pub fn add_message(&self, message: SocketPacket) {
-        let mut messages = self.messages.lock().unwrap();
+    pub async fn add_message(&self, message: SocketPacket) {
+        let mut messages = self.messages.lock().await;
         messages.insert(0, message);
-        self.condvar.notify_all();
+        self.notification.notify_waiters();
     }
 
     /// Retrieves a message, will block if pool is currently empty
-    pub fn take_message(&self) -> SocketPacket {
-        let mut guard = self.condvar.wait_while(self.messages.lock().unwrap(), |x| x.len() <= 0).unwrap();
+    #[async_recursion]
+    pub async fn take_message(&self) -> SocketPacket {
+        // Checking if message exists before waiting
+        {
+            let mut guard = self.messages.lock().await;
+            if !guard.is_empty() {
+                return guard.pop().unwrap();
+            }
+        }
+
+        // Waiting for wake-up if empty pool
+        self.notification.notified().await;
+        let mut guard = self.messages.lock().await;
 
         if let Some(packet) = guard.pop() {
             packet
         } else {
             drop(guard);
-            self.take_message()
+            self.take_message().await
         }
     }
 
-    pub fn is_open(&self) -> bool {
-        *self.is_open.read().unwrap()
+    /// If the pool is still open
+    pub async fn is_open(&self) -> bool {
+        *self.is_open.read().await
     }
 
-    pub fn close(&self) {
-        *self.is_open.write().unwrap() = false;
+    /// CLoses the pool from receiving any packets
+    pub async fn close(&self) {
+        *self.is_open.write().await = false;
     }
 }

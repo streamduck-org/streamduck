@@ -1,3 +1,4 @@
+#![deny(missing_docs)]
 //! Crate responsible for managing streamdeck devices, rendering, managing configuration and pretty much everything
 
 /// Utility code for rendering and conversions
@@ -20,21 +21,25 @@ pub use streamdeck;
 pub use hidapi;
 pub use palette;
 pub use image;
+pub use async_trait::async_trait;
+pub use async_recursion::async_recursion;
 
 use std::sync::Arc;
 use hidapi::HidApi;
 use streamdeck::pids;
 use streamdeck::StreamDeck;
 use crate::config::{Config, UniqueDeviceConfig};
-use crate::core::{KeyHandler, SDCore};
+use crate::core::{SDCore};
 use crate::modules::ModuleManager;
 use thread::ImageCollection;
 use crate::socket::SocketManager;
 use crate::thread::rendering::custom::RenderingManager;
 
+#[macro_use] extern crate async_trait;
+
 /// Attempts to connect to any detected streamdeck
-pub fn connect_any(module_manager: Arc<ModuleManager>, render_manager: Arc<RenderingManager>, socket_manager: Arc<SocketManager>, config: Arc<Config>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, hid: &HidApi, frame_rate: u32) -> Result<(Arc<SDCore>, KeyHandler), Error> {
-    Ok(SDCore::new(module_manager, render_manager, socket_manager, config, device_config, image_collection, attempt_connection_to_any(hid)?, frame_rate))
+pub async fn connect_any(module_manager: Arc<ModuleManager>, render_manager: Arc<RenderingManager>, socket_manager: Arc<SocketManager>, config: Arc<Config>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, hid: &HidApi, frame_rate: u32) -> Result<Arc<SDCore>, Error> {
+    Ok(SDCore::new(module_manager, render_manager, socket_manager, config, device_config, image_collection, attempt_connection_to_any(hid)?, frame_rate).await)
 }
 
 fn attempt_connection_to_any(hid: &HidApi) -> Result<StreamDeck, Error> {
@@ -51,8 +56,8 @@ fn attempt_connection_to_any(hid: &HidApi) -> Result<StreamDeck, Error> {
 }
 
 /// Attempts to connect to specified device as a streamdeck
-pub fn connect(module_manager: Arc<ModuleManager>, render_manager: Arc<RenderingManager>, socket_manager: Arc<SocketManager>, config: Arc<Config>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, hid: &HidApi, vid: u16, pid: u16, serial: &str, frame_rate: u32) -> Result<(Arc<SDCore>, KeyHandler), Error> {
-    Ok(SDCore::new(module_manager, render_manager, socket_manager, config, device_config, image_collection, attempt_connection(hid, vid, pid, serial)?, frame_rate))
+pub async fn connect(module_manager: Arc<ModuleManager>, render_manager: Arc<RenderingManager>, socket_manager: Arc<SocketManager>, config: Arc<Config>, device_config: UniqueDeviceConfig, image_collection: ImageCollection, hid: &HidApi, vid: u16, pid: u16, serial: &str, frame_rate: u32) -> Result<Arc<SDCore>, Error> {
+    Ok(SDCore::new(module_manager, render_manager, socket_manager, config, device_config, image_collection, attempt_connection(hid, vid, pid, serial)?, frame_rate).await)
 }
 
 fn attempt_connection(hid: &HidApi, vid: u16, pid: u16, serial: &str) -> Result<StreamDeck, Error> {

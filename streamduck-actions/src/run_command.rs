@@ -136,8 +136,8 @@ pub fn set_values(button: &mut Button, value: Vec<UIValue>) {
     }
 }
 
-pub fn action(button: &UniqueButton) {
-    if let Ok(component) = parse_unique_button_to_component::<RunCommandComponent>(button) {
+pub async fn action(button: &UniqueButton) {
+    if let Ok(component) = parse_unique_button_to_component::<RunCommandComponent>(button).await {
         spawn(move || {
             let execution = {
                 if component.use_advanced {

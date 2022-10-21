@@ -1,7 +1,8 @@
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock, RwLockReadGuard};
+use std::sync::Arc;
 use image::DynamicImage;
 use streamdeck::{DeviceImage, StreamDeck};
+use tokio::sync::{RwLock, RwLockReadGuard};
 use crate::core::button::Button;
 use crate::core::{CoreHandle, UniqueButton};
 use crate::modules::components::UIValue;
@@ -32,24 +33,25 @@ impl<'a> DeviceReference<'a> {
 
 /// Custom renderer trait
 #[allow(unused_variables)]
+#[async_trait]
 pub trait CustomRenderer: Send + Sync {
     /// Name of the renderer
     fn name(&self) -> String;
 
     /// Called whenever current screen changes, should be used for any things that shouldn't be called every tick
-    fn refresh(&self, core_handle: &CoreHandle) {}
+    async fn refresh(&self, core_handle: &CoreHandle) {}
 
     /// Called on every tick with device reference provided
-    fn render(&self, key: u8, button: &UniqueButton, core_handle: &CoreHandle, streamdeck: &mut DeviceReference) {}
+    async fn render(&self, key: u8, button: &UniqueButton, core_handle: &CoreHandle, streamdeck: &mut DeviceReference) {}
 
     /// Called on get_button_images method, the returned image is what will be shown on GUI
-    fn representation(&self, key: u8, button: &UniqueButton, core_handle: &CoreHandle) -> Option<DynamicImage> { None }
+    async fn representation(&self, key: u8, button: &UniqueButton, core_handle: &CoreHandle) -> Option<DynamicImage> { None }
 
     /// Called when renderer component has custom renderer selected, can be used to give custom fields to renderer component
-    fn component_values(&self, button: &Button, component: &RendererComponent, core_handle: &CoreHandle) -> Vec<UIValue> { vec![] }
+    async fn component_values(&self, button: &Button, component: &RendererComponent, core_handle: &CoreHandle) -> Vec<UIValue> { vec![] }
 
     /// Called when renderer component has custom renderer selected, used to set custom fields to whatever structure plugin wishes
-    fn set_component_value(&self, button: &mut Button, component: &mut RendererComponent, core_handle: &CoreHandle, value: Vec<UIValue>) { }
+    async fn set_component_value(&self, button: &mut Button, component: &mut RendererComponent, core_handle: &CoreHandle, value: Vec<UIValue>) { }
 }
 
 /// Reference counted renderer object
@@ -68,18 +70,18 @@ impl RenderingManager {
     }
 
     /// Adds renderer to the manager
-    pub fn add_custom_renderer(&self, renderer: UniqueRenderer) {
-        let mut lock = self.renderers.write().unwrap();
+    pub async fn add_custom_renderer(&self, renderer: UniqueRenderer) {
+        let mut lock = self.renderers.write().await;
         lock.insert(renderer.name(), renderer);
     }
 
     /// Returns all renderers managed by the manager
-    pub fn get_renderers(&self) -> HashMap<String, UniqueRenderer> {
-        self.renderers.read().unwrap().clone()
+    pub async fn get_renderers(&self) -> HashMap<String, UniqueRenderer> {
+        self.renderers.read().await.clone()
     }
 
     /// Returns read lock for renderers
-    pub fn read_renderers(&self) -> RwLockReadGuard<HashMap<String, UniqueRenderer>> {
-        self.renderers.read().unwrap()
+    pub async fn read_renderers(&self) -> RwLockReadGuard<'_, HashMap<String, UniqueRenderer>> {
+        self.renderers.read().await
     }
 }

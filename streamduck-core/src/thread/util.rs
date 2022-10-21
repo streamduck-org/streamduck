@@ -57,7 +57,7 @@ pub fn render_text_on_image(image: &mut DynamicImage, font: &Font, text: &str, s
                         bound_x,
                         bound_y,
                         // Turn the coverage into an alpha value
-                        Rgba([(pixel.0[0] as f32 * (1.0 - color_mul) + color.0 as f32 * color_mul) as u8, (pixel.0[1] as f32 * (1.0 - color_mul) + color.1 as f32 * color_mul) as u8, (pixel.0[2] as f32 * (1.0 - color_mul) + color.2 as f32 * color_mul) as u8, 255])
+                        Rgba([(pixel.0[0] as f32 * (1.0 - color_mul) + color.0 as f32 * color_mul) as u8, (pixel.0[1] as f32 * (1.0 - color_mul) + color.1 as f32 * color_mul) as u8, (pixel.0[2] as f32 * (1.0 - color_mul) + color.2 as f32 * color_mul) as u8, 255]),
                     )
                 }
             })
@@ -82,7 +82,7 @@ pub fn render_shadowed_text_on_image(image: &mut DynamicImage, font: &Font, text
                         bound_x,
                         bound_y,
                         // Turn the coverage into an alpha value
-                        Rgba([(pixel.0[0] as f32 * (1.0 - color_mul) + color.0 as f32 * color_mul) as u8, (pixel.0[1] as f32 * (1.0 - color_mul) + color.1 as f32 * color_mul) as u8, (pixel.0[2] as f32 * (1.0 - color_mul) + color.2 as f32 * color_mul) as u8, 255])
+                        Rgba([(pixel.0[0] as f32 * (1.0 - color_mul) + color.0 as f32 * color_mul) as u8, (pixel.0[1] as f32 * (1.0 - color_mul) + color.1 as f32 * color_mul) as u8, (pixel.0[2] as f32 * (1.0 - color_mul) + color.2 as f32 * color_mul) as u8, 255]),
                     );
 
                     let shadow_x = (bound_x as i32 + shadow_offset.0) as u32;
@@ -97,7 +97,7 @@ pub fn render_shadowed_text_on_image(image: &mut DynamicImage, font: &Font, text
                                 shadow_x,
                                 shadow_y,
                                 // Turn the coverage into an alpha value
-                                Rgba([(pixel.0[0] as f32 * (1.0 - shadow_mul) + shadow_color.0 as f32 * shadow_mul) as u8, (pixel.0[1] as f32 * (1.0 - shadow_mul) + shadow_color.1 as f32 * shadow_mul) as u8, (pixel.0[2] as f32 * (1.0 - shadow_mul) + shadow_color.2 as f32 * shadow_mul) as u8, 255])
+                                Rgba([(pixel.0[0] as f32 * (1.0 - shadow_mul) + shadow_color.0 as f32 * shadow_mul) as u8, (pixel.0[1] as f32 * (1.0 - shadow_mul) + shadow_color.1 as f32 * shadow_mul) as u8, (pixel.0[2] as f32 * (1.0 - shadow_mul) + shadow_color.2 as f32 * shadow_mul) as u8, 255]),
                             );
                         }
                     }
@@ -119,7 +119,7 @@ pub fn render_box_on_image(image: &mut DynamicImage, scale: Scale, point: Point<
                 image.put_pixel(
                     offset_x,
                     offset_y,
-                    Rgba([color.0, color.1, color.2, 255])
+                    Rgba([color.0, color.1, color.2, 255]),
                 )
             }
         }
@@ -145,9 +145,24 @@ pub fn calculate_bounds_for_text(font: &Font, text: &str, scale: Scale) -> (u32,
 #[derive(Debug, Clone, Hash, Serialize, Deserialize, EnumVariantNames, EnumString, Display)]
 #[strum(serialize_all = "title_case")]
 pub enum TextAlignment {
-    TopLeft, TopCenter, TopRight,
-    MiddleLeft, Center, MiddleRight,
-    BottomLeft, BottomCenter, BottomRight,
+    /// Top left alignment
+    TopLeft,
+    /// Top center alignment
+    TopCenter,
+    /// Top right alignment
+    TopRight,
+    /// Middle left alignment
+    MiddleLeft,
+    /// Center alignment
+    Center,
+    /// Middle right alignment
+    MiddleRight,
+    /// Bottom left alignment
+    BottomLeft,
+    /// Bottom center alignment
+    BottomCenter,
+    /// Bottom right alignment
+    BottomRight,
 }
 
 /// Calculates where text should be rendered for specified alignment and other parameters
@@ -181,8 +196,7 @@ pub fn get_alignment_position_for_text(size: (usize, usize), font: &Font, text: 
             TextAlignment::BottomLeft | TextAlignment::BottomCenter | TextAlignment::BottomRight => {
                 (sh as i32 - padding as i32) as f32 + offset.1
             }
-        }
-
+        },
     )
 }
 

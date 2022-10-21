@@ -20,31 +20,60 @@ pub struct ComponentDefinition {
 /// UI Field, will be represented in a list similar to Unity's inspector
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UIField {
+    /// Name of the field
     pub name: String,
+
+    /// Display name of the field
     pub display_name: String,
+
+    /// Description of the field
     pub description: String,
+
+    /// Type of the field
     pub ty: UIFieldType,
+
+    /// Default value that will be used when initializing this field
     pub default_value: UIFieldValue<UIValue>
 }
 
 /// UI Value, represents what fields currently have
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UIValue {
+    /// Name of the value
     pub name: String,
+
+    /// Display name of the value
     pub display_name: String,
+
+    /// Description of the value
     pub description: String,
+
+    /// Type of the value
     pub ty: UIFieldType,
+
+    /// Actual value
     pub value: UIFieldValue<UIValue>,
 }
 
-/// UI Path Value, represents
+/// UI Path Value, represents a value that has a path inside of the value hierarchy
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UIPathValue {
+    /// Name of the value
     pub name: String,
+
+    /// Path of the value
     pub path: String,
+
+    /// Display name of the value
     pub display_name: String,
+
+    /// Description of the value
     pub description: String,
+
+    /// Type of the value
     pub ty: UIFieldType,
+
+    /// Actual value
     pub value: UIFieldValue<UIPathValue>,
 }
 
@@ -108,6 +137,15 @@ pub enum UIFieldType {
 
     /// Font name
     Font,
+
+    /// Button for receiving impulses from clients
+    Button {
+        /// If button should appear disabled
+        disabled: bool
+    },
+
+    /// Previews an image on UI
+    ImagePreview,
 }
 
 /// UI Field value, current state of the settings
@@ -163,37 +201,51 @@ pub enum UIFieldValue<V> {
 
     /// Font name
     Font(String),
+
+    /// Button
+    Button,
+
+    /// Previews an image on UI, png image data encoded in base64
+    ImagePreview(String)
 }
 
 impl<V> UIFieldValue<V> {
+    /// Attempts to parse the value into a boolean
     pub fn try_into_bool(&self) -> Result<bool, String> {
         TryInto::<bool>::try_into(self)
     }
 
+    /// Attempts to parse the value into a floating number
     pub fn try_into_f32(&self) -> Result<f32, String> {
         TryInto::<f32>::try_into(self)
     }
 
+    /// Attempts to parse the value into an integer
     pub fn try_into_i32(&self) -> Result<i32, String> {
         TryInto::<i32>::try_into(self)
     }
 
+    /// Attempts to parse the value into an unsigned integer
     pub fn try_into_u32(&self) -> Result<u32, String> {
         TryInto::<u32>::try_into(self)
     }
 
+    /// Attempts to parse the value into a pair of floating numbers
     pub fn try_into_f32_f32(&self) -> Result<(f32, f32), String> {
         TryInto::<(f32, f32)>::try_into(self)
     }
 
+    /// Attempts to parse the value into a pair of integers
     pub fn try_into_i32_i32(&self) -> Result<(i32, i32), String> {
         TryInto::<(i32, i32)>::try_into(self)
     }
 
+    /// Attempts to parse the value into a color
     pub fn try_into_color(&self) -> Result<Color, String> {
         TryInto::<Color>::try_into(self)
     }
 
+    /// Attempts to parse the value into a string
     pub fn try_into_string(&self) -> Result<String, String> {
         TryInto::<String>::try_into(self)
     }
@@ -385,7 +437,13 @@ impl<V> TryInto<String> for UIFieldValue<V> {
     type Error = String;
 
     fn try_into(self) -> Result<String, Self::Error> {
-        if let UIFieldValue::InputFieldString(str) | UIFieldValue::Choice(str) | UIFieldValue::ImageData(str) | UIFieldValue::ExistingImage(str) | UIFieldValue::Font(str) | UIFieldValue::Label(str) = self {
+        if let UIFieldValue::InputFieldString(str) |
+                UIFieldValue::Choice(str) |
+                UIFieldValue::ImageData(str) |
+                UIFieldValue::ExistingImage(str) |
+                UIFieldValue::Font(str) |
+                UIFieldValue::Label(str) |
+                UIFieldValue::ImagePreview(str) = self {
             Ok(str)
         } else {
             Err("Incorrect value".to_string())
@@ -397,7 +455,13 @@ impl<V> TryInto<String> for &UIFieldValue<V> {
     type Error = String;
 
     fn try_into(self) -> Result<String, Self::Error> {
-        if let UIFieldValue::InputFieldString(str) | UIFieldValue::Choice(str) | UIFieldValue::ImageData(str) | UIFieldValue::ExistingImage(str) | UIFieldValue::Font(str) | UIFieldValue::Label(str) = self {
+        if let UIFieldValue::InputFieldString(str) |
+                UIFieldValue::Choice(str) |
+                UIFieldValue::ImageData(str) |
+                UIFieldValue::ExistingImage(str) |
+                UIFieldValue::Font(str) |
+                UIFieldValue::Label(str) |
+                UIFieldValue::ImagePreview(str) = self {
             Ok(str.clone())
         } else {
             Err("Incorrect value".to_string())
@@ -452,11 +516,11 @@ impl From<UIFieldValue<UIValue>> for UIFieldValue<UIPathValue> {
             UIFieldValue::ValueSliderInteger(i) => UIFieldValue::ValueSliderInteger(i),
 
             UIFieldValue::Collapsable(_) => {
-                unimplemented!();
+                panic!("Please use convert_value_to_path")
             }
 
             UIFieldValue::Array(_) => {
-                unimplemented!();
+                panic!("Please use convert_value_to_path")
             }
 
             UIFieldValue::Choice(c) => UIFieldValue::Choice(c),
@@ -465,6 +529,8 @@ impl From<UIFieldValue<UIValue>> for UIFieldValue<UIPathValue> {
             UIFieldValue::ImageData(d) => UIFieldValue::ImageData(d),
             UIFieldValue::ExistingImage(i) => UIFieldValue::ExistingImage(i),
             UIFieldValue::Font(f) => UIFieldValue::Font(f),
+            UIFieldValue::Button => UIFieldValue::Button,
+            UIFieldValue::ImagePreview(d) => UIFieldValue::ImagePreview(d)
         }
     }
 }
@@ -515,6 +581,8 @@ impl From<UIFieldValue<UIPathValue>> for UIFieldValue<UIValue> {
             UIFieldValue::ImageData(d) => UIFieldValue::ImageData(d),
             UIFieldValue::ExistingImage(i) => UIFieldValue::ExistingImage(i),
             UIFieldValue::Font(f) => UIFieldValue::Font(f),
+            UIFieldValue::Button => UIFieldValue::Button,
+            UIFieldValue::ImagePreview(d) => UIFieldValue::ImagePreview(d)
         }
     }
 }

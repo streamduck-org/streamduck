@@ -38,6 +38,7 @@ impl Button {
 
 /// Component trait, simply provides name for component generic methods
 pub trait Component {
+    /// Name of the component
     const NAME: &'static str;
 }
 
@@ -51,8 +52,8 @@ pub fn parse_button_to_component<T: Component + DeserializeOwned>(button: &Butto
 }
 
 /// Attempts to retrieve a component from reference counted button
-pub fn parse_unique_button_to_component<T: Component + DeserializeOwned>(button: &UniqueButton) -> Result<T, ParseError> {
-    parse_button_to_component(button.read().unwrap().deref())
+pub async fn parse_unique_button_to_component<T: Component + DeserializeOwned>(button: &UniqueButton) -> Result<T, ParseError> {
+    parse_button_to_component(button.read().await.deref())
 }
 
 /// Serializes component into JSON
@@ -63,7 +64,9 @@ pub fn serialize_component<T: Component + Serialize>(component: T) -> Result<Val
 /// Parse error used for functions in this module
 #[derive(Debug)]
 pub enum ParseError {
+    /// Component is missing
     Missing,
+    /// Component failed to parse
     JSONError(serde_json::Error)
 }
 

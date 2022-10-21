@@ -1,84 +1,64 @@
-use std::io::{BufRead, BufReader};
 use std::sync::Arc;
-use std::thread::spawn;
-use named_pipe::{PipeOptions, PipeServer};
+use tokio::io::{AsyncBufReadExt, BufStream};
+use tokio::net::windows::named_pipe::{NamedPipeServer, ServerOptions};
+use tokio::select;
 use streamduck_core::socket::{send_packet_as_is, SocketManager};
-use streamduck_daemon::{WINDOWS_EVENT_PIPE_NAME, WINDOWS_REQUEST_PIPE_NAME};
+use streamduck_daemon::WINDOWS_PIPE_NAME;
 
-pub fn open_socket(socket_manager: Arc<SocketManager>) {
-    // Events socket
-    {
-        let socket = socket_manager.clone();
-        spawn(move || open_event_socket(socket));
-    }
+pub async fn open_socket(socket_manager: Arc<SocketManager>) {
+    let mut server = ServerOptions::new()
+        .first_pipe_instance(true)
+        .create(WINDOWS_PIPE_NAME).unwrap();
 
-    // Requests socket
-    open_request_socket(socket_manager);
-}
-
-fn open_request_socket(socket_manager: Arc<SocketManager>) {
     loop {
-        let instance = PipeOptions::new(WINDOWS_REQUEST_PIPE_NAME)
-            .first(false)
-            .single().expect("Failed to create named pipe server for requests");
-
-        if let Ok(client) = instance.wait() {
-            let manager = socket_manager.clone();
-            spawn(move || handle_request_client(client, manager));
+        if let Ok(_) = server.connect().await {
+            let man = socket_manager.clone();
+            tokio::spawn(async move { handle_client(server, man).await });
         }
+
+        server = ServerOptions::new()
+            .create(WINDOWS_PIPE_NAME).unwrap()
     }
 }
 
-fn open_event_socket(socket_manager: Arc<SocketManager>) {
-    loop {
-        let instance = PipeOptions::new(WINDOWS_EVENT_PIPE_NAME)
-            .first(false)
-            .single().expect("Failed to create named pipe server for events");
-
-        if let Ok(client) = instance.wait() {
-            let manager = socket_manager.clone();
-            spawn(move || handle_event_client(client, manager));
-        }
-    }
-}
-
-fn handle_request_client(client: PipeServer, manager: Arc<SocketManager>) {
+async fn handle_client(client: NamedPipeServer, manager: Arc<SocketManager>) {
     log::info!("Windows pipe request client connected");
 
-    let mut stream = BufReader::new(client);
+    let mut stream = BufStream::new(client);
+    let pool = manager.get_pool().await;
 
-    let mut message = vec![];
-    while let Ok(size) = stream.read_until(0x4, &mut message) {
-        if size <= 0 {
-            break;
-        }
+    loop {
+        let mut message = vec![];
+        select! {
+            // Send event to socket if event is received
+            message = pool.take_message() => {
+                if send_packet_as_is(stream.get_mut(), message).await.is_err() {
+                    break;
+                }
+            }
 
-        if let Ok(message) = String::from_utf8(message.clone()) {
-            match serde_json::from_str(&message.replace("\u{0004}", "")) {
-                Ok(packet) => manager.received_message(stream.get_mut(), packet),
-                Err(e) => log::warn!("Invalid message in sockets: {}", e)
+            // Process socket request if request is received
+            size_result = stream.read_until(0x4, &mut message) => {
+                if let Ok(size) = size_result {
+                    if size <= 0 {
+                        break;
+                    }
+
+                    if let Ok(message) = String::from_utf8(message.clone()) {
+                        match serde_json::from_str(&message.replace("\u{0004}", "")) {
+                            Ok(packet) => {
+                                manager.received_message(stream.get_mut(), packet).await;
+                            }
+
+                            Err(e) => log::warn!("Invalid message in sockets: {}", e)
+                        }
+                    }
+
+                    message.clear();
+                }
             }
         }
-
-        message.clear();
     }
 
     log::info!("Windows pipe request client disconnected");
-}
-
-fn handle_event_client(mut client: PipeServer, manager: Arc<SocketManager>) {
-    log::info!("Windows pipe event client connected");
-
-    let pool = manager.get_pool();
-
-    loop {
-        let message = pool.take_message();
-        if send_packet_as_is(&mut client, message).is_err() {
-            break;
-        }
-    }
-
-    pool.close();
-
-    log::info!("Windows pipe event client disconnected");
 }

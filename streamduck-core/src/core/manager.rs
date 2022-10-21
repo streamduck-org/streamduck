@@ -1,13 +1,15 @@
 //! Manager of streamduck cores
 
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-use std::thread::{sleep, spawn};
+use std::sync::{Arc};
 use std::time::Duration;
+use futures::{stream, StreamExt};
 use crate::core::{RawButtonPanel, SDCore};
 use crate::core::methods::CoreHandle;
 use hidapi::HidApi;
 use serde_json::Value;
+use tokio::sync::RwLock;
+use tokio::time::sleep;
 use crate::config::{Config, DeviceConfig};
 use crate::{connect, find_decks, ModuleManager, RenderingManager, SocketManager};
 use crate::util::{make_panel_unique};
@@ -15,10 +17,19 @@ use crate::util::{make_panel_unique};
 /// Core manager struct
 pub struct CoreManager {
     hid: RwLock<HidApi>,
+
+    /// Config
     pub config: Arc<Config>,
+
     devices: RwLock<HashMap<String, DeviceData>>,
+
+    /// Module manager
     pub module_manager: Arc<ModuleManager>,
+
+    /// Render manager
     pub render_manager: Arc<RenderingManager>,
+
+    /// Socket manager
     pub socket_manager: Arc<SocketManager>,
 }
 
@@ -39,50 +50,56 @@ impl CoreManager {
     }
 
     /// Adds all devices from config to managed devices, used at start of the software
-    pub fn add_devices_from_config(&self) {
-        for config in self.config.get_all_device_configs() {
-            let config_handle = config.read().unwrap();
-            self.add_device(config_handle.vid, config_handle.pid, &config_handle.serial);
+    pub async fn add_devices_from_config(&self) {
+        for config in self.config.get_all_device_configs().await {
+            let config_handle = config.read().await;
+            self.add_device(config_handle.vid, config_handle.pid, &config_handle.serial).await;
         }
     }
 
     /// Lists detected unmanaged devices
-    pub fn list_available_devices(&self) -> Vec<(u16, u16, String)> {
-        let mut handle = self.hid.write().unwrap();
+    pub async fn list_available_devices(&self) -> Vec<(u16, u16, String)> {
+        let mut handle = self.hid.write().await;
 
         handle.refresh_devices().ok();
 
-        find_decks(&handle).iter()
-            .filter(|(.., str)| str.is_some())
-            .filter(|(.., str)| !self.is_device_added(str.as_ref().unwrap()))
-            .map(|(vid, pid, serial)| (*vid, *pid, serial.clone().unwrap()))
-            .collect()
+        let mut devices = vec![];
+
+        for (vid, pid, serial) in find_decks(&handle) {
+            if let Some(serial) = serial {
+                if !self.is_device_added(&serial).await {
+                    devices.push((vid, pid, serial));
+                }
+            }
+        }
+
+        devices
     }
 
     /// Adds device to automatic reconnection
-    pub fn add_device(&self, vid: u16, pid: u16, serial: &str) {
-        let mut handle = self.devices.write().unwrap();
+    pub async fn add_device(&self, vid: u16, pid: u16, serial: &str) {
+        let mut handle = self.devices.write().await;
 
         if !handle.contains_key(serial) {
             let data = DeviceData {
-                core: SDCore::blank(self.module_manager.clone(), self.render_manager.clone(), self.socket_manager.clone(), self.config.clone(), Default::default(), Default::default()),
+                core: SDCore::blank(self.module_manager.clone(), self.render_manager.clone(), self.socket_manager.clone(), self.config.clone(), Default::default(), Default::default()).await,
                 vid,
                 pid,
                 serial: serial.to_string()
             };
 
-            self.config.restore_device_config(serial);
+            self.config.restore_device_config(serial).await;
 
             handle.insert(serial.to_string(), data.clone());
         }
     }
 
     /// Connects to a device
-    pub fn connect_device(&self, vid: u16, pid: u16, serial: &str) -> Result<DeviceData, String> {
-        let hid_handle = self.hid.read().unwrap();
-        let collection = self.config.get_image_collection(serial);
+    pub async fn connect_device(&self, vid: u16, pid: u16, serial: &str) -> Result<DeviceData, String> {
+        let hid_handle = self.hid.read().await;
+        let collection = self.config.get_image_collection(serial).await;
 
-        let config = if let Some(config) = self.config.get_device_config(serial) {
+        let config = if let Some(config) = self.config.get_device_config(serial).await {
             config
         } else {
             self.config.set_device_config(serial, DeviceConfig {
@@ -96,18 +113,15 @@ impl CoreManager {
                     buttons: Default::default()
                 },
                 images: Default::default(),
-                plugin_data: Default::default()
-            });
-            self.config.save_device_config(serial).ok();
-            self.config.get_device_config(serial).unwrap()
+                plugin_data: Default::default(),
+                commit_time: Default::default(),
+                dirty_state: false,
+            }).await;
+            self.config.save_device_config(serial).await.ok();
+            self.config.get_device_config(serial).await.unwrap()
         };
 
-        if let Ok((core, handler)) = connect(self.module_manager.clone(), self.render_manager.clone(), self.socket_manager.clone(), self.config.clone(), config.clone(), collection,&hid_handle, vid, pid, serial, self.config.frame_rate()) {
-            spawn(move || {
-                handler.run_loop();
-                log::trace!("key handler closed");
-            });
-
+        if let Ok(core) = connect(self.module_manager.clone(), self.render_manager.clone(), self.socket_manager.clone(), self.config.clone(), config.clone(), collection,&hid_handle, vid, pid, serial, self.config.frame_rate()).await {
             let data = DeviceData {
                 core: core.clone(),
                 vid,
@@ -117,18 +131,18 @@ impl CoreManager {
 
             let core_handle = CoreHandle::wrap(core.clone());
 
-            let config_handle = config.read().unwrap();
+            let config_handle = config.read().await;
 
             let brightness = config_handle.brightness;
             let layout = config_handle.layout.clone();
 
             drop(config_handle);
 
-            core_handle.set_brightness(brightness);
-            core_handle.reset_stack(make_panel_unique(layout));
+            core_handle.set_brightness(brightness).await;
+            core_handle.reset_stack(make_panel_unique(layout)).await;
 
 
-            let mut handle = self.devices.write().unwrap();
+            let mut handle = self.devices.write().await;
 
             handle.insert(serial.to_string(), data.clone());
 
@@ -139,33 +153,33 @@ impl CoreManager {
     }
 
     /// Removes device from automatic reconnection and stops current connection to it
-    pub fn remove_device(&self, serial: &str) {
-        let mut handle = self.devices.write().unwrap();
+    pub async fn remove_device(&self, serial: &str) {
+        let mut handle = self.devices.write().await;
         let data = handle.remove(serial);
 
         if let Some(data) = data {
-            data.core.close();
-            self.config.disable_device_config(serial);
-            self.config.reload_device_configs().ok();
+            data.core.close().await;
+            self.config.disable_device_config(serial).await;
+            self.config.reload_device_configs().await.ok();
         }
     }
 
     /// Lists managed devices
-    pub fn list_added_devices(&self) -> HashMap<String, DeviceData> {
-        self.devices.read().unwrap().iter()
+    pub async fn list_added_devices(&self) -> HashMap<String, DeviceData> {
+        self.devices.read().await.iter()
             .map(|(s, d)| (s.clone(), d.clone()))
             .collect()
     }
 
     /// Returns if specific device is in managed list
-    pub fn is_device_added(&self, serial: &str) -> bool {
-        self.devices.read().unwrap().contains_key(serial)
+    pub async fn is_device_added(&self, serial: &str) -> bool {
+        self.devices.read().await.contains_key(serial)
     }
 
     /// Gets device data from managed devices
-    pub fn get_device(&self, serial: &str) -> Option<DeviceData> {
-        if let Some(device_data) = self.devices.read().unwrap().get(serial) {
-            if !device_data.core.is_closed() {
+    pub async fn get_device(&self, serial: &str) -> Option<DeviceData> {
+        if let Some(device_data) = self.devices.read().await.get(serial) {
+            if !device_data.core.is_closed().await {
                 Some(device_data.clone())
             } else {
                 None
@@ -176,16 +190,16 @@ impl CoreManager {
     }
 
     /// Starts running reconnection routine on current thread, probably spawn it out as a separate thread
-    pub fn reconnect_routine(&self) {
+    pub async fn reconnect_routine(&self) {
         loop {
-            sleep(Duration::from_secs_f32(self.config.reconnect_rate()));
+            sleep(Duration::from_secs_f32(self.config.reconnect_rate())).await;
 
-            let disconnected = self.get_disconnected();
+            let disconnected = self.get_disconnected().await;
 
             if !disconnected.is_empty() {
                 for (serial, device) in disconnected {
                     log::warn!("{} is disconnected, attempting to reconnect", serial);
-                    if let Ok(_) = self.connect_device(device.vid, device.pid, &device.serial) {
+                    if let Ok(_) = self.connect_device(device.vid, device.pid, &device.serial).await {
                         log::info!("Reconnected {}", serial);
                     }
                 }
@@ -194,13 +208,13 @@ impl CoreManager {
     }
 
     /// Retrieves currently disconnected devices from managed devices list
-    fn get_disconnected(&self) -> HashMap<String, DeviceData> {
-        let handle = self.devices.read().unwrap();
+    async fn get_disconnected(&self) -> HashMap<String, DeviceData> {
+        let handle = self.devices.read().await;
 
-        let map = handle.iter()
-            .filter(|(_, d)| d.core.is_closed())
+        let map = stream::iter(handle.iter())
+            .filter(|(_, d)| async { d.core.is_closed().await })
             .map(|(s, d)| (s.clone(), d.clone()))
-            .collect();
+            .collect().await;
 
         drop(handle);
 

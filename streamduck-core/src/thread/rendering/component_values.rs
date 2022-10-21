@@ -8,7 +8,8 @@ use crate::thread::util::TextAlignment;
 use crate::images::SDImage;
 use crate::util::hash_str;
 
-pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<UIValue> {
+/// Retrieves component values for the renderer in specified button
+pub async fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<UIValue> {
     if let Ok(component) = parse_button_to_component::<RendererComponent>(button) {
         let mut fields = vec![];
 
@@ -20,7 +21,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                 ty: UIFieldType::Choice({
                     let mut names = vec!["default".to_string()];
 
-                    names.extend(core.core.render_manager.read_renderers().values()
+                    names.extend(core.core.render_manager.read_renderers().await.values()
                         .map(|x| x.name()));
 
                     names
@@ -30,8 +31,8 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
         );
 
         if !component.renderer.is_empty() {
-            if let Some(renderer) = core.core.render_manager.read_renderers().get(&component.renderer).cloned() {
-                fields.extend(renderer.component_values(button, &component, core));
+            if let Some(renderer) = core.core.render_manager.read_renderers().await.get(&component.renderer).cloned() {
+                fields.extend(renderer.component_values(button, &component, core).await);
             }
         } else {
             // Choice for background type
@@ -353,7 +354,7 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
                     description: "Disabled plugins will not appear on button".to_string(),
                     ty: UIFieldType::Collapsable,
                     value: UIFieldValue::Collapsable({
-                        let names = core.module_manager().get_modules_for_rendering(&button.component_names());
+                        let names = core.module_manager().get_modules_for_rendering(&button.component_names()).await;
 
                         names.into_values()
                             .map(|x| {
@@ -390,7 +391,9 @@ pub fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<
     }
 }
 
-pub fn set_renderer_component_values(core: &CoreHandle, button: &mut Button, value: Vec<UIValue>) {
+
+/// Sets component values for the renderer in specified button
+pub async fn set_renderer_component_values(core: &CoreHandle, button: &mut Button, value: Vec<UIValue>) {
     if let Ok(mut component) = parse_button_to_component::<RendererComponent>(button) {
         let change_map = map_ui_values(value);
 
@@ -399,7 +402,7 @@ pub fn set_renderer_component_values(core: &CoreHandle, button: &mut Button, val
                 if value == "default" {
                     component.renderer = "".to_string();
                 } else {
-                    if let Some(_) = core.core.render_manager.read_renderers().get(&value) {
+                    if let Some(_) = core.core.render_manager.read_renderers().await.get(&value) {
                         component.renderer = value;
                     }
                 }
@@ -407,8 +410,8 @@ pub fn set_renderer_component_values(core: &CoreHandle, button: &mut Button, val
         }
 
         if !component.renderer.is_empty() {
-            if let Some(renderer) = core.core.render_manager.read_renderers().get(&component.renderer).cloned() {
-                renderer.set_component_value(button, &mut component, core, change_map.values().cloned().collect());
+            if let Some(renderer) = core.core.render_manager.read_renderers().await.get(&component.renderer).cloned() {
+                renderer.set_component_value(button, &mut component, core, change_map.values().cloned().collect()).await;
             }
         } else {
             if let Some(value) = change_map.get("background_params") {
@@ -479,10 +482,10 @@ pub fn set_renderer_component_values(core: &CoreHandle, button: &mut Button, val
                                 if let Ok(blob) = (&value.value).try_into_string() {
                                     let identifier = hash_str(&blob);
 
-                                    if let Ok(image) = SDImage::from_base64(&blob, core.core.image_size) {
+                                    if let Ok(image) = SDImage::from_base64(&blob, core.core.image_size).await {
                                         component.background = ButtonBackground::ExistingImage(identifier.clone());
 
-                                        let mut handle = core.core.image_collection.write().unwrap();
+                                        let mut handle = core.core.image_collection.write().await;
                                         handle.insert(identifier, image);
                                     } else {
                                         component.background = ButtonBackground::NewImage("".to_string());
@@ -573,6 +576,6 @@ pub fn set_renderer_component_values(core: &CoreHandle, button: &mut Button, val
         // Apply changes to button
         button.insert_component(component).ok();
 
-        core.core.mark_for_redraw();
+        core.core.mark_for_redraw().await;
     }
 }
