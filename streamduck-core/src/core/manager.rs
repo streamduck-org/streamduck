@@ -104,7 +104,9 @@ impl CoreManager {
                     buttons: Default::default()
                 },
                 images: Default::default(),
-                plugin_data: Default::default()
+                plugin_data: Default::default(),
+                commit_time: Default::default(),
+                dirty_state: false,
             }).await;
             self.config.save_device_config(serial).await.ok();
             self.config.get_device_config(serial).await.unwrap()

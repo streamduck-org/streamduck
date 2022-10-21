@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::sync::Arc;
+use std::time::Instant;
 
 use image::{DynamicImage, Rgba};
 use serde::de::Error as DeError;
@@ -727,5 +728,9 @@ impl CoreHandle {
 
         let mut handle = self.core.device_config.write().await;
         handle.layout = panel_to_raw(&stack).await;
+
+        handle.dirty_state = true;
+        handle.commit_time = Some(Instant::now());
+        log::debug!("new commit to {}", handle.serial);
     }
 }
