@@ -337,12 +337,10 @@ impl Config {
 
     pub async fn write_to_filesystem(&self, device: UniqueDeviceConfig) -> Result<(), ConfigError> {
         let mut path = self.device_config_path();
-        let device_conf = device.read().await;
+        let mut device_conf = device.write().await;
         path.push(format!("{}.json", device_conf.serial));
         fs::write(path, serde_json::to_string(device_conf.deref()).unwrap()).await?;
 
-        drop(device_conf);
-        let mut device_conf = device.write().await;
         device_conf.mark_clean();
 
         Ok(())
