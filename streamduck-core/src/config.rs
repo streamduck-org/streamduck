@@ -83,7 +83,7 @@ pub struct Config {
     data_dir: Option<PathBuf>,
 
     /// Autosave device configuration
-    pub autosave: Option<bool>,
+    autosave: Option<bool>,
 
     #[serde(skip)]
     pub plugin_settings: RwLock<HashMap<String, Value>>,
@@ -157,6 +157,7 @@ impl Config {
         self.reconnect_rate.unwrap_or(DEFAULT_RECONNECT_TIME)
     }
 
+    /// autosave option, defaults to true if not set
     pub fn autosave(&self) -> bool {
         self.autosave.unwrap_or(true)
     }
