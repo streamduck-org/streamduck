@@ -172,7 +172,7 @@ async fn root(matches: ArgMatches) {
         std::process::exit(0);
     });
 
-    if config.autosave == true {
+    if config.autosave() {
         tokio::spawn(autosave_task(config));
     }
 
