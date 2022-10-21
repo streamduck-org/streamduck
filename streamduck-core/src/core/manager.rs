@@ -17,10 +17,19 @@ use crate::util::{make_panel_unique};
 /// Core manager struct
 pub struct CoreManager {
     hid: RwLock<HidApi>,
+
+    /// Config
     pub config: Arc<Config>,
+
     devices: RwLock<HashMap<String, DeviceData>>,
+
+    /// Module manager
     pub module_manager: Arc<ModuleManager>,
+
+    /// Render manager
     pub render_manager: Arc<RenderingManager>,
+
+    /// Socket manager
     pub socket_manager: Arc<SocketManager>,
 }
 

@@ -8,6 +8,7 @@ use crate::thread::util::TextAlignment;
 use crate::images::SDImage;
 use crate::util::hash_str;
 
+/// Retrieves component values for the renderer in specified button
 pub async fn get_renderer_component_values(core: &CoreHandle, button: &Button) -> Vec<UIValue> {
     if let Ok(component) = parse_button_to_component::<RendererComponent>(button) {
         let mut fields = vec![];
@@ -390,6 +391,8 @@ pub async fn get_renderer_component_values(core: &CoreHandle, button: &Button) -
     }
 }
 
+
+/// Sets component values for the renderer in specified button
 pub async fn set_renderer_component_values(core: &CoreHandle, button: &mut Button, value: Vec<UIValue>) {
     if let Ok(mut component) = parse_button_to_component::<RendererComponent>(button) {
         let change_map = map_ui_values(value);

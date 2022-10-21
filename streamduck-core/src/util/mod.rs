@@ -92,6 +92,7 @@ pub fn hash_image(data: &SDSerializedImage) -> String {
     hasher.finish().to_string()
 }
 
+/// Hashes value
 pub fn hash_value<H: Hasher>(value: &Value, state: &mut H) {
     match value {
         Value::Null => 0.hash(state),

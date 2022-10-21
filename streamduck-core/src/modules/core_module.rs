@@ -193,6 +193,7 @@ impl SDModule for CoreModule {
 /// Settings related to various things around the core
 #[derive(Serialize, Deserialize, Default)]
 pub struct CoreSettings {
+    /// Renderer settings
     pub renderer: RendererSettings
 }
 

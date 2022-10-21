@@ -37,6 +37,7 @@ pub trait SocketListener {
 
 /// Trait for serialization and deserialization util functions
 pub trait SocketData {
+    /// Name of the request
     const NAME: &'static str;
 }
 
@@ -171,7 +172,9 @@ pub fn send_packet_as_is_sync(handle: &mut dyn Write, data: SocketPacket) -> Res
 /// Enumeration of various errors during sending and parsing packets
 #[derive(Debug)]
 pub enum SocketError {
+    /// Failed to (de)serialize
     SerdeError(serde_json::Error),
+    /// Failed to write to the socket
     WriteError(std::io::Error),
 }
 
@@ -296,10 +299,12 @@ impl SocketPool {
         }
     }
 
+    /// If the pool is still open
     pub async fn is_open(&self) -> bool {
         *self.is_open.read().await
     }
 
+    /// CLoses the pool from receiving any packets
     pub async fn close(&self) {
         *self.is_open.write().await = false;
     }

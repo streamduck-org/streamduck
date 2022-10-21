@@ -38,6 +38,7 @@ impl Button {
 
 /// Component trait, simply provides name for component generic methods
 pub trait Component {
+    /// Name of the component
     const NAME: &'static str;
 }
 
@@ -63,7 +64,9 @@ pub fn serialize_component<T: Component + Serialize>(component: T) -> Result<Val
 /// Parse error used for functions in this module
 #[derive(Debug)]
 pub enum ParseError {
+    /// Component is missing
     Missing,
+    /// Component failed to parse
     JSONError(serde_json::Error)
 }
 

@@ -97,7 +97,9 @@ impl SDImage {
 /// Enum that represents serialized variant of [SDImage]
 #[derive(Serialize, Deserialize, Hash, Debug, Clone)]
 pub enum SDSerializedImage {
+    /// Single base64 image
     SingleImage(String),
+    /// Animation encoded in base64
     AnimatedImage(Vec<SerializedFrame>)
 }
 
@@ -128,8 +130,11 @@ impl SDSerializedImage {
 /// Frame of animated image
 #[derive(Clone, Debug)]
 pub struct AnimationFrame {
+    /// Contents of the frame
     pub image: DynamicImage,
+    /// Index of the frame in the animation
     pub index: usize,
+    /// Delay of the frame
     pub delay: f32,
 }
 
@@ -155,8 +160,11 @@ pub async fn convert_frames(frames: Vec<Frame>, size: (usize, usize)) -> Vec<Ani
 /// Serialized version of a frame
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SerializedFrame {
+    /// Contents of the frame
     pub image: String,
+    /// Index of the frame in the animation
     pub index: usize,
+    /// Delay of the frame
     pub delay: f32,
 }
 
@@ -275,12 +283,19 @@ impl TryFrom<&SDSerializedImage> for SDImage {
 
 /// Error for deserializing images
 pub enum ImageDeserializationError {
+    /// Failed to decode base64
     Base64Error(base64::DecodeError),
+    /// Failed to read an image
     IoError(std::io::Error),
+    /// Failed to decode the image
     ImageError(image::ImageError),
+    /// Invalid byte buffer
     InvalidByteBuffer,
+    /// Image format is not supported
     UnrecognizedFormat,
+    /// Failed to spawn a blocking task
     JoinError(tokio::task::JoinError),
+    /// No frame
     NoFrame
 }
 

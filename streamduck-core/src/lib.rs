@@ -1,3 +1,4 @@
+#![deny(missing_docs)]
 //! Crate responsible for managing streamdeck devices, rendering, managing configuration and pretty much everything
 
 /// Utility code for rendering and conversions

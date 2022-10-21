@@ -1,6 +1,8 @@
 //! Rendering functions that represent default Streamduck renderer
 
+/// Types for creating custom renderers
 pub mod custom;
+/// Renderer's component values
 pub mod component_values;
 
 use std::hash::{Hash, Hasher};
@@ -389,10 +391,15 @@ pub type Color = (u8, u8, u8, u8);
 /// Button Background definition for button renderer
 #[derive(Serialize, Deserialize, Debug, Clone, Hash)]
 pub enum ButtonBackground {
+    /// Solid color background
     Solid(Color),
+    /// Horizontal color gradient
     HorizontalGradient(Color, Color),
+    /// Vertical color gradient
     VerticalGradient(Color, Color),
+    /// Existing image that was already loaded into the image collection
     ExistingImage(String),
+    /// New image as a base64 blob
     NewImage(String),
 }
 
@@ -405,13 +412,21 @@ impl Default for ButtonBackground {
 /// Button Text definition for button renderer
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ButtonText {
+    /// Contents of the text
     pub text: String,
+    /// Font that should be used
     pub font: String,
+    /// Scale of the text
     pub scale: (f32, f32),
+    /// Alignment of the text
     pub alignment: TextAlignment,
+    /// Padding in pixels from the alignment
     pub padding: u32,
+    /// Offset of the text from the alignment point
     pub offset: (f32, f32),
+    /// Color of the text
     pub color: Color,
+    /// Text shadow
     pub shadow: Option<ButtonTextShadow>,
 }
 
@@ -433,7 +448,9 @@ impl Hash for ButtonText {
 /// Button text shadow
 #[derive(Serialize, Deserialize, Debug, Clone, Hash)]
 pub struct ButtonTextShadow {
+    /// Shadow offset in pixels
     pub offset: (i32, i32),
+    /// Color of the shadow
     pub color: Color,
 }
 
@@ -443,12 +460,16 @@ pub struct RendererComponent {
     /// Uses default renderer if empty
     #[serde(default)]
     pub renderer: String,
+    /// Background that should be used
     #[serde(default)]
     pub background: ButtonBackground,
+    /// Text objects
     #[serde(default)]
     pub text: Vec<ButtonText>,
+    /// Plugins that shouldn't be rendered on the button
     #[serde(default)]
     pub plugin_blacklist: Vec<String>,
+    /// If caching should be used
     #[serde(default = "make_true")]
     pub to_cache: bool,
     /// Anything that custom renderers might want to remember

@@ -18,16 +18,22 @@ use crate::images::{SDImage, SDSerializedImage};
 use crate::util::{hash_image, hash_str};
 use crate::thread::util::resize_for_streamdeck;
 
-// default folder name
+/// Default folder name
 pub const CONFIG_FOLDER: &'static str = "streamduck";
 
-// sub folders and files
+/// Default frame rate to use
 pub const DEFAULT_FRAME_RATE: u32 = 100;
+/// Default reconnect interval
 pub const DEFAULT_RECONNECT_TIME: f32 = 1.0;
+/// Name of the fonts folder
 pub const FONTS_FOLDER: &'static str = "fonts";
+/// Name of the device config folder
 pub const DEVICE_CONFIG_FOLDER: &'static str = "devices";
+/// Name of the plugins folder
 pub const PLUGINS_FOLDER: &'static str = "plugins";
+/// Name of the plugin settings file
 pub const PLUGINS_SETTINGS_FILE: &'static str = "global.json";
+/// Name of the config file
 pub const CONFIG_FILE: &'static str = "config.toml";
 
 /// Reference counted [DeviceConfig]
@@ -521,14 +527,18 @@ impl Config {
 
 /// Plugin Config trait for serialization and deserialization methods
 pub trait PluginConfig {
+    /// Name of the plugin in the config
     const NAME: &'static str;
 }
 
 /// Error enum for various errors while loading and parsing configs
 #[derive(Debug)]
 pub enum ConfigError {
+    /// Failed to read/write the config
     IoError(std::io::Error),
+    /// Failed to parse the config
     ParseError(serde_json::Error),
+    /// Device wasn't found
     DeviceNotFound
 }
 
@@ -547,16 +557,25 @@ impl From<serde_json::Error> for ConfigError {
 /// Device config struct
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct DeviceConfig {
+    /// Vendor ID
     pub vid: u16,
+    /// Product ID
     pub pid: u16,
+    /// Serial number
     pub serial: String,
+    /// Brightness of the display
     pub brightness: u8,
+    /// Root panel that should be loaded by default
     pub layout: RawButtonPanel,
+    /// Image collection
     pub images: HashMap<String, SDSerializedImage>,
+    /// Device-related plugin data
     pub plugin_data: HashMap<String, Value>,
     #[serde(skip)]
+    /// Last time the config was committed
     pub commit_time: Option<Instant>,
     #[serde(skip)]
+    /// If config is dirty
     pub dirty_state: bool
 }
 

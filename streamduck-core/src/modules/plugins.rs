@@ -322,12 +322,19 @@ pub async fn load_plugins_from_folder<T: AsRef<OsStr>>(config: Arc<Config>, modu
 /// Enum for anything wrong that might happen during plugin loading
 #[derive(Debug)]
 pub enum PluginError {
+    /// Plugin didn't register any modules
     NoModulesFound,
+    /// Failed to load the plugin library
     LoadError(dlopen::Error),
+    /// Plugin uses different version of a feature
     WrongVersion(String, String),
+    /// Plugin uses unknown feature for the daemon
     TooNew(String),
+    /// Module name already exists
     AlreadyExists(String),
+    /// Component with the name was already declared (Soon to be removed due to better naming)
     ComponentConflict(String, String),
+    /// Error spawning a blocking task
     JoinError(tokio::task::JoinError)
 }
 
