@@ -43,6 +43,7 @@ pub const SUPPORTED_FEATURES: &[(&str, &str)] = &[
     CONFIG,
     MODULE_MANAGER,
     CORE_EVENTS,
+    GLOBAL_EVENTS,
     RENDERING,
     SOCKET_API
 ];

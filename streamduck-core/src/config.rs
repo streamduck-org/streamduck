@@ -85,6 +85,10 @@ pub struct Config {
     /// Autosave device configuration
     autosave: Option<bool>,
 
+    /// If plugin compatibility checks should be performed
+    plugin_compatibility_checks: Option<bool>,
+
+    /// Currently loaded plugin settings
     #[serde(skip)]
     pub plugin_settings: RwLock<HashMap<String, Value>>,
 
@@ -157,11 +161,15 @@ impl Config {
         self.reconnect_rate.unwrap_or(DEFAULT_RECONNECT_TIME)
     }
 
-    /// autosave option, defaults to true if not set
+    /// Autosave option, defaults to true if not set
     pub fn autosave(&self) -> bool {
         self.autosave.unwrap_or(true)
     }
 
+    /// Plugin compatibility checks, defaults to true if not set
+    pub fn plugin_compatibility_checks(&self) -> bool {
+        self.plugin_compatibility_checks.unwrap_or(true)
+    }
 
     /// Device config path, defaults to [data_dir]/[DEVICE_CONFIG_FOLDER] or [DEVICE_CONFIG_FOLDER] if not set
     pub fn device_config_path(&self) -> PathBuf {
@@ -336,7 +344,7 @@ impl Config {
         Ok(())
     }
 
-    pub async fn write_to_filesystem(&self, device: UniqueDeviceConfig) -> Result<(), ConfigError> {
+    async fn write_to_filesystem(&self, device: UniqueDeviceConfig) -> Result<(), ConfigError> {
         let mut path = self.device_config_path();
         let mut device_conf = device.write().await;
         path.push(format!("{}.json", device_conf.serial));

@@ -17,7 +17,7 @@ use crate::core::manager::CoreManager;
 use crate::core::{check_feature_list_for_feature, CoreHandle, UniqueButton, warn_for_feature};
 use crate::modules::components::{ComponentDefinition, UIValue};
 use crate::modules::events::{SDCoreEvent, SDGlobalEvent};
-use crate::RenderingManager;
+use crate::{Config, RenderingManager};
 use crate::socket::{SocketManager, UniqueSocketListener};
 use crate::thread::rendering::custom::UniqueRenderer;
 use crate::versions::SUPPORTED_FEATURES;
@@ -230,7 +230,7 @@ fn warn_about_essential_features(meta: &PluginMetadata) {
 }
 
 /// Loads a plugin into module manager
-pub async fn load_plugin<T: AsRef<OsStr>>(module_manager: Arc<ModuleManager>, socket_manager: Arc<SocketManager>, render_manager: Arc<RenderingManager>, path: T) -> Result<(), PluginError> {
+pub async fn load_plugin<T: AsRef<OsStr>>(config: Arc<Config>, module_manager: Arc<ModuleManager>, socket_manager: Arc<SocketManager>, render_manager: Arc<RenderingManager>, path: T) -> Result<(), PluginError> {
     // Loading file as a library, error if cannot load
     let wrapper: Container<PluginApi> = unsafe { Container::load(path) }?;
 
@@ -238,7 +238,11 @@ pub async fn load_plugin<T: AsRef<OsStr>>(module_manager: Arc<ModuleManager>, so
 
     // Retrieving metadata and comparing versions
     let metadata = wrapper.get_metadata();
-    compare_plugin_versions(&metadata.used_features)?;
+
+    // Performing checks if enabled
+    if config.plugin_compatibility_checks() {
+        compare_plugin_versions(&metadata.used_features)?;
+    }
 
     // Warn plugin if metadata doesn't contain essential plugins
     warn_about_essential_features(&metadata);
@@ -269,7 +273,6 @@ pub async fn load_plugin<T: AsRef<OsStr>>(module_manager: Arc<ModuleManager>, so
         plugin_socket_manager.load_listeners().await?;
         plugin_rendering_manager.load_renderers().await?;
 
-
         Ok(())
     } else {
         Err(PluginError::AlreadyExists(metadata.name))
@@ -277,7 +280,7 @@ pub async fn load_plugin<T: AsRef<OsStr>>(module_manager: Arc<ModuleManager>, so
 }
 
 /// Loads plugins into module manager from path
-pub async fn load_plugins_from_folder<T: AsRef<OsStr>>(module_manager: Arc<ModuleManager>, socket_manager: Arc<SocketManager>, render_manager: Arc<RenderingManager>, path: T) {
+pub async fn load_plugins_from_folder<T: AsRef<OsStr>>(config: Arc<Config>, module_manager: Arc<ModuleManager>, socket_manager: Arc<SocketManager>, render_manager: Arc<RenderingManager>, path: T) {
     let path = Path::new(&path);
     match fs::read_dir(path) {
         Ok(read_dir) => {
@@ -287,7 +290,7 @@ pub async fn load_plugins_from_folder<T: AsRef<OsStr>>(module_manager: Arc<Modul
                         if entry.path().is_file() {
                             if let Some(file_name) = entry.path().file_name() {
                                 log::info!("Loading plugin {:?}", file_name);
-                                match load_plugin(module_manager.clone(), socket_manager.clone(), render_manager.clone(), entry.path()).await {
+                                match load_plugin(config.clone(), module_manager.clone(), socket_manager.clone(), render_manager.clone(), entry.path()).await {
                                     Err(err) => match err {
                                         PluginError::LoadError(err) => log::error!("Failed to load plugin: {}", err),
                                         PluginError::WrongVersion(plugin, software) => log::error!("Failed to load plugin: Plugin is using unsupported version of '{}', software's using '{}'", plugin, software),

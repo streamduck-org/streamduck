@@ -146,7 +146,7 @@ async fn root(matches: ArgMatches) {
     })).await;
 
     // Loading plugins
-    load_plugins_from_folder(module_manager.clone(), socket_manager.clone(), render_manager.clone(), config.plugin_path()).await;
+    load_plugins_from_folder(config.clone(), module_manager.clone(), socket_manager.clone(), render_manager.clone(), config.plugin_path()).await;
 
     // Announcing loaded modules
     for (module_name, _) in module_manager.get_modules().await {
