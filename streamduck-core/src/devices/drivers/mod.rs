@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use futures::future::join_all;
-use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
 use crate::devices::metadata::DeviceMetadata;
@@ -23,6 +22,7 @@ pub trait Driver {
 }
 
 /// All possible errors with device drivers
+#[derive(Debug)]
 pub enum DriverError {
     /// Device wasn't found with the driver
     DeviceNotFound,

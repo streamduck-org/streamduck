@@ -6,4 +6,7 @@ pub mod devices;
 /// Everything related to images
 pub mod images;
 
+#[cfg(test)]
+mod tests;
+
 pub use async_trait::async_trait;

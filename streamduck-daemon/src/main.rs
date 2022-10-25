@@ -1,8 +1,5 @@
-mod debugs;
-
 use tracing::{Level, info};
 use streamduck_core::devices::drivers::DriverManager;
-use crate::debugs::test_driver;
 
 /// the entry point for the streamdeck application
 #[tokio::main]
@@ -17,9 +14,5 @@ async fn main() {
     info!("Starting...");
 
     let driver_manager = DriverManager::new();
-
-    test_driver(&driver_manager).await;
-
-    println!("{:?}", driver_manager.list_devices().await);
 }
 
