@@ -1,5 +1,11 @@
+use serde::{Serialize, Deserialize};
+
 /// Metadata describing the device
+#[derive(Serialize, Deserialize, Debug)]
 pub struct DeviceMetadata {
+    /// Driver that found the device
+    pub driver_name: String,
+
     /// Unique serial number of the device
     pub serial_number: String,
 
@@ -14,4 +20,5 @@ pub struct DeviceMetadata {
 }
 
 /// Layout of the buttons as an array of button counts in each row
-pub struct ButtonLayout(Vec<u8>);
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ButtonLayout(pub Vec<u8>);
