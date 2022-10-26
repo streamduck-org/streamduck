@@ -1,16 +1,18 @@
-use std::future::Future;
 use async_trait::async_trait;
 use image::DynamicImage;
 
-/// Device should be able to manage its images
+/// Device should be able to manage its image cache
 #[async_trait]
-pub trait DeviceImageMethods {
+pub trait DeviceImageCache {
     /// Gets image saved on the device
-    async fn get_image(&self, key: &str) -> Option<&dyn DeviceImage>;
+    async fn get_image(&self, key: u128) -> Option<&dyn DeviceImageData>;
 
     /// Adds image to the device
-    async fn add_image(&self, key: &str, image: DynamicImage);
+    async fn add_image(&self, key: u128, image: DynamicImage);
+
+    /// Removes image from the device
+    async fn remove_image(&self, key: u128) -> bool;
 }
 
 /// Trait that device format images should implement
-pub trait DeviceImage {}
+pub trait DeviceImageData {}

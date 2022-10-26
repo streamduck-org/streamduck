@@ -10,7 +10,7 @@ use crate::devices::SharedDevice;
 
 /// Driver interface
 #[async_trait]
-pub trait Driver {
+pub trait Driver: Send + Sync {
     /// Name of the driver
     fn name(&self) -> String;
 

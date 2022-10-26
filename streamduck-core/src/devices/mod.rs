@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use async_trait::async_trait;
+use crate::devices::images::DeviceImageCache;
 
 use crate::devices::metadata::DeviceMetadata;
 
@@ -14,7 +15,7 @@ pub mod images;
 
 /// Device interface
 #[async_trait]
-pub trait Device {
+pub trait Device: DeviceImageCache {
     /// Metadata associated with the device
     fn metadata(&self) -> DeviceMetadata;
 
