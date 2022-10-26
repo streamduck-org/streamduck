@@ -1,4 +1,9 @@
 use std::sync::Arc;
+use std::time::Instant;
+use serde::Deserialize;
+
+use crate::tests::lib::{start_benchmark, DataPoint};
+
 use async_trait::async_trait;
 
 use crate::devices::drivers::{Driver, DriverError, DriverManager};
@@ -30,11 +35,21 @@ impl Driver for TestDriver {
 
 #[tokio::test]
 async fn test_driver_device_list() {
+    let bench = start_benchmark(Some(DataPoint::DriverDeviceList));
+
     let driver_manager = DriverManager::new();
 
     driver_manager.register_driver(Arc::new(TestDriver {})).await;
 
     let list = driver_manager.list_devices().await;
-    
-    assert!(list.len() > 0)
+
+    bench.stop();
+
+    assert_eq!(
+        list
+            .iter()
+            .position(|x| x.serial_number == "test_serial")
+            .is_some(),
+        true
+    )
 }

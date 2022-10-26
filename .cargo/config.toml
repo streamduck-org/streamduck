@@ -1,0 +1,2 @@
+[alias]
+performance =  ["test", "--", "--nocapture"]
