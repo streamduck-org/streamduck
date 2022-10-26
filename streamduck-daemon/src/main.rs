@@ -1,5 +1,7 @@
+use std::sync::Arc;
 use tracing::{Level, info};
 use streamduck_core::devices::drivers::DriverManager;
+use streamduck_core::devices::images::DeviceImageMethods;
 
 /// the entry point for the streamdeck application
 #[tokio::main]
@@ -14,5 +16,7 @@ async fn main() {
     info!("Starting...");
 
     let driver_manager = DriverManager::new();
+
+    let a: Option<Arc<dyn DeviceImageMethods>> = None;
 }
 
