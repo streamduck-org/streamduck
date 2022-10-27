@@ -1,4 +1,4 @@
-//#![warn(missing_docs)]
+#![warn(missing_docs)]
 //! Core of the Streamduck daemon, defines pretty much everything there is about the project
 
 /// Everything related to devices
