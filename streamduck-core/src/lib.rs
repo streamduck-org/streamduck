@@ -7,6 +7,8 @@ pub mod devices;
 pub mod images;
 /// Event system of the core
 pub mod events;
+/// Assortment of various useful macros
+pub mod macros;
 
 #[cfg(test)]
 mod tests;

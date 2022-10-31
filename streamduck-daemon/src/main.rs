@@ -1,10 +1,11 @@
+use std::future::ready;
 use std::sync::Arc;
 use tracing::{Level, info};
 use streamduck_core::devices::drivers::DriverManager;
 use streamduck_core::devices::images::DeviceImageCache;
 use streamduck_core::events::{Event, EventDispatcher, EventInstance};
 use serde::{Serialize, Deserialize};
-use streamduck_core::events::listeners::SpecificStatefulListener;
+use streamduck_core::events::listeners::SpecificListener;
 
 /// the entry point for the streamdeck application
 #[tokio::main]
@@ -24,20 +25,10 @@ async fn main() {
 
     let dispatcher = EventDispatcher::new();
 
-    let listener = SpecificStatefulListener::new(driver_manager.clone(), |state, ev: MyEventButDifferent| {
-        async move {
-            println!("what? {}, {}, {:?}", ev.a, ev.b, state.list_devices().await);
-        }
-    });
-
-    dispatcher.add_listener(listener).await;
-
-    // let listener = Listener {
-    //     driver_manager: driver_manager.clone()
-    // };
-    //
-    // dispatcher.add_listener(move |event: MyEvent| listener.listen(event)).await;
-
+    let _listener = dispatcher.add_listener(SpecificListener::new(|event: MyEvent| {
+        println!("{:?}", EventInstance::serialize(&event));
+        ready(())
+    })).await;
 
     println!("{:?}", driver_manager.list_devices().await);
 
