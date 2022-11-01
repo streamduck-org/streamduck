@@ -1,8 +1,6 @@
 use std::any::Any;
-use std::future::Future;
 use std::sync::Arc;
 use futures::future::join_all;
-use futures::stream::FuturesUnordered;
 
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -50,17 +48,18 @@ impl EventDispatcher {
     where
         F: EventListener + 'static,
     {
-        let strong: SharedEventListener = Arc::new(listener);
-
-        let weak: WeakEventListener = Arc::downgrade(&strong);
-
-        self.add_listener_weak(strong.listens_for(), weak).await;
-
-        strong
+        self.add_listener_from_arc(Arc::new(listener)).await
     }
 
-    /// Adds weak reference of a listener into the dispatcher
-    pub async fn add_listener_weak(&self, listens_for: ListensFor, weak: WeakEventListener) {
+    /// Adds a listener into the dispatcher from an Arc
+    pub async fn add_listener_from_arc(&self, arc: SharedEventListener) -> SharedEventListener {
+        let mut lock = self.listeners.lock().await;
+        lock.push((arc.listens_for(), Arc::downgrade(&arc)));
+        arc
+    }
+
+    /// Adds a listener into the dispatcher from an Weak
+    pub async fn add_listener_from_weak(&self, listens_for: ListensFor, weak: WeakEventListener) {
         let mut lock = self.listeners.lock().await;
         lock.push((listens_for, weak));
     }
