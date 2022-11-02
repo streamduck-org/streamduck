@@ -18,7 +18,7 @@ pub trait Driver: Send + Sync {
     async fn list_devices(&self) -> Vec<DeviceMetadata>;
 
     /// Connect to the specified device
-    async fn connect_device(&self, serial_number: &str) -> Result<SharedDevice, DriverError>;
+    async fn connect_device(&self, identifier: String) -> Result<SharedDevice, DriverError>;
 }
 
 /// All possible errors with device drivers
@@ -30,6 +30,8 @@ pub enum DriverError {
     FailedToConnect(String),
     /// If specified driver wasn't found
     NoSuchDriver,
+    /// Identifier failed to be parsed
+    InvalidIdentifier,
     /// Any other error
     Other(String),
 }
@@ -76,13 +78,13 @@ impl DriverManager {
     }
 
     /// Connects to a device using specified driver
-    pub async fn connect_device(&self, driver_name: &str, serial_number: &str) -> Result<SharedDevice, DriverError> {
+    pub async fn connect_device(&self, driver_name: &str, identifier: &str) -> Result<SharedDevice, DriverError> {
         let lock = self.drivers.read().await;
 
         if let Some(driver) = lock.get(driver_name).cloned() {
             drop(lock); // Who knows what the driver might do
 
-            driver.connect_device(serial_number).await
+            driver.connect_device(identifier.to_string()).await
         } else {
             Err(DriverError::NoSuchDriver)
         }

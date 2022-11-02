@@ -1,13 +1,18 @@
+/// Drivers for
+mod drivers;
+
 use std::future::ready;
 use std::sync::Arc;
 use tracing::{Level, info};
 use streamduck_core::devices::drivers::DriverManager;
-use streamduck_core::devices::images::DeviceImageCache;
 use streamduck_core::events::{Event, EventDispatcher, EventInstance};
 use serde::{Serialize, Deserialize};
 use streamduck_core::events::listeners::{EventListener, ListensFor, SpecificListener};
 use streamduck_core::events::util::cast_event;
-use streamduck_core::type_of;
+use streamduck_core::{init_managers, type_of};
+use streamduck_core::devices::buttons::ButtonPosition;
+use streamduck_core::image_lib::{DynamicImage, open};
+use crate::drivers::load_drivers;
 
 /// the entry point for the streamdeck application
 #[tokio::main]
@@ -21,52 +26,26 @@ async fn main() {
 
     info!("Starting...");
 
-    let driver_manager = DriverManager::new();
+    let bundle = init_managers().await
+        .expect("Failed to initialize managers");
 
-    let a: Option<Arc<dyn DeviceImageCache>> = None;
+    load_drivers(&bundle).await;
 
-    let dispatcher = EventDispatcher::new();
+    let device_metadata = bundle.driver_manager().list_devices().await
+        .into_iter()
+        .find(|m| m.identifier.contains("AL10J2C00059"))
+        .expect("Device not found");
 
-    let _listener = dispatcher.add_listener(Listener { driver_manager: driver_manager.clone() }).await;
+    println!("Device metadata: {:?}", device_metadata);
 
-    dispatcher.invoke(MyEvent {
-        a: 5
-    }).await;
+    let device = bundle.driver_manager()
+        .connect_device(&device_metadata.driver_name, &device_metadata.identifier).await
+        .expect("Failed to connect");
 
-    dispatcher.invoke(MyEventButDifferent {
-        a: "what th fk".to_string(),
-        b: 5
-    }).await;
+    device.clear_screen().await;
+
+    let image = open("13339036_medium.jpg").unwrap();
+
+    device.add_image(123, image).await;
+    device.set_button_image(ButtonPosition::from((0, 0)), 123).await;
 }
-
-struct Listener {
-    driver_manager: Arc<DriverManager>
-}
-
-#[streamduck_core::async_trait]
-impl EventListener for Listener {
-    fn listens_for(&self) -> ListensFor {
-        ListensFor::Specific(type_of!(MyEvent))
-    }
-
-    async fn invoke(&self, event: &dyn EventInstance) {
-        if let Some(event) = cast_event::<MyEvent>(event) {
-            println!("lol kekw {}", event.a);
-        }
-    }
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-struct MyEvent {
-    pub a: i32
-}
-
-impl Event for MyEvent {}
-
-#[derive(Clone, Serialize, Deserialize)]
-struct MyEventButDifferent {
-    pub a: String,
-    pub b: i32,
-}
-
-impl Event for MyEventButDifferent {}

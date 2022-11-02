@@ -16,3 +16,6 @@ serde = { version = "1.0.147", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
+
+streamdeck = "0.7.0"
+hidapi = "1.4.2"
