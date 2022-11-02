@@ -1,4 +1,7 @@
+use serde::{Serialize, Deserialize};
+
 /// Button position
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct ButtonPosition {
     /// Row of the button
     pub row: u16,
