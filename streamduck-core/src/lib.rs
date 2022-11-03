@@ -20,6 +20,8 @@ pub mod events;
 pub mod macros;
 /// Manager bundle definition
 pub mod bundle;
+/// Everything related to file writes and reads
+pub mod config;
 
 #[cfg(test)]
 mod tests;
