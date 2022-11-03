@@ -28,7 +28,7 @@ mod tests;
 
 /// Initialize all managers
 pub async fn init_managers() -> Option<Arc<ManagerBundle>> {
-    let bundle = ManagerBundle::new();
+    let bundle = ManagerBundle::new().await;
 
     // Global event dispatcher
     bundle.global_dispatcher.set(EventDispatcher::new()).ok()?;
