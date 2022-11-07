@@ -1,4 +1,5 @@
 use serde::{Serialize, Deserialize};
+use crate::events::Event;
 
 /// Button position
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
@@ -16,5 +17,20 @@ impl From<(u16, u16)> for ButtonPosition {
             row: tuple.0,
             column: tuple.1
         }
+    }
+}
+
+/// Button events
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum ButtonEvent {
+    /// Button was pressed down
+    ButtonDown(ButtonPosition),
+    /// Button was released
+    ButtonUp(ButtonPosition)
+}
+
+impl Event for ButtonEvent {
+    fn name() -> String {
+        "button_event".to_string()
     }
 }

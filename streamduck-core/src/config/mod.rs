@@ -1,4 +1,3 @@
-#![warn(missing_docs)]
 use crate::config::{
     global_config::{
         retrieve_global_config,

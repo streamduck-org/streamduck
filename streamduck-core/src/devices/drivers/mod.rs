@@ -1,8 +1,11 @@
 use std::collections::HashMap;
+use std::error::Error;
+use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use futures::future::join_all;
+use hidapi::{HidApi, HidError};
 use tokio::sync::RwLock;
 
 use crate::devices::metadata::DeviceMetadata;
@@ -15,10 +18,10 @@ pub trait Driver: Send + Sync {
     fn name(&self) -> String;
 
     /// List devices that can be detected by this driver
-    async fn list_devices(&self) -> Vec<DeviceMetadata>;
+    async fn list_devices(&self, hidapi: &HidApi) -> Vec<DeviceMetadata>;
 
     /// Connect to the specified device
-    async fn connect_device(&self, identifier: String) -> Result<SharedDevice, DriverError>;
+    async fn connect_device(&self, hidapi: &HidApi, identifier: String) -> Result<SharedDevice, DriverError>;
 }
 
 /// All possible errors with device drivers
@@ -33,8 +36,16 @@ pub enum DriverError {
     /// Identifier failed to be parsed
     InvalidIdentifier,
     /// Any other error
-    Other(String),
+    Other(Box<dyn Error>),
 }
+
+impl Display for DriverError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl Error for DriverError {}
 
 /// Driver interface contained in a reference counter
 pub type SharedDriver = Arc<dyn Driver>;
@@ -44,15 +55,18 @@ pub type SharedDriver = Arc<dyn Driver>;
 /// Driver manager
 pub struct DriverManager {
     /// Drivers that were registered in the manager
-    drivers: RwLock<HashMap<String, SharedDriver>>
+    drivers: RwLock<HashMap<String, SharedDriver>>,
+    /// Most drivers will probably use HidApi anyway, there can only be one instance of it
+    hidapi: HidApi,
 }
 
 impl DriverManager {
     /// Creates a new instance of the driver manager
-    pub fn new() -> Arc<DriverManager> {
-        Arc::new(DriverManager {
-            drivers: Default::default()
-        })
+    pub fn new() -> Result<Arc<DriverManager>, HidError> {
+        Ok(Arc::new(DriverManager {
+            drivers: Default::default(),
+            hidapi: HidApi::new()?
+        }))
     }
 
     /// Registers a new driver
@@ -70,7 +84,7 @@ impl DriverManager {
     pub async fn list_devices(&self) -> Vec<DeviceMetadata> {
         let lists = self.get_drivers().await
             .into_iter()
-            .map(|x| async move { x.list_devices().await });
+            .map(|x| async move { x.list_devices(&self.hidapi).await });
 
         join_all(lists).await.into_iter()
             .flatten()
@@ -84,7 +98,7 @@ impl DriverManager {
         if let Some(driver) = lock.get(driver_name).cloned() {
             drop(lock); // Who knows what the driver might do
 
-            driver.connect_device(identifier.to_string()).await
+            driver.connect_device(&self.hidapi, identifier.to_string()).await
         } else {
             Err(DriverError::NoSuchDriver)
         }

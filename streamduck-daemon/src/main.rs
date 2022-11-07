@@ -3,14 +3,18 @@ mod drivers;
 
 use std::future::ready;
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::{Level, info};
 use streamduck_core::devices::drivers::DriverManager;
 use streamduck_core::events::{Event, EventDispatcher, EventInstance};
 use serde::{Serialize, Deserialize};
-use streamduck_core::events::listeners::{EventListener, ListensFor, SpecificListener};
+use tokio::spawn;
+use tokio::time::{Instant, sleep};
+use streamduck_core::events::listeners::{EventListener, GeneralListener, ListensFor, SpecificListener};
 use streamduck_core::events::util::cast_event;
 use streamduck_core::{init_managers, type_of};
-use streamduck_core::devices::buttons::ButtonPosition;
+use streamduck_core::devices::buttons::{ButtonEvent, ButtonPosition};
+use streamduck_core::devices::SharedDevice;
 use streamduck_core::image_lib::{DynamicImage, open};
 use crate::drivers::load_drivers;
 
@@ -42,10 +46,37 @@ async fn main() {
         .connect_device(&device_metadata.driver_name, &device_metadata.identifier).await
         .expect("Failed to connect");
 
-    device.clear_screen().await;
+    let img = open("technician.jpg").unwrap();
+    device.add_image(1, img).await.unwrap();
 
-    let image = open("13339036_medium.jpg").unwrap();
+    let dispatcher = EventDispatcher::new();
 
-    device.add_image(123, image).await;
-    device.set_button_image(ButtonPosition::from((0, 0)), 123).await;
+    let _listener = dispatcher.add_listener(LightUpListener {
+        device: device.clone()
+    }).await;
+
+    loop {
+        device.poll(&dispatcher).await.unwrap();
+        sleep(Duration::from_micros(25)).await;
+    }
+}
+
+pub struct LightUpListener {
+    device: SharedDevice
+}
+
+#[streamduck_core::async_trait]
+impl EventListener for LightUpListener {
+    fn listens_for(&self) -> ListensFor {
+        ListensFor::Specific(type_of!(ButtonEvent))
+    }
+
+    async fn invoke(&self, e: &dyn EventInstance) {
+        if let Some(event) = cast_event::<ButtonEvent>(e) {
+            match event {
+                ButtonEvent::ButtonDown(p) => self.device.set_button_image(p, 1).await.unwrap(),
+                ButtonEvent::ButtonUp(p) => self.device.clear_button_image(p).await.unwrap(),
+            }
+        }
+    }
 }

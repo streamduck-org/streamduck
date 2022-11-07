@@ -16,15 +16,24 @@ pub mod util;
 
 /// Event trait
 pub trait Event: Any + Serialize + DeserializeOwned
-                + Clone + Send + Sync {} // Events should be thread-safe
+                + Clone + Send + Sync {
+    /// Name of the event
+    fn name() -> String;
+} // Events should be thread-safe
 
 /// Instance of an event
 pub trait EventInstance: Any + Sync + Send {
+    /// Name of the event
+    fn name(&self) -> String;
     /// Serializes event into a JSON value
     fn serialize(&self) -> Value;
 }
 
 impl<T: Event> EventInstance for T {
+    fn name(&self) -> String {
+        T::name()
+    }
+
     fn serialize(&self) -> Value {
         serde_json::to_value(self.clone()).unwrap()
     }

@@ -67,7 +67,7 @@ impl BitAnd<&dyn EventInstance> for &ListensFor {
 
 /// Trait for types that want to accept events from event dispatcher
 #[async_trait]
-pub trait EventListener {
+pub trait EventListener: Send + Sync {
     /// Which events this listener should be invoked with
     fn listens_for(&self) -> ListensFor;
 
