@@ -1,6 +1,7 @@
 use std::any::Any;
 use std::sync::Arc;
 use futures::future::join_all;
+use tracing::trace;
 
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -75,7 +76,8 @@ impl EventDispatcher {
 
 
     /// Invokes listeners with provided event
-    pub async fn invoke<Ev: EventInstance + Event>(&self, event: Ev) {
+    pub async fn invoke<Ev: EventInstance + Event + std::fmt::Debug>(&self, event: Ev) {
+        trace!(?event);
         let mut lock = self.listeners.lock().await;
 
         lock.retain(|(_, l)| l.strong_count() > 0);

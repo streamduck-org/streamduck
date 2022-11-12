@@ -4,7 +4,10 @@ use tracing::{
     info,
 };
 use tokio::fs;
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    time::{Instant, Duration}
+};
 use serde::{Serialize, Deserialize};
 use toml;
 
@@ -34,22 +37,44 @@ pub async fn retrieve_global_config(path: &PathBuf) -> GlobalConfig {
     config
 }
 
-/// Keys for the global config.
+/// # Keys for the global config.
 /// For more description of the keys usage see: <https://docs.streamduck.org/daemon/configuration.html>.
 #[derive(Serialize, Deserialize, Default, Debug)]
 pub struct GlobalConfig {
     /// Path to device config folder
     pub device_config_path: Option<PathBuf>,
-    /// Path to plugins folder
-    pub plugin_path: Option<PathBuf>,
-    /// Path to plugin settings json
-    pub plugin_settings_path: Option<PathBuf>,
-    /// Path to fonts
-    pub font_path: Option<PathBuf>,
-
-    /// Autosave device configuration
+    /// If the [GlobalConfig] and [crate::config::device_config::DeviceConfig] should be saved automatically
     pub autosave: Option<bool>,
+    /// The time a commit was last made.
+    #[serde(skip)]
+    commit_time: Option<Instant>,
+    /// If the config got changed and now needs to be saved.
+    #[serde(skip)]
+    dirty_state: bool
+}
 
-    /// If plugin compatibility checks should be performed
-    pub plugin_compatibility_checks: Option<bool>,
+impl GlobalConfig {
+    /// Mark config as dirty.
+    pub(crate) fn mark_dirty(&mut self) {
+        self.commit_time = Some(Instant::now());
+        self.dirty_state = true;
+    }
+
+    /// Mark config as clean.
+    pub(crate) fn mark_clean(&mut self) {
+        self.dirty_state = false;
+    }
+
+    /// See if config is dirty
+    pub fn is_dirty(&self) -> bool {
+        self.dirty_state
+    }
+
+    /// The time since a commit was last made
+    pub fn last_commit(&self) -> Option<Duration> {
+        match self.commit_time {
+            Some(commit_time) => Some(Instant::now().duration_since(commit_time)),
+            None => None
+        }
+    }
 }

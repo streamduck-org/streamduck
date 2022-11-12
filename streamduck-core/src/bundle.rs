@@ -15,7 +15,7 @@ impl ManagerBundle {
     /// Creates a new bundle
     pub async fn new() -> Arc<ManagerBundle> {
         Arc::new(ManagerBundle {
-            config_manager: Arc::new(ConfigManager::new(None).await),
+            config_manager: ConfigManager::new(None).await.unwrap(),
             driver_manager: Default::default(),
             global_dispatcher: Default::default()
         })

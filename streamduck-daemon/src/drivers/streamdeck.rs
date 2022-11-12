@@ -95,7 +95,7 @@ impl Driver for StreamDeckDriver {
     async fn connect_device(&self, hidapi: &HidApi, identifier: String) -> Result<SharedDevice, DriverError> {
         if let Some((kind, serial)) = parse_identifier(identifier) {
             match AsyncStreamDeck::connect(hidapi, kind, &serial) {
-                Ok(mut streamdeck) => {
+                Ok(streamdeck) => {
                     let kind = streamdeck.kind();
                     let serial = streamdeck.serial_number().await.unwrap_or_else(|_| "".to_string());
 
@@ -212,7 +212,7 @@ impl Device for StreamDeckDevice {
     async fn set_button_image(&self, position: ButtonPosition, key: u128) -> Result<(), DeviceError> {
         if let Some(image) = self.image_cache.read().await.get(&key) {
             Ok(self.streamdeck.write_image(
-                position_to_index(self. kind, position),
+                position_to_index(self.kind, position),
                 image
             ).await.map_err(map_device_error)?)
         } else {

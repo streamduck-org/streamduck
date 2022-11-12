@@ -1,10 +1,9 @@
-/// Drivers for
 mod drivers;
 
 use std::future::ready;
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{Level, info};
+use tracing::{Level, info, debug, Instrument, instrument, trace_span};
 use streamduck_core::devices::drivers::DriverManager;
 use streamduck_core::events::{Event, EventDispatcher, EventInstance};
 use serde::{Serialize, Deserialize};
@@ -37,10 +36,11 @@ async fn main() {
 
     let device_metadata = bundle.driver_manager().list_devices().await
         .into_iter()
-        .find(|m| m.identifier.contains("AL10J2C00059"))
+        // .find(|m| m.identifier.contains("AL10J2C00059"))
+        .nth(0)
         .expect("Device not found");
 
-    println!("Device metadata: {:?}", device_metadata);
+    debug!("Device metadata: {:#?}", device_metadata);
 
     let device = bundle.driver_manager()
         .connect_device(&device_metadata.driver_name, &device_metadata.identifier).await
@@ -56,7 +56,10 @@ async fn main() {
     }).await;
 
     loop {
-        device.poll(&dispatcher).await.unwrap();
+        device.poll(&dispatcher)
+            .instrument(trace_span!("device", identifier = device_metadata.identifier))
+            .await
+            .unwrap();
         sleep(Duration::from_micros(25)).await;
     }
 }
