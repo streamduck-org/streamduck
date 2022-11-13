@@ -29,7 +29,8 @@ async fn main() {
 
     info!("Starting...");
 
-    let bundle = init_managers().await
+    let bundle = init_managers()
+        .await
         .expect("Failed to initialize managers");
 
     load_drivers(&bundle).await;
@@ -57,7 +58,6 @@ async fn main() {
 
     loop {
         device.poll(&dispatcher)
-            .instrument(trace_span!("device", identifier = device_metadata.identifier))
             .await
             .unwrap();
         sleep(Duration::from_micros(25)).await;

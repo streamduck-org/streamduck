@@ -21,7 +21,6 @@ use tracing::{
     warn,
     debug,
     error,
-    instrument,
     trace
 };
 
@@ -102,9 +101,8 @@ pub fn data_dir() -> PathBuf {
 
 /// Handles the autosaving loop for the [ConfigManager].
 /// Iterates through [ConfigManager::autosave()] in the specified interval.
-#[instrument(name = "autosaver", skip_all)]
 pub(crate) async fn autosave_loop(config_manager: Arc<ConfigManager>, interval: Duration) {
-    trace!("started");
+    trace!("autosaver started");
     loop {
         config_manager.autosave_task().await;
         tokio::time::sleep(interval).await;
@@ -114,15 +112,18 @@ pub(crate) async fn autosave_loop(config_manager: Arc<ConfigManager>, interval: 
 impl ConfigManager {
     /// create a new ConfigManager
     pub async fn new(path: Option<PathBuf>) -> Result<Arc<ConfigManager>, ConfigError> {
-        trace!("ConfigManager created");
-        // create config_dir
-        tokio::fs::create_dir_all(config_dir()).await?;
+        trace!("config manager started");
         // retrieve the global configuration
-        let path = path.unwrap_or_else(|| {
-            let mut dir = config_dir();
-            dir.push(GLOBAL_CONFIG_FILE);
-            dir
-        });
+        let path = match path {
+            Some(path) => path,
+            None => {
+                // create all directories needed for the configs
+                tokio::fs::create_dir_all(config_dir()).await?;
+                let mut dir = config_dir();
+                dir.push(GLOBAL_CONFIG_FILE);
+                dir
+            }
+        };
         let global_config = retrieve_global_config(&path).await;
         debug!(?path, ?global_config);
         // create the manager
