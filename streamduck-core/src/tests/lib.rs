@@ -1,10 +1,7 @@
-use std::time::{Instant, Duration};
 use std::{env, io};
-use std::fs::OpenOptions;
-use std::io::{Read, Error};
-use owning_ref::BoxRef;
+use std::time::{Duration, Instant};
 
-use serde::{Serialize, Serializer, Deserialize, Deserializer};
+use serde::{Deserialize, Serialize};
 use toml;
 
 #[derive(PartialEq)]
@@ -30,7 +27,7 @@ impl Benchmark {
 
         if let Ok(conf) = self.read_toml()  {
             if let Some(point) = &self.data_point {
-                let mut values = match point {
+                let values = match point {
                     DataPoint::DriverDeviceList => { (Config { test_driver_device_list: duration, ..conf}, conf.test_driver_device_list) }
                 };
                 let duration_before = values.1;

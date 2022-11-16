@@ -1,23 +1,19 @@
 use std::collections::HashMap;
-use std::error::Error;
-use std::fmt::{Display, Formatter};
 use std::sync::Arc;
-use elgato_streamdeck::info::{ELGATO_VENDOR_ID, Kind};
+
 use elgato_streamdeck::{AsyncStreamDeck, list_devices, StreamDeckError};
 use elgato_streamdeck::asynchronous::{ButtonStateReader, ButtonStateUpdate};
 use elgato_streamdeck::images::convert_image_async;
-
+use elgato_streamdeck::info::Kind;
 use hidapi::{HidApi, HidError};
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 
-use streamduck_core::devices::drivers::{Driver, DriverError};
-use streamduck_core::devices::metadata::{ButtonLayout, DeviceMetadata};
 use streamduck_core::devices::{Device, DeviceError, SharedDevice};
 use streamduck_core::devices::buttons::{ButtonEvent, ButtonPosition};
+use streamduck_core::devices::drivers::{Driver, DriverError};
+use streamduck_core::devices::metadata::{ButtonLayout, DeviceMetadata};
 use streamduck_core::events::EventDispatcher;
-use streamduck_core::image_lib::codecs::jpeg::JpegEncoder;
-use streamduck_core::image_lib::{ColorType, DynamicImage, GenericImageView};
-use streamduck_core::image_lib::imageops::FilterType;
+use streamduck_core::image_lib::DynamicImage;
 
 const DRIVER_NAME: &'static str = "streamdeck";
 

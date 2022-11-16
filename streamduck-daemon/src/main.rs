@@ -1,21 +1,19 @@
-mod drivers;
-
-use std::future::ready;
-use std::sync::Arc;
 use std::time::Duration;
-use tracing::{Level, info, debug, Instrument, instrument, trace_span};
-use streamduck_core::devices::drivers::DriverManager;
-use streamduck_core::events::{Event, EventDispatcher, EventInstance};
-use serde::{Serialize, Deserialize};
-use tokio::spawn;
-use tokio::time::{Instant, sleep};
-use streamduck_core::events::listeners::{EventListener, GeneralListener, ListensFor, SpecificListener};
-use streamduck_core::events::util::cast_event;
+
+use tokio::time::sleep;
+use tracing::{debug, info, Level};
+
 use streamduck_core::{init_managers, type_of};
-use streamduck_core::devices::buttons::{ButtonEvent, ButtonPosition};
+use streamduck_core::devices::buttons::ButtonEvent;
 use streamduck_core::devices::SharedDevice;
-use streamduck_core::image_lib::{DynamicImage, open};
+use streamduck_core::events::{EventDispatcher, EventInstance};
+use streamduck_core::events::listeners::{EventListener, ListensFor};
+use streamduck_core::events::util::cast_event;
+use streamduck_core::image_lib::open;
+
 use crate::drivers::load_drivers;
+
+mod drivers;
 
 /// the entry point for the streamdeck application
 #[tokio::main]

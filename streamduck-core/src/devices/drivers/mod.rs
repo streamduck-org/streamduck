@@ -10,7 +10,6 @@ use tokio::sync::RwLock;
 
 use crate::devices::metadata::DeviceMetadata;
 use crate::devices::SharedDevice;
-use tracing::instrument;
 
 /// Driver interface
 #[async_trait]

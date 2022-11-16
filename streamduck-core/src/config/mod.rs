@@ -1,27 +1,29 @@
-use crate::config::{
-    global_config::{
-        retrieve_global_config,
-        GlobalConfig
-    },
-    device_config::{
-        retrieve_device_configs,
-        DeviceConfig
-    },
-};
-use tokio::{
-    sync::RwLock,
-    io::AsyncWriteExt
-};
 use std::{
     path::PathBuf,
     sync::Arc,
-    time::Duration
+    time::Duration,
+};
+
+use tokio::{
+    io::AsyncWriteExt,
+    sync::RwLock,
 };
 use tracing::{
-    warn,
     debug,
     error,
-    trace
+    trace,
+    warn,
+};
+
+use crate::config::{
+    device_config::{
+        DeviceConfig,
+        retrieve_device_configs,
+    },
+    global_config::{
+        GlobalConfig,
+        retrieve_global_config,
+    },
 };
 
 /// Device Configuration specifc data
@@ -33,7 +35,7 @@ pub mod global_config;
 /// The ConfigManager handles the file reading and writing.
 pub struct ConfigManager {
     global_config_path: PathBuf,
-    global_config: Arc<RwLock<GlobalConfig>>,
+    global_config: RwLock<GlobalConfig>,
     // device_configs: HashMap<String, Arc<RwLock<DeviceConfig>>>
 }
 
@@ -43,7 +45,7 @@ pub enum ConfigError {
     /// A [Toml parsing error][toml::ser::Error]
     TomlParse(toml::ser::Error),
     /// An [IoError][std::io::Error]
-    IoError(std::io::Error)
+    IoError(std::io::Error),
 }
 
 impl From<std::io::Error> for ConfigError {
@@ -76,7 +78,7 @@ pub fn config_dir() -> PathBuf {
         Some(mut dir) => {
             dir.push(CONFIG_FOLDER);
             dir
-        },
+        }
         None => {
             warn!("Configuration Directory not available on this system. Using executable path.");
             PathBuf::new()
@@ -91,7 +93,7 @@ pub fn data_dir() -> PathBuf {
         Some(mut dir) => {
             dir.push(CONFIG_FOLDER);
             dir
-        },
+        }
         None => {
             warn!("Data directory not available on this system. Using executable path.");
             PathBuf::new()
@@ -129,7 +131,7 @@ impl ConfigManager {
         // create the manager
         let manager = Arc::new(ConfigManager {
             global_config_path: path,
-            global_config: Arc::new(RwLock::new(global_config))
+            global_config: RwLock::new(global_config),
         });
         // start autosave loop if needed
         if manager.global_configuration().await.autosave.unwrap_or(true) {
@@ -180,13 +182,13 @@ impl ConfigManager {
 
     /// Returns a readable lock of the [GlobalConfig].
     pub async fn global_configuration(&self) -> tokio::sync::RwLockReadGuard<GlobalConfig> {
-        trace!("GlobalConfig lock aquired");
+        trace!("GlobalConfig lock acquired");
         self.global_config.read().await
     }
 
     /// Return a writeable lock of the [GlobalConfig].
     pub async fn mut_global_configuration(&self) -> tokio::sync::RwLockWriteGuard<GlobalConfig> {
-        trace!("GlobalConfig mutable lock aquired");
+        trace!("GlobalConfig mutable lock acquired");
         let mut lock = self.global_config.write().await;
         lock.mark_dirty();
         lock
@@ -198,12 +200,7 @@ impl ConfigManager {
 
         // retrieve the configuration and write it to the file
         let conf = self.global_configuration().await;
-        let mut file = tokio::fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .open(path)
-            .await?;
+        let mut file = tokio::fs::OpenOptions::new().read(true).write(true).create(true).open(path).await?;
 
         file.write(toml::to_string(&*conf)?.as_bytes()).await?;
 
@@ -221,5 +218,4 @@ impl ConfigManager {
 
     /// return the path for the plugins folder
     pub fn plugins_path() {}
-
 }

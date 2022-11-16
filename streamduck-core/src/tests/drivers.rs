@@ -1,14 +1,12 @@
 use std::sync::Arc;
-use std::time::Instant;
-use serde::Deserialize;
-
-use crate::tests::lib::{start_benchmark, DataPoint};
 
 use async_trait::async_trait;
+use hidapi::HidApi;
 
 use crate::devices::drivers::{Driver, DriverError, DriverManager};
 use crate::devices::metadata::{ButtonLayout, DeviceMetadata};
 use crate::devices::SharedDevice;
+use crate::tests::lib::{DataPoint, start_benchmark};
 
 pub struct TestDriver {}
 
@@ -18,17 +16,17 @@ impl Driver for TestDriver {
         "test_driver".to_string()
     }
 
-    async fn list_devices(&self) -> Vec<DeviceMetadata> {
+    async fn list_devices(&self, _: &HidApi) -> Vec<DeviceMetadata> {
         vec![DeviceMetadata {
             driver_name: self.name(),
-            serial_number: "test_serial".to_string(),
+            identifier: "test_serial".to_string(),
             has_screen: true,
             resolution: (16, 16),
             layout: ButtonLayout(vec![5, 5, 5])
         }]
     }
 
-    async fn connect_device(&self, _: &str) -> Result<SharedDevice, DriverError> {
+    async fn connect_device(&self, _: &HidApi, _: String) -> Result<SharedDevice, DriverError> {
         todo!()
     }
 }
@@ -37,7 +35,7 @@ impl Driver for TestDriver {
 async fn test_driver_device_list() {
     let bench = start_benchmark(Some(DataPoint::DriverDeviceList));
 
-    let driver_manager = DriverManager::new();
+    let driver_manager = DriverManager::new().unwrap();
 
     driver_manager.register_driver(Arc::new(TestDriver {})).await;
 
@@ -48,7 +46,7 @@ async fn test_driver_device_list() {
     assert_eq!(
         list
             .iter()
-            .position(|x| x.serial_number == "test_serial")
+            .position(|x| x.identifier == "test_serial")
             .is_some(),
         true
     )
