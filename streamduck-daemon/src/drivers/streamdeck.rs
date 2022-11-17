@@ -5,7 +5,7 @@ use elgato_streamdeck::{AsyncStreamDeck, list_devices, StreamDeckError};
 use elgato_streamdeck::asynchronous::{ButtonStateReader, ButtonStateUpdate};
 use elgato_streamdeck::images::convert_image_async;
 use elgato_streamdeck::info::Kind;
-use hidapi::{HidApi, HidError};
+use hidapi::HidApi;
 use tokio::sync::RwLock;
 
 use streamduck_core::devices::{Device, DeviceError, SharedDevice};
@@ -20,9 +20,9 @@ const DRIVER_NAME: &'static str = "streamdeck";
 pub struct StreamDeckDriver;
 
 impl StreamDeckDriver {
-    /// Attempts to create instance of the driver and connect to HidApi
-    pub fn new() -> Result<Arc<StreamDeckDriver>, HidError> {
-        Ok(Arc::new(StreamDeckDriver))
+    /// Creates instance of the driver
+    pub fn new() -> Arc<StreamDeckDriver> {
+        Arc::new(StreamDeckDriver)
     }
 }
 

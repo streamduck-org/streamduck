@@ -3,6 +3,8 @@ use std::{
     sync::Arc,
     time::Duration,
 };
+use std::error::Error;
+use std::fmt::{Display, Formatter};
 
 use tokio::{
     io::AsyncWriteExt,
@@ -47,6 +49,14 @@ pub enum ConfigError {
     /// An [IoError][std::io::Error]
     IoError(std::io::Error),
 }
+
+impl Display for ConfigError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl Error for ConfigError {}
 
 impl From<std::io::Error> for ConfigError {
     fn from(err: std::io::Error) -> Self {

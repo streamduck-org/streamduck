@@ -10,6 +10,5 @@ pub async fn load_drivers(bundle: &Arc<ManagerBundle>) {
 
     driver_manager.register_driver(
         StreamDeckDriver::new()
-            .expect("Failed to init Stream Deck driver")
     ).await;
 }
