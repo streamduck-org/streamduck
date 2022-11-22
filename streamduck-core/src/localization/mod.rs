@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use futures::future::join_all;
-use futures::TryFutureExt;
 use serde_json::Value;
 use tokio::sync::RwLock;
 
 use serde::{Serialize, Deserialize};
 
+/// Language tag for English language, used as fallback
 pub const ENGLISH_LANG_TAG: &'static str = "en";
 
 /// Manages localizations of the software
