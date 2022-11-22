@@ -7,12 +7,14 @@ use hidapi::HidError;
 use crate::config::{ConfigError, ConfigManager};
 use crate::devices::drivers::DriverManager;
 use crate::events::EventDispatcher;
+use crate::localization::LocalizationManager;
 
 /// Bundle that contains all managers used by the core
 pub struct ManagerBundle {
     pub(crate) driver_manager: Arc<DriverManager>,
     pub(crate) global_dispatcher: Arc<EventDispatcher>,
-    pub(crate) config_manager: Arc<ConfigManager>
+    pub(crate) config_manager: Arc<ConfigManager>,
+    pub(crate) localization_manager: Arc<LocalizationManager>
 }
 
 impl ManagerBundle {
@@ -21,7 +23,8 @@ impl ManagerBundle {
         Ok(Arc::new(ManagerBundle {
             config_manager: ConfigManager::new(None).await?,
             driver_manager: DriverManager::new()?,
-            global_dispatcher: EventDispatcher::new()
+            global_dispatcher: EventDispatcher::new(),
+            localization_manager: LocalizationManager::new()
         }))
     }
 
@@ -38,6 +41,11 @@ impl ManagerBundle {
     /// Retrieves config manager from the bundle
     pub fn config_manager(&self) -> &Arc<ConfigManager> {
         &self.config_manager
+    }
+
+    /// Retrieves localization manager from the bundle
+    pub fn localization_manager(&self) -> &Arc<LocalizationManager> {
+        &self.localization_manager
     }
 }
 

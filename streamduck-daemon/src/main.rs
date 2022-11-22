@@ -36,7 +36,7 @@ async fn main() {
     let device_metadata = bundle.driver_manager().list_devices().await
         .into_iter()
         // .find(|m| m.identifier.contains("AL10J2C00059"))
-        .nth(0)
+        .next()
         .expect("Device not found");
 
     debug!("Device metadata: {:#?}", device_metadata);
