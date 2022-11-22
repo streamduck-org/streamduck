@@ -1,10 +1,13 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use futures::future::join_all;
+use futures::TryFutureExt;
 use serde_json::Value;
 use tokio::sync::RwLock;
 
 use serde::{Serialize, Deserialize};
+
+pub const ENGLISH_LANG_TAG: &'static str = "en";
 
 /// Manages localizations of the software
 pub struct LocalizationManager {
@@ -23,6 +26,17 @@ impl LocalizationManager {
     pub async fn get(&self, language_tag: &str) -> Option<Arc<Localization>> {
         self.localizations.read().await
             .get(language_tag).cloned()
+    }
+
+    /// Attempts to translate the localized string using preferred language, falls back to [English](ENGLISH_LANG_TAG) if can't
+    pub async fn translate(&self, preferred_language: &str, l_str: &LocalizedString) -> Option<String> {
+        if let Some(localization) = self.get(preferred_language).await {
+            if let Some(translation) = localization.translate(l_str).await {
+                return Some(translation);
+            }
+        }
+
+        Some(self.get(ENGLISH_LANG_TAG).await?.translate(l_str).await?)
     }
 
     /// Inserts localization into the manager using the language tag, overrides if already exists!
@@ -74,27 +88,66 @@ impl LocalizationManager {
         self.localizations.read().await
             .values().cloned().collect()
     }
+
+    /// Serializes the manager into data that can be serialized
+    pub async fn serializable_data(&self) -> HashMap<String, LocalizationData> {
+        join_all(self.language_map().await
+            .into_iter()
+            .map(|(key, localization)| {
+                async move { (key, localization.data.read().await.clone()) }
+            })
+        ).await.into_iter().collect()
+    }
+
+    /// Deserializes the manager from serializable data
+    pub fn from_serializable_data(data: HashMap<String, LocalizationData>) -> Arc<LocalizationManager> {
+        Arc::new(LocalizationManager {
+            localizations: RwLock::new(
+                data.into_iter()
+                    .map(|(str, data)| {
+                        (str, Arc::new(Localization {
+                            data: RwLock::new(data)
+                        }))
+                    })
+                    .collect()
+            )
+        })
+    }
 }
 
-/// Localization for a specific language
+/// Localization for a specific language, contains the localization data and helpful functions for it
 pub struct Localization {
+    data: RwLock<LocalizationData>,
+}
+
+/// Actual data of the localization
+#[derive(Serialize, Deserialize, Clone)]
+pub struct LocalizationData {
     /// Display name of the language, can be in its language (eg. English, Русский)
     pub display_name: String,
-    translations: RwLock<HashMap<String, String>>,
+    /// Translation pairs for the language, key to translation
+    pub translations: HashMap<String, String>,
 }
 
 impl Localization {
     /// Creates new instance of a localization, name of the language can be in its language (eg. English, Русский)
     pub fn new(display_name: &str) -> Arc<Localization> {
         Arc::new(Self {
-            display_name: display_name.to_string(),
-            translations: Default::default(),
+            data: RwLock::new(LocalizationData {
+                display_name: display_name.to_string(),
+                translations: Default::default(),
+            })
         })
+    }
+
+    /// Retrieves display name of the language
+    pub async fn display_name(&self) -> String {
+        self.data.read().await.display_name.clone()
     }
 
     /// Retrieves translation from the localization
     pub async fn get(&self, key: &str) -> Option<String> {
-        self.translations.read().await
+        self.data.read().await.translations
             .get(key).cloned()
     }
 
@@ -120,34 +173,40 @@ impl Localization {
 
     /// Inserts translation into the localization, overrides if already exists!
     pub async fn insert(&self, key: &str, value: &str) {
-        self.translations.write().await
+        self.data.write().await.translations
             .insert(key.to_string(), value.to_string());
     }
 
     /// Extends the localization with translation pairs
     pub async fn extend<I>(&self, iter: I)
-        where I: IntoIterator<Item = (String, String)> {
-        self.translations.write().await
+        where I: IntoIterator<Item=(String, String)> {
+        self.data.write().await.translations
             .extend(iter)
     }
 
-    /// Extends the localization using [Value], expects object with strings
+    /// Extends the localization using [Value]
+    ///
+    /// Requires structure similar to this:
+    /// ```json
+    /// {
+    ///   "localization.test": "Проверяем локализацию",
+    /// }
+    /// ```
     pub async fn extend_from_value(&self, value: Value) -> Result<(), serde_json::Error> {
         let map: HashMap<String, String> = serde_json::from_value(value)?;
 
-        Ok(self.translations.write().await
-            .extend(map.into_iter()))
+        Ok(self.extend(map.into_iter()).await)
     }
 
     /// Retrieves a map of translation key to translation
     pub async fn translation_map(&self) -> HashMap<String, String> {
-        self.translations.read().await
+        self.data.read().await.translations
             .clone()
     }
 
     /// Retrieves all the languages that the manager has
     pub async fn translation_keys(&self) -> Vec<String> {
-        self.translations.read().await
+        self.data.read().await.translations
             .keys().cloned().collect()
     }
 }
@@ -158,7 +217,7 @@ pub struct LocalizedString {
     /// Translation key
     pub key: String,
     /// Parameters
-    pub parameters: Vec<Value>
+    pub parameters: Vec<Value>,
 }
 
 impl LocalizedString {
@@ -166,7 +225,7 @@ impl LocalizedString {
     pub fn new(key: &str) -> LocalizedString {
         LocalizedString {
             key: key.to_string(),
-            parameters: Default::default()
+            parameters: Default::default(),
         }
     }
 
@@ -179,6 +238,7 @@ impl LocalizedString {
     /// Adds a parameter to the localized string and returns it, made for chaining
     pub fn with_parameter<P>(mut self, parameter: P) -> LocalizedString
         where P: Into<Value> {
-        self.add_parameter(parameter); self
+        self.add_parameter(parameter);
+        self
     }
 }

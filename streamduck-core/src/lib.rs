@@ -20,7 +20,7 @@ pub mod macros;
 /// Manager bundle definition
 pub mod bundle;
 /// Localization types
-mod localization;
+pub mod localization;
 /// Everything related to file writes and reads
 pub mod config;
 
