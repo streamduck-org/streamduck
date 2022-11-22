@@ -70,8 +70,8 @@ impl From<toml::ser::Error> for ConfigError {
     }
 }
 
-/// folder name for the other subdirs
-pub const CONFIG_FOLDER: &'static str = "streamduck";
+/// folder name for the other subdirs, capital case on Windows, lower case on Unix
+pub const CONFIG_FOLDER: &'static str = if cfg!(windows) { "Streamduck" } else { "streamduck" };
 /// folder name for the fonts
 pub const FONTS_FOLDER: &'static str = "fonts";
 /// folder name for the plugins
