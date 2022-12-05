@@ -212,7 +212,7 @@ impl Localization {
 }
 
 /// Localized string that needs to be translated before being used
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct LocalizedString {
     /// Translation key
     pub key: String,

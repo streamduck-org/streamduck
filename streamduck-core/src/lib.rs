@@ -23,6 +23,8 @@ pub mod bundle;
 pub mod localization;
 /// Everything related to file writes and reads
 pub mod config;
+/// Dynamic parameters
+pub mod parameters;
 
 #[cfg(test)]
 mod tests;
