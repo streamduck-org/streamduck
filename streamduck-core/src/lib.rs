@@ -16,7 +16,7 @@ pub mod images;
 /// Event system of the core
 pub mod events;
 /// Assortment of various useful macros
-pub mod macros;
+mod macros;
 /// Manager bundle definition
 pub mod bundle;
 /// Localization types

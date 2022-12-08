@@ -3,6 +3,10 @@ use std::fmt::{Display, Formatter};
 use serde::{Serialize, Deserialize};
 use crate::localization::LocalizedString;
 
+#[cfg(feature = "derive")]
+#[cfg_attr(docsrs, doc(cfg(feature = "derive")))]
+pub use streamduck_derive::ParameterImpl;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 /// Dynamic parameter that can be used with devices, plugins, etc. to display options for the user
 pub struct Parameter {
@@ -119,16 +123,56 @@ pub enum ParameterVariant {
         disabled: bool,
         /// Value for the real number input field
         value: f64
+    },
+    /// Displays a checkbox
+    Checkbox {
+        /// If the field should appear disabled
+        disabled: bool,
+        /// Checkbox state
+        value: bool
+    },
+    /// Displays a toggle switch
+    Toggle {
+        /// If the field should appear disabled
+        disabled: bool,
+        /// Toggle switch state
+        value: bool
+    },
+    /// Displays a dropdown with provided choices
+    Choice {
+        /// If the field should appear disabled
+        disabled: bool,
+        /// Possible choices
+        choices: Vec<String>,
+        /// Current choice
+        value: String
+    }
+}
+
+/// RGBA Color tuple
+pub type Color = (u8, u8, u8, u8);
+
+/// Attempts to flatten provided parameter if possible
+pub fn flatten_parameter(parameter: Parameter) -> Vec<Parameter> {
+    match &parameter.variant {
+        ParameterVariant::CollapsableMenu(params) => params.clone(),
+        _ => vec![parameter]
     }
 }
 
 /// All possible errors that can happen with parameters
 #[derive(Debug)]
 pub enum ParameterError {
-    /// Enum contained wrong variant for this operation
+    /// Enum contained wrong parameter variant for this operation
     WrongVariant,
+    /// Cannot set value since the parameter is disabled
+    ParameterIsDisabled,
     /// Data provided to the parameter was invalid
     InvalidData,
+    /// This method was not implemented
+    NotImplemented,
+    /// Path was not found in the list of the parameters
+    NotFound,
 }
 
 impl Display for ParameterError {
@@ -207,18 +251,157 @@ impl TryFrom<ParameterVariant> for String {
     }
 }
 
-/// Shared behavior for handling parameters, mainly should be used by macros
+/// Shared behavior for handling parameters,
+/// mainly should be used by macros or custom implementations for types.
 pub trait ParameterImpl {
-    /// Lists all available parameters
-    fn list_parameters(&self) -> Vec<Parameter>;
-    /// Gets parameter by path
-    fn get_parameter(&self, path: &str) -> Option<Parameter>;
+    /// Lists all parameters
+    fn parameter(&self, options: ParameterOptions) -> Parameter;
     /// Sets parameter's value
-    fn set_parameter(&mut self, path: &str, value: ParameterVariant) -> Result<(), ParameterError>;
+    fn set_parameter(&mut self, options: ParameterOptions, value: Parameter) -> Result<(), ParameterError> { Err(ParameterError::NotImplemented) }
     /// Adds new element to an array
-    fn add_element(&mut self, path: &str) -> Result<(), ParameterError>;
+    fn add_element(&mut self, options: ParameterOptions) -> Result<(), ParameterError> { Err(ParameterError::NotImplemented) }
     /// Removes element from an array
-    fn remove_element(&mut self, path: &str, index: usize) -> Result<(), ParameterError>;
+    fn remove_element(&mut self, options: ParameterOptions, index: usize) -> Result<(), ParameterError> { Err(ParameterError::NotImplemented) }
     /// Moves element in the array
-    fn move_element(&mut self, path: &str, from_index: usize, to_index: usize) -> Result<(), ParameterError>;
+    fn move_element(&mut self, options: ParameterOptions, from_index: usize, to_index: usize) -> Result<(), ParameterError> { Err(ParameterError::NotImplemented) }
+}
+
+/// Additional options that could be asked for upon retrieval of the parameter
+pub struct ParameterOptions {
+    /// Name that was assigned to the parameter, is empty if the parameter is not part of a struct
+    pub name: String,
+    /// Display name localization key
+    pub display_name: String,
+    /// Description localization key
+    pub description: String,
+    /// If the parameter should be disabled
+    pub disabled: bool,
+    /// Preferred variant
+    pub preferred_variant: PreferredParameterVariant
+}
+
+/// Option that tells which kind of variant the parameter should be retrieved as
+#[derive(PartialEq)]
+pub enum PreferredParameterVariant {
+    /// There's no preference on what variant should be returned
+    NoPreference,
+    /// If choice parameter should be generated with this
+    Choice,
+    /// If label parameter should be generated with this
+    Label,
+    /// If text input parameter should be generated
+    TextInput,
+    /// If toggle should be generated
+    Toggle,
+    /// If checkbox should be generated
+    Checkbox,
+}
+
+impl Default for PreferredParameterVariant {
+    fn default() -> Self {
+        Self::NoPreference
+    }
+}
+
+/// Type that could be used for ParameterImpl macro to define dynamic choice parameter
+pub struct DynamicChoice {
+    choices: Vec<String>,
+    value: String
+}
+
+impl ParameterImpl for i64 {
+    fn parameter(&self, options: ParameterOptions) -> Parameter {
+        Parameter::new(
+            &options.name,
+            LocalizedString::new(&options.display_name),
+            LocalizedString::new(&options.description),
+            ParameterVariant::IntegerInput {
+                disabled: options.disabled,
+                value: *self
+            }
+        )
+    }
+
+    fn set_parameter(&mut self, options: ParameterOptions, value: Parameter) -> Result<(), ParameterError> {
+        if let ParameterVariant::IntegerInput {value, disabled} = value.variant {
+            if options.disabled == disabled && disabled {
+                Err(ParameterError::ParameterIsDisabled)
+            } else {
+                *self = value;
+                Ok(())
+            }
+        } else {
+            Err(ParameterError::WrongVariant)
+        }
+    }
+}
+
+impl ParameterImpl for f64 {
+    fn parameter(&self, options: ParameterOptions) -> Parameter {
+        Parameter::new(
+            &options.name,
+            LocalizedString::new(&options.display_name),
+            LocalizedString::new(&options.description),
+            ParameterVariant::NumberInput {
+                disabled: options.disabled,
+                value: *self
+            }
+        )
+    }
+
+    fn set_parameter(&mut self, options: ParameterOptions, value: Parameter) -> Result<(), ParameterError> {
+        if let ParameterVariant::NumberInput {value, disabled} = value.variant {
+            if options.disabled == disabled && disabled {
+                Err(ParameterError::ParameterIsDisabled)
+            } else {
+                *self = value;
+                Ok(())
+            }
+        } else {
+            Err(ParameterError::WrongVariant)
+        }
+    }
+}
+
+impl ParameterImpl for String {
+    fn parameter(&self, options: ParameterOptions) -> Parameter {
+        match options.preferred_variant {
+            PreferredParameterVariant::Label => {
+                Parameter::new(
+                    &options.name,
+                    LocalizedString::new(&options.display_name),
+                    LocalizedString::new(&options.description),
+                    ParameterVariant::Label(self.clone())
+                )
+            }
+            _ => {
+                Parameter::new(
+                    &options.name,
+                    LocalizedString::new(&options.display_name),
+                    LocalizedString::new(&options.description),
+                    ParameterVariant::TextInput {
+                        disabled: options.disabled,
+                        value: self.clone()
+                    }
+                )
+            }
+        }
+    }
+
+    fn set_parameter(&mut self, options: ParameterOptions, value: Parameter) -> Result<(), ParameterError> {
+        if let ParameterVariant::TextInput {value, disabled} = value.variant {
+            if options.preferred_variant == PreferredParameterVariant::Label {
+                Err(ParameterError::WrongVariant)
+            } else {
+                if options.disabled == disabled && disabled {
+                    Err(ParameterError::ParameterIsDisabled)
+                } else {
+                    *self = value;
+                    Ok(())
+                }
+            }
+        } else {
+            Err(ParameterError::WrongVariant)
+        }
+    }
 }

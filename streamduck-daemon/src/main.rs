@@ -14,6 +14,7 @@ use streamduck_core::image_lib::open;
 use crate::drivers::load_drivers;
 
 mod drivers;
+mod modules;
 
 /// the entry point for the streamdeck application
 #[tokio::main]
