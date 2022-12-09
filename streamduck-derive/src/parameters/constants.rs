@@ -1,6 +1,5 @@
 use proc_macro2::{TokenStream};
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput};
 
 pub struct Constants {
     pub trait_type: TokenStream,
@@ -21,7 +20,7 @@ impl Constants {
             parameter_variant_type: quote!(::streamduck_core::parameters::ParameterVariant),
             preferred_parameter_variant_type: quote!(::streamduck_core::parameters::PreferredParameterVariant),
             parameter_options_type: quote!(::streamduck_core::parameters::ParameterOptions),
-            localized_string_type: quote!(::streamduck_core::localization::LocalizedString)
+            localized_string_type: quote!(::streamduck_core::localization::LocalizedString),
         }
     }
 }

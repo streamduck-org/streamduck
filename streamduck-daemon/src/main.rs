@@ -10,8 +10,10 @@ use streamduck_core::events::{EventDispatcher, EventInstance};
 use streamduck_core::events::listeners::{EventListener, ListensFor};
 use streamduck_core::events::util::cast_event;
 use streamduck_core::image_lib::open;
+use streamduck_core::parameters::ParameterImpl;
 
 use crate::drivers::load_drivers;
+use crate::modules::RendererParameters;
 
 mod drivers;
 mod modules;
@@ -27,6 +29,9 @@ async fn main() {
         .init();
 
     info!("Starting...");
+
+    let params = RendererParameters::default();
+    info!("{:#?}", params.parameter_list());
 
     let bundle = init_managers()
         .await

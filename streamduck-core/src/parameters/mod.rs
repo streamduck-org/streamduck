@@ -231,8 +231,12 @@ impl Error for ParameterError {}
 /// Shared behavior for handling parameters,
 /// mainly should be used by macros or custom implementations for types.
 pub trait ParameterImpl {
-    /// Lists all parameters
+    /// Gets the parameter
     fn parameter(&self, options: ParameterOptions) -> Parameter;
+    /// Attempts to get parameter list from the parameter
+    fn parameter_list(&self) -> Vec<Parameter> {
+        flatten_parameter(self.parameter(Default::default()))
+    }
     /// Sets parameter's value
     fn set_parameter(&mut self, options: ParameterOptions, value: Parameter) -> Result<(), ParameterError> { Err(ParameterError::NotImplemented) }
     /// Adds new element to an array

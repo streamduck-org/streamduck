@@ -1,9 +1,8 @@
 mod constants;
 
-use proc_macro::{TokenStream as OGTokenStream};
-use proc_macro2::{Ident, Span, TokenStream, TokenTree};
+use proc_macro2::{Ident, TokenStream};
 use quote::{quote, quote_spanned};
-use syn::{parse_macro_input, DeriveInput, Data, Field, Path, Meta, NestedMeta, Lit, Variant};
+use syn::{DeriveInput, Data, Field, Path, Meta, NestedMeta, Lit, Variant, Fields};
 use syn::spanned::Spanned;
 use crate::parameters::constants::Constants;
 
@@ -26,7 +25,6 @@ fn generate_body(cst: &Constants, ident: &Ident, data: &Data) -> Result<TokenStr
     let parameter_type = &cst.parameter_type;
     let parameter_variant_type = &cst.parameter_variant_type;
     let parameter_options_type = &cst.parameter_options_type;
-    let localized_string_type = &cst.localized_string_type;
 
     match data {
         Data::Struct(str) => {
@@ -35,13 +33,19 @@ fn generate_body(cst: &Constants, ident: &Ident, data: &Data) -> Result<TokenStr
                 .map(|(index, x)| generate_get_field(cst,x, index, true))
                 .collect::<Result<Vec<TokenStream>, syn::Error>>()?;
 
+            let vec_tokens = if field_tokens.is_empty() {
+                quote!(<Vec<#parameter_type>>::new())
+            } else {
+                quote!(vec![
+                    #(#field_tokens),*
+                ].into_iter().flatten().collect::<Vec<#parameter_type>>())
+            };
+
             Ok(quote!(
                 fn parameter(&self, options: #parameter_options_type) -> #parameter_type {
                     #parameter_type::new_from_options(
                         &options,
-                        #parameter_variant_type::CollapsableMenu(vec![
-                            #(#field_tokens),*
-                        ].into_iter().flatten().collect())
+                        #parameter_variant_type::CollapsableMenu(#vec_tokens)
                     )
                 }
             ))
@@ -51,16 +55,21 @@ fn generate_body(cst: &Constants, ident: &Ident, data: &Data) -> Result<TokenStr
                 .map(|x| generate_variant(cst, ident, x))
                 .collect::<Result<Vec<TokenStream>, syn::Error>>()?;
 
-            let msg = format!("{:#?}", enm);
+            let vec_tokens = if enum_variants.is_empty() {
+                quote!(<Vec<#parameter_type>>::new())
+            } else {
+                quote!{
+                    match self {
+                        #(#enum_variants),*
+                    }
+                }
+            };
 
             Ok(quote!(
-                #[doc = #msg]
                 fn parameter(&self, options: #parameter_options_type) -> #parameter_type {
                     #parameter_type::new_from_options(
                         &options,
-                        #parameter_variant_type::CollapsableMenu(match self {
-                            #(#enum_variants),*
-                        }.into_iter().flatten().collect())
+                        #parameter_variant_type::CollapsableMenu(#vec_tokens)
                     )
                 }
             ))
@@ -68,6 +77,30 @@ fn generate_body(cst: &Constants, ident: &Ident, data: &Data) -> Result<TokenStr
         Data::Union(union) => {
             Err(syn::Error::new(union.union_token.span, "unions are not supported"))
         }
+    }
+}
+
+fn make_variant_parameters(variant: &Variant) -> TokenStream {
+    match &variant.fields {
+        Fields::Named(fields) => {
+            let idents: Vec<Ident> = fields.named.iter()
+                .map(|x| x.ident.clone().unwrap())
+                .collect();
+
+            quote!({#(#idents),*})
+        }
+        Fields::Unnamed(fields) => {
+            let idents: Vec<Ident> = fields.unnamed.iter()
+                .enumerate()
+                .map(|(index, f)| Ident::new(
+                    &format!("_{}", index),
+                    f.span()
+                ))
+                .collect();
+
+            quote!((#(#idents),*))
+        }
+        Fields::Unit => quote!()
     }
 }
 
@@ -79,10 +112,20 @@ fn generate_variant(cst: &Constants, enum_ident: &Ident, variant: &Variant) -> R
         .map(|(index, x)| generate_get_field(cst, x, index, false))
         .collect::<Result<Vec<TokenStream>, syn::Error>>()?;
 
-    Ok(quote!{
-        #enum_ident::#variant_ident => vec![
+    let param_tokens = make_variant_parameters(variant);
+
+    let parameter_type = &cst.parameter_type;
+
+    let vec_tokens = if field_tokens.is_empty() {
+        quote!(<Vec<#parameter_type>>::new())
+    } else {
+        quote!(vec![
             #(#field_tokens),*
-        ].into_iter().flatten().collect()
+        ].into_iter().flatten().collect::<Vec<#parameter_type>>())
+    };
+
+    Ok(quote!{
+        #enum_ident::#variant_ident #param_tokens => #vec_tokens
     })
 }
 
@@ -98,7 +141,7 @@ fn check_path(search: &str, path: &Path) -> bool {
     false
 }
 
-fn infer_options(cst: &Constants, ident: &Ident, field: &Field, field_index: usize) -> Result<(TokenStream, bool), syn::Error> {
+fn infer_options(cst: &Constants, ident: &Ident, field: &Field) -> Result<(TokenStream, bool), syn::Error> {
     let ident = ident.to_string();
 
     let mut should_flatten = false;
@@ -221,10 +264,14 @@ fn infer_options(cst: &Constants, ident: &Ident, field: &Field, field_index: usi
 
 fn generate_get_field(cst: &Constants, field: &Field, field_index: usize, use_self: bool) -> Result<TokenStream, syn::Error> {
     let ident = field.ident.clone().unwrap_or_else(|| {
-        Ident::new(&field_index.to_string(), field.span())
+        Ident::new(&if use_self {
+            field_index.to_string()
+        } else {
+            format!("_{}", field_index)
+        }, field.span())
     });
 
-    let (options, flatten) = infer_options(cst, &ident, field, field_index)?;
+    let (options, flatten) = infer_options(cst, &ident, field)?;
 
     let field_type = &field.ty;
     let field_type_span = field_type.span();

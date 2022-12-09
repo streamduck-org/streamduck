@@ -1,7 +1,7 @@
 use streamduck_core::parameters::{Color, DynamicChoice, ParameterImpl};
 
 #[derive(ParameterImpl, Default)]
-struct RendererParameters {
+pub struct RendererParameters {
     background_parameters: BackgroundParams,
     text_parameters: TextParams,
     caching: bool
@@ -21,7 +21,8 @@ enum BackgroundType {
     HorizontalGradient {
         start_color: Color,
         end_color: Color
-    }
+    },
+    Test(Color)
 }
 
 impl Default for BackgroundType {
