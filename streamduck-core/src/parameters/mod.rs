@@ -69,6 +69,16 @@ impl Parameter {
         }
     }
 
+    /// Creates new parameter taking name, display name and description from options
+    pub fn new_from_options(options: &ParameterOptions, variant: ParameterVariant) -> Parameter {
+        Self::new(
+            &options.name,
+            LocalizedString::new(&options.display_name),
+            LocalizedString::new(&options.description),
+            variant
+        )
+    }
+
     /// Creates new parameter with localized strings derived from localization key
     ///
     /// display_name = localization_key + ".name"
@@ -115,7 +125,28 @@ pub enum ParameterVariant {
         /// If the field should appear disabled
         disabled: bool,
         /// Value for the integer input field
-        value: i64
+        value: i32
+    },
+    /// Displays 2 integer input fields
+    Integer2Input {
+        /// If the field should appear disabled
+        disabled: bool,
+        /// Value for the integer input field
+        value: (i32, i32)
+    },
+    /// Displays positive integer input field
+    PositiveIntegerInput {
+        /// If the field should appear disabled
+        disabled: bool,
+        /// Value for the positive integer input field
+        value: u32
+    },
+    /// Displays 2 positive integer input fields
+    PositiveInteger2Input {
+        /// If the field should appear disabled
+        disabled: bool,
+        /// Value for the positive integer input field
+        value: (u32, u32)
     },
     /// Displays real number input field
     NumberInput {
@@ -123,6 +154,13 @@ pub enum ParameterVariant {
         disabled: bool,
         /// Value for the real number input field
         value: f64
+    },
+    /// Displays 2 real number input fields
+    Number2Input {
+        /// If the field should appear disabled
+        disabled: bool,
+        /// Value for the real number input field
+        value: (f64, f64)
     },
     /// Displays a checkbox
     Checkbox {
@@ -146,6 +184,13 @@ pub enum ParameterVariant {
         choices: Vec<String>,
         /// Current choice
         value: String
+    },
+    /// Displays color picker
+    Color {
+        /// If the field should appear disabled
+        disabled: bool,
+        /// Color value
+        value: Color,
     }
 }
 
@@ -183,74 +228,6 @@ impl Display for ParameterError {
 
 impl Error for ParameterError {}
 
-impl From<i64> for ParameterVariant {
-    fn from(i: i64) -> Self {
-        Self::IntegerInput {
-            disabled: false,
-            value: i
-        }
-    }
-}
-
-impl From<f64> for ParameterVariant {
-    fn from(f: f64) -> Self {
-        Self::NumberInput {
-            disabled: false,
-            value: f
-        }
-    }
-}
-
-impl From<String> for ParameterVariant {
-    fn from(s: String) -> Self {
-        Self::TextInput {
-            disabled: false,
-            value: s
-        }
-    }
-}
-
-impl TryFrom<ParameterVariant> for i64 {
-    type Error = ParameterError;
-
-    fn try_from(value: ParameterVariant) -> Result<Self, Self::Error> {
-        if let ParameterVariant::IntegerInput {value, ..} = value {
-            Ok(value)
-        } else {
-            Err(ParameterError::WrongVariant)
-        }
-    }
-}
-
-impl TryFrom<ParameterVariant> for f64 {
-    type Error = ParameterError;
-
-    fn try_from(value: ParameterVariant) -> Result<Self, Self::Error> {
-        if let ParameterVariant::NumberInput {value, ..} = value {
-            Ok(value)
-        } else {
-            Err(ParameterError::WrongVariant)
-        }
-    }
-}
-
-impl TryFrom<ParameterVariant> for String {
-    type Error = ParameterError;
-
-    fn try_from(value: ParameterVariant) -> Result<Self, Self::Error> {
-        match value {
-            ParameterVariant::Label(value) |
-            ParameterVariant::TextInput { value, .. } => {
-                Ok(value)
-            }
-
-            _ => {
-                Err(ParameterError::WrongVariant)
-            }
-        }
-    }
-}
-
 /// Shared behavior for handling parameters,
 /// mainly should be used by macros or custom implementations for types.
 pub trait ParameterImpl {
@@ -267,6 +244,7 @@ pub trait ParameterImpl {
 }
 
 /// Additional options that could be asked for upon retrieval of the parameter
+#[derive(Clone, Default)]
 pub struct ParameterOptions {
     /// Name that was assigned to the parameter, is empty if the parameter is not part of a struct
     pub name: String,
@@ -281,7 +259,7 @@ pub struct ParameterOptions {
 }
 
 /// Option that tells which kind of variant the parameter should be retrieved as
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 pub enum PreferredParameterVariant {
     /// There's no preference on what variant should be returned
     NoPreference,
@@ -304,17 +282,29 @@ impl Default for PreferredParameterVariant {
 }
 
 /// Type that could be used for ParameterImpl macro to define dynamic choice parameter
+#[derive(Default)]
 pub struct DynamicChoice {
     choices: Vec<String>,
     value: String
 }
 
-impl ParameterImpl for i64 {
+impl ParameterImpl for DynamicChoice {
     fn parameter(&self, options: ParameterOptions) -> Parameter {
-        Parameter::new(
-            &options.name,
-            LocalizedString::new(&options.display_name),
-            LocalizedString::new(&options.description),
+        Parameter::new_from_options(
+            &options,
+            ParameterVariant::Choice {
+                disabled: options.disabled,
+                choices: self.choices.clone(),
+                value: self.value.clone()
+            }
+        )
+    }
+}
+
+impl ParameterImpl for i32 {
+    fn parameter(&self, options: ParameterOptions) -> Parameter {
+        Parameter::new_from_options(
+            &options,
             ParameterVariant::IntegerInput {
                 disabled: options.disabled,
                 value: *self
@@ -322,26 +312,60 @@ impl ParameterImpl for i64 {
         )
     }
 
-    fn set_parameter(&mut self, options: ParameterOptions, value: Parameter) -> Result<(), ParameterError> {
-        if let ParameterVariant::IntegerInput {value, disabled} = value.variant {
-            if options.disabled == disabled && disabled {
-                Err(ParameterError::ParameterIsDisabled)
-            } else {
-                *self = value;
-                Ok(())
+    // fn set_parameter(&mut self, options: ParameterOptions, value: Parameter) -> Result<(), ParameterError> {
+    //     if let ParameterVariant::IntegerInput {value, disabled} = value.variant {
+    //         if options.disabled == disabled && disabled {
+    //             Err(ParameterError::ParameterIsDisabled)
+    //         } else {
+    //             *self = value;
+    //             Ok(())
+    //         }
+    //     } else {
+    //         Err(ParameterError::WrongVariant)
+    //     }
+    // }
+}
+
+impl ParameterImpl for (i32, i32) {
+    fn parameter(&self, options: ParameterOptions) -> Parameter {
+        Parameter::new_from_options(
+            &options,
+            ParameterVariant::Integer2Input {
+                disabled: options.disabled,
+                value: *self
             }
-        } else {
-            Err(ParameterError::WrongVariant)
-        }
+        )
+    }
+}
+
+impl ParameterImpl for u32 {
+    fn parameter(&self, options: ParameterOptions) -> Parameter {
+        Parameter::new_from_options(
+            &options,
+            ParameterVariant::PositiveIntegerInput {
+                disabled: options.disabled,
+                value: *self
+            }
+        )
+    }
+}
+
+impl ParameterImpl for (u32, u32) {
+    fn parameter(&self, options: ParameterOptions) -> Parameter {
+        Parameter::new_from_options(
+            &options,
+            ParameterVariant::PositiveInteger2Input {
+                disabled: options.disabled,
+                value: *self
+            }
+        )
     }
 }
 
 impl ParameterImpl for f64 {
     fn parameter(&self, options: ParameterOptions) -> Parameter {
-        Parameter::new(
-            &options.name,
-            LocalizedString::new(&options.display_name),
-            LocalizedString::new(&options.description),
+        Parameter::new_from_options(
+            &options,
             ParameterVariant::NumberInput {
                 disabled: options.disabled,
                 value: *self
@@ -349,17 +373,41 @@ impl ParameterImpl for f64 {
         )
     }
 
-    fn set_parameter(&mut self, options: ParameterOptions, value: Parameter) -> Result<(), ParameterError> {
-        if let ParameterVariant::NumberInput {value, disabled} = value.variant {
-            if options.disabled == disabled && disabled {
-                Err(ParameterError::ParameterIsDisabled)
-            } else {
-                *self = value;
-                Ok(())
+    // fn set_parameter(&mut self, options: ParameterOptions, value: Parameter) -> Result<(), ParameterError> {
+    //     if let ParameterVariant::NumberInput {value, disabled} = value.variant {
+    //         if options.disabled == disabled && disabled {
+    //             Err(ParameterError::ParameterIsDisabled)
+    //         } else {
+    //             *self = value;
+    //             Ok(())
+    //         }
+    //     } else {
+    //         Err(ParameterError::WrongVariant)
+    //     }
+    // }
+}
+
+impl ParameterImpl for (f64, f64) {
+    fn parameter(&self, options: ParameterOptions) -> Parameter {
+        Parameter::new_from_options(
+            &options,
+            ParameterVariant::Number2Input {
+                disabled: options.disabled,
+                value: *self
             }
-        } else {
-            Err(ParameterError::WrongVariant)
-        }
+        )
+    }
+}
+
+impl ParameterImpl for Color {
+    fn parameter(&self, options: ParameterOptions) -> Parameter {
+        Parameter::new_from_options(
+            &options,
+            ParameterVariant::Color {
+                disabled: options.disabled,
+                value: *self
+            }
+        )
     }
 }
 
@@ -367,18 +415,14 @@ impl ParameterImpl for String {
     fn parameter(&self, options: ParameterOptions) -> Parameter {
         match options.preferred_variant {
             PreferredParameterVariant::Label => {
-                Parameter::new(
-                    &options.name,
-                    LocalizedString::new(&options.display_name),
-                    LocalizedString::new(&options.description),
+                Parameter::new_from_options(
+                    &options,
                     ParameterVariant::Label(self.clone())
                 )
             }
             _ => {
-                Parameter::new(
-                    &options.name,
-                    LocalizedString::new(&options.display_name),
-                    LocalizedString::new(&options.description),
+                Parameter::new_from_options(
+                    &options,
                     ParameterVariant::TextInput {
                         disabled: options.disabled,
                         value: self.clone()
@@ -388,20 +432,131 @@ impl ParameterImpl for String {
         }
     }
 
-    fn set_parameter(&mut self, options: ParameterOptions, value: Parameter) -> Result<(), ParameterError> {
-        if let ParameterVariant::TextInput {value, disabled} = value.variant {
-            if options.preferred_variant == PreferredParameterVariant::Label {
-                Err(ParameterError::WrongVariant)
-            } else {
-                if options.disabled == disabled && disabled {
-                    Err(ParameterError::ParameterIsDisabled)
-                } else {
-                    *self = value;
-                    Ok(())
-                }
+    // fn set_parameter(&mut self, options: ParameterOptions, value: Parameter) -> Result<(), ParameterError> {
+    //     if let ParameterVariant::TextInput {value, disabled} = value.variant {
+    //         if let PreferredParameterVariant::NoPreference | PreferredParameterVariant::TextInput = options.preferred_variant {
+    //             if options.disabled == disabled && disabled {
+    //                 Err(ParameterError::ParameterIsDisabled)
+    //             } else {
+    //                 *self = value;
+    //                 Ok(())
+    //             }
+    //         } else {
+    //             Err(ParameterError::WrongVariant)
+    //         }
+    //     } else {
+    //         Err(ParameterError::WrongVariant)
+    //     }
+    // }
+}
+
+impl ParameterImpl for bool {
+    fn parameter(&self, options: ParameterOptions) -> Parameter {
+        match options.preferred_variant {
+            PreferredParameterVariant::Checkbox => {
+                Parameter::new_from_options(
+                    &options,
+                    ParameterVariant::Checkbox {
+                        disabled: options.disabled,
+                        value: *self
+                    }
+                )
             }
-        } else {
-            Err(ParameterError::WrongVariant)
+            _ => {
+                Parameter::new_from_options(
+                    &options,
+                    ParameterVariant::Toggle {
+                        disabled: options.disabled,
+                        value: *self
+                    }
+                )
+            }
         }
+    }
+
+    // fn set_parameter(&mut self, options: ParameterOptions, value: Parameter) -> Result<(), ParameterError> {
+    //     if let ParameterVariant::Checkbox {value, disabled} = value.variant {
+    //         if let PreferredParameterVariant::Checkbox = options.preferred_variant {
+    //             if options.disabled == disabled && disabled {
+    //                 Err(ParameterError::ParameterIsDisabled)
+    //             } else {
+    //                 *self = value;
+    //                 Ok(())
+    //             }
+    //         } else {
+    //             Err(ParameterError::WrongVariant)
+    //         }
+    //     } else if let ParameterVariant::Toggle { value, disabled } = value.variant {
+    //         if let PreferredParameterVariant::Toggle | PreferredParameterVariant::NoPreference = options.preferred_variant {
+    //             if options.disabled == disabled && disabled {
+    //                 Err(ParameterError::ParameterIsDisabled)
+    //             } else {
+    //                 *self = value;
+    //                 Ok(())
+    //             }
+    //         } else {
+    //             Err(ParameterError::WrongVariant)
+    //         }
+    //     } else {
+    //         Err(ParameterError::WrongVariant)
+    //     }
+    // }
+}
+
+impl<T: ParameterImpl + Default> ParameterImpl for Option<T> {
+    fn parameter(&self, options: ParameterOptions) -> Parameter {
+        let mut params = self.as_ref().map_or_else(
+            || vec![],
+            |x| flatten_parameter(x.parameter(Default::default()))
+        );
+
+        match options.preferred_variant {
+            PreferredParameterVariant::Checkbox => {
+                params.insert(0, Parameter::new_from_options(
+                    &options,
+                    ParameterVariant::Checkbox {
+                        disabled: options.disabled,
+                        value: self.is_some()
+                    }
+                ));
+            }
+
+            PreferredParameterVariant::Toggle => {
+                params.insert(0, Parameter::new_from_options(
+                    &options,
+                    ParameterVariant::Toggle {
+                        disabled: options.disabled,
+                        value: self.is_some()
+                    }
+                ));
+            }
+
+            _ => {}
+        }
+
+        Parameter::new_from_options(
+            &options,
+            ParameterVariant::CollapsableMenu(params)
+        )
+    }
+    //
+    // fn set_parameter(&mut self, options: ParameterOptions, value: Parameter) -> Result<(), ParameterError> {
+    //     if value.name == options.name { // Setting toggle in this case if there's one
+    //
+    //     }
+    //
+    //     Ok(())
+    // }
+}
+
+impl<T: ParameterImpl + Default> ParameterImpl for Vec<T> {
+    fn parameter(&self, options: ParameterOptions) -> Parameter {
+        Parameter::new_from_options(
+            &options,
+            ParameterVariant::Array(self.clone().into_iter()
+                .map(|x| flatten_parameter(x.parameter(Default::default())))
+                .collect()
+            )
+        )
     }
 }
