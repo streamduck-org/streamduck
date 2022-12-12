@@ -232,11 +232,7 @@ impl Error for ParameterError {}
 /// mainly should be used by macros or custom implementations for types.
 pub trait ParameterImpl {
     /// Gets the parameter
-    fn parameter(&self, options: ParameterOptions) -> Parameter;
-    /// Attempts to get parameter list from the parameter
-    fn parameter_list(&self) -> Vec<Parameter> {
-        flatten_parameter(self.parameter(Default::default()))
-    }
+    fn parameter(&self, options: ParameterOptions) -> ReturnedParameter;
     /// Sets parameter's value
     fn set_parameter(&mut self, options: ParameterOptions, value: Parameter) -> Result<(), ParameterError> { Err(ParameterError::NotImplemented) }
     /// Adds new element to an array
@@ -245,6 +241,25 @@ pub trait ParameterImpl {
     fn remove_element(&mut self, options: ParameterOptions, index: usize) -> Result<(), ParameterError> { Err(ParameterError::NotImplemented) }
     /// Moves element in the array
     fn move_element(&mut self, options: ParameterOptions, from_index: usize, to_index: usize) -> Result<(), ParameterError> { Err(ParameterError::NotImplemented) }
+}
+
+/// Returned parameter by [ParameterImpl]
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum ReturnedParameter {
+    /// Single parameter, nothing nested here
+    Single(Parameter),
+    /// Multiple parameters, nested stuff
+    Multiple(Vec<Parameter>)
+}
+
+impl ReturnedParameter {
+    /// Returns vec of parameters
+    pub fn as_vec(&self) -> Vec<Parameter> {
+        match self {
+            ReturnedParameter::Single(p) => vec![p.clone()],
+            ReturnedParameter::Multiple(l) => l.clone()
+        }
+    }
 }
 
 /// Additional options that could be asked for upon retrieval of the parameter
@@ -293,27 +308,27 @@ pub struct DynamicChoice {
 }
 
 impl ParameterImpl for DynamicChoice {
-    fn parameter(&self, options: ParameterOptions) -> Parameter {
-        Parameter::new_from_options(
+    fn parameter(&self, options: ParameterOptions) -> ReturnedParameter {
+        ReturnedParameter::Single(Parameter::new_from_options(
             &options,
             ParameterVariant::Choice {
                 disabled: options.disabled,
                 choices: self.choices.clone(),
                 value: self.value.clone()
             }
-        )
+        ))
     }
 }
 
 impl ParameterImpl for i32 {
-    fn parameter(&self, options: ParameterOptions) -> Parameter {
-        Parameter::new_from_options(
+    fn parameter(&self, options: ParameterOptions) -> ReturnedParameter {
+        ReturnedParameter::Single(Parameter::new_from_options(
             &options,
             ParameterVariant::IntegerInput {
                 disabled: options.disabled,
                 value: *self
             }
-        )
+        ))
     }
 
     // fn set_parameter(&mut self, options: ParameterOptions, value: Parameter) -> Result<(), ParameterError> {
@@ -331,50 +346,50 @@ impl ParameterImpl for i32 {
 }
 
 impl ParameterImpl for (i32, i32) {
-    fn parameter(&self, options: ParameterOptions) -> Parameter {
-        Parameter::new_from_options(
+    fn parameter(&self, options: ParameterOptions) -> ReturnedParameter {
+        ReturnedParameter::Single(Parameter::new_from_options(
             &options,
             ParameterVariant::Integer2Input {
                 disabled: options.disabled,
                 value: *self
             }
-        )
+        ))
     }
 }
 
 impl ParameterImpl for u32 {
-    fn parameter(&self, options: ParameterOptions) -> Parameter {
-        Parameter::new_from_options(
+    fn parameter(&self, options: ParameterOptions) -> ReturnedParameter {
+        ReturnedParameter::Single(Parameter::new_from_options(
             &options,
             ParameterVariant::PositiveIntegerInput {
                 disabled: options.disabled,
                 value: *self
             }
-        )
+        ))
     }
 }
 
 impl ParameterImpl for (u32, u32) {
-    fn parameter(&self, options: ParameterOptions) -> Parameter {
-        Parameter::new_from_options(
+    fn parameter(&self, options: ParameterOptions) -> ReturnedParameter {
+        ReturnedParameter::Single(Parameter::new_from_options(
             &options,
             ParameterVariant::PositiveInteger2Input {
                 disabled: options.disabled,
                 value: *self
             }
-        )
+        ))
     }
 }
 
 impl ParameterImpl for f64 {
-    fn parameter(&self, options: ParameterOptions) -> Parameter {
-        Parameter::new_from_options(
+    fn parameter(&self, options: ParameterOptions) -> ReturnedParameter {
+        ReturnedParameter::Single(Parameter::new_from_options(
             &options,
             ParameterVariant::NumberInput {
                 disabled: options.disabled,
                 value: *self
             }
-        )
+        ))
     }
 
     // fn set_parameter(&mut self, options: ParameterOptions, value: Parameter) -> Result<(), ParameterError> {
@@ -392,32 +407,32 @@ impl ParameterImpl for f64 {
 }
 
 impl ParameterImpl for (f64, f64) {
-    fn parameter(&self, options: ParameterOptions) -> Parameter {
-        Parameter::new_from_options(
+    fn parameter(&self, options: ParameterOptions) -> ReturnedParameter {
+        ReturnedParameter::Single(Parameter::new_from_options(
             &options,
             ParameterVariant::Number2Input {
                 disabled: options.disabled,
                 value: *self
             }
-        )
+        ))
     }
 }
 
 impl ParameterImpl for Color {
-    fn parameter(&self, options: ParameterOptions) -> Parameter {
-        Parameter::new_from_options(
+    fn parameter(&self, options: ParameterOptions) -> ReturnedParameter {
+        ReturnedParameter::Single(Parameter::new_from_options(
             &options,
             ParameterVariant::Color {
                 disabled: options.disabled,
                 value: *self
             }
-        )
+        ))
     }
 }
 
 impl ParameterImpl for String {
-    fn parameter(&self, options: ParameterOptions) -> Parameter {
-        match options.preferred_variant {
+    fn parameter(&self, options: ParameterOptions) -> ReturnedParameter {
+        ReturnedParameter::Single(match options.preferred_variant {
             PreferredParameterVariant::Label => {
                 Parameter::new_from_options(
                     &options,
@@ -433,7 +448,7 @@ impl ParameterImpl for String {
                     }
                 )
             }
-        }
+        })
     }
 
     // fn set_parameter(&mut self, options: ParameterOptions, value: Parameter) -> Result<(), ParameterError> {
@@ -455,8 +470,8 @@ impl ParameterImpl for String {
 }
 
 impl ParameterImpl for bool {
-    fn parameter(&self, options: ParameterOptions) -> Parameter {
-        match options.preferred_variant {
+    fn parameter(&self, options: ParameterOptions) -> ReturnedParameter {
+        ReturnedParameter::Single(match options.preferred_variant {
             PreferredParameterVariant::Checkbox => {
                 Parameter::new_from_options(
                     &options,
@@ -475,7 +490,7 @@ impl ParameterImpl for bool {
                     }
                 )
             }
-        }
+        })
     }
 
     // fn set_parameter(&mut self, options: ParameterOptions, value: Parameter) -> Result<(), ParameterError> {
@@ -508,10 +523,10 @@ impl ParameterImpl for bool {
 }
 
 impl<T: ParameterImpl + Default> ParameterImpl for Option<T> {
-    fn parameter(&self, options: ParameterOptions) -> Parameter {
+    fn parameter(&self, options: ParameterOptions) -> ReturnedParameter {
         let mut params = self.as_ref().map_or_else(
             || vec![],
-            |x| flatten_parameter(x.parameter(Default::default()))
+            |x| x.parameter(Default::default()).as_vec()
         );
 
         match options.preferred_variant {
@@ -538,10 +553,7 @@ impl<T: ParameterImpl + Default> ParameterImpl for Option<T> {
             _ => {}
         }
 
-        Parameter::new_from_options(
-            &options,
-            ParameterVariant::CollapsableMenu(params)
-        )
+        ReturnedParameter::Multiple(params)
     }
     //
     // fn set_parameter(&mut self, options: ParameterOptions, value: Parameter) -> Result<(), ParameterError> {
@@ -554,13 +566,13 @@ impl<T: ParameterImpl + Default> ParameterImpl for Option<T> {
 }
 
 impl<T: ParameterImpl + Default> ParameterImpl for Vec<T> {
-    fn parameter(&self, options: ParameterOptions) -> Parameter {
-        Parameter::new_from_options(
+    fn parameter(&self, options: ParameterOptions) -> ReturnedParameter {
+        ReturnedParameter::Single(Parameter::new_from_options(
             &options,
             ParameterVariant::Array(self.clone().into_iter()
-                .map(|x| flatten_parameter(x.parameter(Default::default())))
+                .map(|x| x.parameter(Default::default()).as_vec())
                 .collect()
             )
-        )
+        ))
     }
 }
