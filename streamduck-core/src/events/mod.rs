@@ -1,6 +1,6 @@
+use futures::future::join_all;
 use std::any::Any;
 use std::sync::Arc;
-use futures::future::join_all;
 use tracing::trace;
 
 use serde::de::DeserializeOwned;
@@ -16,8 +16,7 @@ pub mod listeners;
 pub mod util;
 
 /// Event trait
-pub trait Event: Any + Serialize + DeserializeOwned
-                + Clone + Send + Sync {
+pub trait Event: Any + Serialize + DeserializeOwned + Clone + Send + Sync {
     /// Name of the event
     fn name() -> String;
 } // Events should be thread-safe
@@ -42,14 +41,14 @@ impl<T: Event> EventInstance for T {
 
 /// Event dispatcher
 pub struct EventDispatcher {
-    listeners: Mutex<Vec<(ListensFor, WeakEventListener)>>
+    listeners: Mutex<Vec<(ListensFor, WeakEventListener)>>,
 }
 
 impl EventDispatcher {
     /// Creates a new dispatcher
     pub fn new() -> Arc<EventDispatcher> {
         Arc::new(EventDispatcher {
-            listeners: Default::default()
+            listeners: Default::default(),
         })
     }
 
@@ -74,7 +73,6 @@ impl EventDispatcher {
         lock.push((listens_for, weak));
     }
 
-
     /// Invokes listeners with provided event
     pub async fn invoke<Ev: EventInstance + Event + std::fmt::Debug>(&self, event: Ev) {
         trace!(?event);
@@ -84,7 +82,8 @@ impl EventDispatcher {
 
         let type_id = event.type_id();
 
-        let listeners = lock.iter()
+        let listeners = lock
+            .iter()
             .filter(|(l, _)| l & type_id)
             .map(|(_, weak)| async {
                 if let Some(listener) = weak.upgrade() {

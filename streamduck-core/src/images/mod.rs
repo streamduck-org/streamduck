@@ -8,7 +8,7 @@ pub enum CoreImage {
     /// Single image
     SingleImage(DynamicImage),
     /// Animated image
-    AnimatedImage(AnimatedImage)
+    AnimatedImage(AnimatedImage),
 }
 
 /// Animated image
@@ -22,5 +22,5 @@ pub struct AnimationFrame {
     /// Index of the frame
     index: usize,
     /// Delay of the frame
-    delay: f32
+    delay: f32,
 }

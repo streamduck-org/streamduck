@@ -21,7 +21,11 @@ pub trait Driver: Send + Sync {
     async fn list_devices(&self, hidapi: &HidApi) -> Vec<DeviceMetadata>;
 
     /// Connect to the specified device
-    async fn connect_device(&self, hidapi: &HidApi, identifier: String) -> Result<SharedDevice, DriverError>;
+    async fn connect_device(
+        &self,
+        hidapi: &HidApi,
+        identifier: String,
+    ) -> Result<SharedDevice, DriverError>;
 }
 
 /// All possible errors with device drivers
@@ -50,8 +54,6 @@ impl Error for DriverError {}
 /// Driver interface contained in a reference counter
 pub type SharedDriver = Arc<dyn Driver>;
 
-
-
 /// Driver manager
 pub struct DriverManager {
     /// Drivers that were registered in the manager
@@ -65,7 +67,7 @@ impl DriverManager {
     pub fn new() -> Result<Arc<DriverManager>, HidError> {
         Ok(Arc::new(DriverManager {
             drivers: Default::default(),
-            hidapi: HidApi::new()?
+            hidapi: HidApi::new()?,
         }))
     }
 
@@ -82,26 +84,31 @@ impl DriverManager {
 
     /// Lists all found devices by registered drivers
     pub async fn list_devices(&self) -> Vec<DeviceMetadata> {
-        let lists = self.get_drivers().await
+        let lists = self
+            .get_drivers()
+            .await
             .into_iter()
             .map(|x| async move { x.list_devices(&self.hidapi).await });
 
-        join_all(lists).await.into_iter()
-            .flatten()
-            .collect()
+        join_all(lists).await.into_iter().flatten().collect()
     }
 
     /// Connects to a device using specified driver
-    pub async fn connect_device(&self, driver_name: &str, identifier: &str) -> Result<SharedDevice, DriverError> {
+    pub async fn connect_device(
+        &self,
+        driver_name: &str,
+        identifier: &str,
+    ) -> Result<SharedDevice, DriverError> {
         let lock = self.drivers.read().await;
 
         if let Some(driver) = lock.get(driver_name).cloned() {
             drop(lock); // Who knows what the driver might do
 
-            driver.connect_device(&self.hidapi, identifier.to_string()).await
+            driver
+                .connect_device(&self.hidapi, identifier.to_string())
+                .await
         } else {
             Err(DriverError::NoSuchDriver)
         }
     }
 }
-

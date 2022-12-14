@@ -1,4 +1,4 @@
-use proc_macro2::{TokenStream};
+use proc_macro2::TokenStream;
 use quote::quote;
 
 pub struct Constants {
@@ -20,7 +20,9 @@ impl Constants {
             returned_parameter_type: quote!(::streamduck_core::parameters::ReturnedParameter),
             flatten_parameter_function: quote!(::streamduck_core::parameters::flatten_parameter),
             parameter_variant_type: quote!(::streamduck_core::parameters::ParameterVariant),
-            preferred_parameter_variant_type: quote!(::streamduck_core::parameters::PreferredParameterVariant),
+            preferred_parameter_variant_type: quote!(
+                ::streamduck_core::parameters::PreferredParameterVariant
+            ),
             parameter_options_type: quote!(::streamduck_core::parameters::ParameterOptions),
             localized_string_type: quote!(::streamduck_core::localization::LocalizedString),
         }

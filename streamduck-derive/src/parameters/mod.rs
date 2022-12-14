@@ -1,10 +1,10 @@
 mod constants;
 
+use crate::parameters::constants::Constants;
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, quote_spanned};
-use syn::{DeriveInput, Data, Field, Path, Meta, NestedMeta, Lit, Variant, Fields};
 use syn::spanned::Spanned;
-use crate::parameters::constants::Constants;
+use syn::{Data, DeriveInput, Field, Fields, Lit, Meta, NestedMeta, Path, Variant};
 
 pub fn generate_impl(input: DeriveInput) -> Result<TokenStream, syn::Error> {
     let cst = Constants::new();
@@ -14,7 +14,7 @@ pub fn generate_impl(input: DeriveInput) -> Result<TokenStream, syn::Error> {
 
     let body = generate_body(&cst, &ident, &input.data)?;
 
-    Ok(quote!{
+    Ok(quote! {
         impl #trait_type for #ident {
             #body
         }
@@ -22,43 +22,48 @@ pub fn generate_impl(input: DeriveInput) -> Result<TokenStream, syn::Error> {
 }
 
 fn generate_body(cst: &Constants, ident: &Ident, data: &Data) -> Result<TokenStream, syn::Error> {
+    let returned_parameter_type = &cst.returned_parameter_type;
     let parameter_type = &cst.parameter_type;
     let parameter_variant_type = &cst.parameter_variant_type;
     let parameter_options_type = &cst.parameter_options_type;
 
     match data {
         Data::Struct(str) => {
-            let field_tokens = str.fields.iter()
+            let field_tokens = str
+                .fields
+                .iter()
                 .enumerate()
-                .map(|(index, x)| generate_get_field(cst,x, index, true))
+                .map(|(index, x)| generate_get_field(cst, x, index, true))
                 .collect::<Result<Vec<TokenStream>, syn::Error>>()?;
 
             let vec_tokens = if field_tokens.is_empty() {
-                quote!(<Vec<#parameter_type>>::new())
+                quote!(<Vec<#returned_parameter_type>>::new())
             } else {
                 quote!(vec![
                     #(#field_tokens),*
-                ].into_iter().flatten().collect::<Vec<#parameter_type>>())
+                ].into_iter().flatten().collect::<Vec<#returned_parameter_type>>())
             };
 
             Ok(quote!(
-                fn parameter(&self, options: #parameter_options_type) -> #parameter_type {
+                fn parameter(&self, options: #parameter_options_type) -> #returned_parameter_type {
                     #parameter_type::new_from_options(
                         &options,
                         #parameter_variant_type::CollapsableMenu(#vec_tokens)
                     )
                 }
             ))
-        },
+        }
         Data::Enum(enm) => {
-            let enum_variants = enm.variants.iter()
+            let enum_variants = enm
+                .variants
+                .iter()
                 .map(|x| generate_variant(cst, ident, x))
                 .collect::<Result<Vec<TokenStream>, syn::Error>>()?;
 
             let vec_tokens = if enum_variants.is_empty() {
-                quote!(<Vec<#parameter_type>>::new())
+                quote!(<Vec<#returned_parameter_type>>::new())
             } else {
-                quote!{
+                quote! {
                     match self {
                         #(#enum_variants),*
                     }
@@ -66,48 +71,56 @@ fn generate_body(cst: &Constants, ident: &Ident, data: &Data) -> Result<TokenStr
             };
 
             Ok(quote!(
-                fn parameter(&self, options: #parameter_options_type) -> #parameter_type {
+                fn parameter(&self, options: #parameter_options_type) -> #returned_parameter_type {
                     #parameter_type::new_from_options(
                         &options,
                         #parameter_variant_type::CollapsableMenu(#vec_tokens)
                     )
                 }
             ))
-        },
-        Data::Union(union) => {
-            Err(syn::Error::new(union.union_token.span, "unions are not supported"))
         }
+        Data::Union(union) => Err(syn::Error::new(
+            union.union_token.span,
+            "unions are not supported",
+        )),
     }
 }
 
 fn make_variant_parameters(variant: &Variant) -> TokenStream {
     match &variant.fields {
         Fields::Named(fields) => {
-            let idents: Vec<Ident> = fields.named.iter()
+            let idents: Vec<Ident> = fields
+                .named
+                .iter()
                 .map(|x| x.ident.clone().unwrap())
                 .collect();
 
             quote!({#(#idents),*})
         }
         Fields::Unnamed(fields) => {
-            let idents: Vec<Ident> = fields.unnamed.iter()
+            let idents: Vec<Ident> = fields
+                .unnamed
+                .iter()
                 .enumerate()
-                .map(|(index, f)| Ident::new(
-                    &format!("_{}", index),
-                    f.span()
-                ))
+                .map(|(index, f)| Ident::new(&format!("_{}", index), f.span()))
                 .collect();
 
             quote!((#(#idents),*))
         }
-        Fields::Unit => quote!()
+        Fields::Unit => quote!(),
     }
 }
 
-fn generate_variant(cst: &Constants, enum_ident: &Ident, variant: &Variant) -> Result<TokenStream, syn::Error> {
+fn generate_variant(
+    cst: &Constants,
+    enum_ident: &Ident,
+    variant: &Variant,
+) -> Result<TokenStream, syn::Error> {
     let variant_ident = &variant.ident;
 
-    let field_tokens = variant.fields.iter()
+    let field_tokens = variant
+        .fields
+        .iter()
         .enumerate()
         .map(|(index, x)| generate_get_field(cst, x, index, false))
         .collect::<Result<Vec<TokenStream>, syn::Error>>()?;
@@ -124,7 +137,7 @@ fn generate_variant(cst: &Constants, enum_ident: &Ident, variant: &Variant) -> R
         ].into_iter().flatten().collect::<Vec<#parameter_type>>())
     };
 
-    Ok(quote!{
+    Ok(quote! {
         #enum_ident::#variant_ident #param_tokens => #vec_tokens
     })
 }
@@ -141,7 +154,11 @@ fn check_path(search: &str, path: &Path) -> bool {
     false
 }
 
-fn infer_options(cst: &Constants, ident: &Ident, field: &Field) -> Result<(TokenStream, bool), syn::Error> {
+fn infer_options(
+    cst: &Constants,
+    ident: &Ident,
+    field: &Field,
+) -> Result<(TokenStream, bool), syn::Error> {
     let ident = ident.to_string();
 
     let mut should_flatten = false;
@@ -161,114 +178,149 @@ fn infer_options(cst: &Constants, ident: &Ident, field: &Field) -> Result<(Token
             if check_path("param", &meta_list.path) {
                 for nested_meta in &meta_list.nested {
                     match nested_meta {
-                        NestedMeta::Meta(meta) => {
-                            match meta {
-                                Meta::Path(path) => {
-                                    let ident = &path.segments.first()
-                                        .map_or_else(
-                                            || Err(syn::Error::new(path.span(), "cannot find segment")),
-                                            |s| Ok(s)
-                                        )?.ident;
+                        NestedMeta::Meta(meta) => match meta {
+                            Meta::Path(path) => {
+                                let ident = &path
+                                    .segments
+                                    .first()
+                                    .map_or_else(
+                                        || Err(syn::Error::new(path.span(), "cannot find segment")),
+                                        |s| Ok(s),
+                                    )?
+                                    .ident;
 
-                                    let ident_str = ident.to_string().to_lowercase();
+                                let ident_str = ident.to_string().to_lowercase();
 
-                                    match ident_str.as_str() {
-                                        "disabled" => {
-                                            disabled_field = quote!(true);
-                                        }
-
-                                        "choice" => {
-                                            preference_field = quote!(#preferred_type::Choice);
-                                        }
-
-                                        "label" => {
-                                            preference_field = quote!(#preferred_type::Label);
-                                        }
-
-                                        "textinput" => {
-                                            preference_field = quote!(#preferred_type::TextInput);
-                                        }
-
-                                        "toggle" => {
-                                            preference_field = quote!(#preferred_type::Toggle);
-                                        }
-
-                                        "checkbox" => {
-                                            preference_field = quote!(#preferred_type::Checkbox);
-                                        }
-
-                                        "flatten" => {
-                                            should_flatten = true;
-                                        }
-
-                                        _ => {
-                                            return Err(syn::Error::new(ident.span(), "not supported attribute"))
-                                        }
+                                match ident_str.as_str() {
+                                    "disabled" => {
+                                        disabled_field = quote!(true);
                                     }
-                                }
-                                Meta::List(meta_list) => {
-                                    return Err(syn::Error::new(meta_list.span(), "there's no attributes that use this kind of syntax"))
-                                }
-                                Meta::NameValue(pair) => {
-                                    let ident = &pair.path.segments.first()
-                                        .map_or_else(
-                                            || Err(syn::Error::new(pair.path.span(), "cannot find segment")),
-                                            |s| Ok(s)
-                                        )?.ident;
 
-                                    let ident_str = ident.to_string().to_lowercase();
+                                    "choice" => {
+                                        preference_field = quote!(#preferred_type::Choice);
+                                    }
 
-                                    match ident_str.as_str() {
-                                        "loc_key" => {
-                                            if let Lit::Str(str) = &pair.lit {
-                                                let display_format = format!("{}.name", str.value());
-                                                let desc_format = format!("{}.desc", str.value());
+                                    "label" => {
+                                        preference_field = quote!(#preferred_type::Label);
+                                    }
 
-                                                display_name_field = quote!(#display_format.to_string());
-                                                description_field = quote!(#desc_format.to_string());
-                                            } else {
-                                                return Err(syn::Error::new(pair.lit.span(), "not supported value for this attribute"))
-                                            }
-                                        }
+                                    "textinput" => {
+                                        preference_field = quote!(#preferred_type::TextInput);
+                                    }
 
-                                        _ => {
-                                            return Err(syn::Error::new(ident.span(), "not supported attribute"))
-                                        }
+                                    "toggle" => {
+                                        preference_field = quote!(#preferred_type::Toggle);
+                                    }
+
+                                    "checkbox" => {
+                                        preference_field = quote!(#preferred_type::Checkbox);
+                                    }
+
+                                    "flatten" => {
+                                        should_flatten = true;
+                                    }
+
+                                    _ => {
+                                        return Err(syn::Error::new(
+                                            ident.span(),
+                                            "not supported attribute",
+                                        ))
                                     }
                                 }
                             }
-                        }
+                            Meta::List(meta_list) => {
+                                return Err(syn::Error::new(
+                                    meta_list.span(),
+                                    "there's no attributes that use this kind of syntax",
+                                ))
+                            }
+                            Meta::NameValue(pair) => {
+                                let ident = &pair
+                                    .path
+                                    .segments
+                                    .first()
+                                    .map_or_else(
+                                        || {
+                                            Err(syn::Error::new(
+                                                pair.path.span(),
+                                                "cannot find segment",
+                                            ))
+                                        },
+                                        |s| Ok(s),
+                                    )?
+                                    .ident;
+
+                                let ident_str = ident.to_string().to_lowercase();
+
+                                match ident_str.as_str() {
+                                    "loc_key" => {
+                                        if let Lit::Str(str) = &pair.lit {
+                                            let display_format = format!("{}.name", str.value());
+                                            let desc_format = format!("{}.desc", str.value());
+
+                                            display_name_field =
+                                                quote!(#display_format.to_string());
+                                            description_field = quote!(#desc_format.to_string());
+                                        } else {
+                                            return Err(syn::Error::new(
+                                                pair.lit.span(),
+                                                "not supported value for this attribute",
+                                            ));
+                                        }
+                                    }
+
+                                    _ => {
+                                        return Err(syn::Error::new(
+                                            ident.span(),
+                                            "not supported attribute",
+                                        ))
+                                    }
+                                }
+                            }
+                        },
                         NestedMeta::Lit(literal) => {
-                            return Err(syn::Error::new(literal.span(), "random literals are not allowed"))
+                            return Err(syn::Error::new(
+                                literal.span(),
+                                "random literals are not allowed",
+                            ))
                         }
                     }
                 }
             }
         }
-
-
     }
 
     let options_type = &cst.parameter_options_type;
 
-    Ok((quote!{
-        #options_type {
-            name: #name_field,
-            display_name: #display_name_field,
-            description: #description_field,
-            disabled: #disabled_field,
-            preferred_variant: #preference_field
-        }
-    }, should_flatten))
+    Ok((
+        quote! {
+            #options_type {
+                name: #name_field,
+                display_name: #display_name_field,
+                description: #description_field,
+                disabled: #disabled_field,
+                preferred_variant: #preference_field
+            }
+        },
+        should_flatten,
+    ))
 }
 
-fn generate_get_field(cst: &Constants, field: &Field, field_index: usize, use_self: bool) -> Result<TokenStream, syn::Error> {
+fn generate_get_field(
+    cst: &Constants,
+    field: &Field,
+    field_index: usize,
+    use_self: bool,
+) -> Result<TokenStream, syn::Error> {
     let ident = field.ident.clone().unwrap_or_else(|| {
-        Ident::new(&if use_self {
-            field_index.to_string()
-        } else {
-            format!("_{}", field_index)
-        }, field.span())
+        Ident::new(
+            &if use_self {
+                field_index.to_string()
+            } else {
+                format!("_{}", field_index)
+            },
+            field.span(),
+        )
     });
 
     let (options, flatten) = infer_options(cst, &ident, field)?;
@@ -295,4 +347,3 @@ fn generate_get_field(cst: &Constants, field: &Field, field_index: usize, use_se
         })
     }
 }
-

@@ -1,7 +1,7 @@
+use crate::localization::LocalizedString;
+use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
-use serde::{Serialize, Deserialize};
-use crate::localization::LocalizedString;
 
 #[cfg(feature = "derive")]
 #[cfg_attr(docsrs, doc(cfg(feature = "derive")))]
@@ -56,7 +56,7 @@ impl Parameter {
         name: &str,
         display_name: LocalizedString,
         description: LocalizedString,
-        mut variant: ParameterVariant
+        mut variant: ParameterVariant,
     ) -> Parameter {
         append_path(name, &mut variant, true);
 
@@ -65,7 +65,7 @@ impl Parameter {
             display_name,
             description,
             path: name.to_string(),
-            variant
+            variant,
         }
     }
 
@@ -75,7 +75,7 @@ impl Parameter {
             &options.name,
             LocalizedString::new(&options.display_name),
             LocalizedString::new(&options.description),
-            variant
+            variant,
         )
     }
 
@@ -84,7 +84,11 @@ impl Parameter {
     /// display_name = localization_key + ".name"
     ///
     /// description = localization_key + ".desc"
-    pub fn new_from_key(name: &str, localization_key: &str, variant: ParameterVariant) -> Parameter {
+    pub fn new_from_key(
+        name: &str,
+        localization_key: &str,
+        variant: ParameterVariant,
+    ) -> Parameter {
         let display_name = format!("{localization_key}.name");
         let description = format!("{localization_key}.desc");
 
@@ -92,7 +96,7 @@ impl Parameter {
             name,
             LocalizedString::new(&display_name),
             LocalizedString::new(&description),
-            variant
+            variant,
         )
     }
 
@@ -118,63 +122,63 @@ pub enum ParameterVariant {
         /// If the field should appear disabled
         disabled: bool,
         /// Value for the text input field
-        value: String
+        value: String,
     },
     /// Displays integer input field
     IntegerInput {
         /// If the field should appear disabled
         disabled: bool,
         /// Value for the integer input field
-        value: i32
+        value: i32,
     },
     /// Displays 2 integer input fields
     Integer2Input {
         /// If the field should appear disabled
         disabled: bool,
         /// Value for the integer input field
-        value: (i32, i32)
+        value: (i32, i32),
     },
     /// Displays positive integer input field
     PositiveIntegerInput {
         /// If the field should appear disabled
         disabled: bool,
         /// Value for the positive integer input field
-        value: u32
+        value: u32,
     },
     /// Displays 2 positive integer input fields
     PositiveInteger2Input {
         /// If the field should appear disabled
         disabled: bool,
         /// Value for the positive integer input field
-        value: (u32, u32)
+        value: (u32, u32),
     },
     /// Displays real number input field
     NumberInput {
         /// If the field should appear disabled
         disabled: bool,
         /// Value for the real number input field
-        value: f64
+        value: f64,
     },
     /// Displays 2 real number input fields
     Number2Input {
         /// If the field should appear disabled
         disabled: bool,
         /// Value for the real number input field
-        value: (f64, f64)
+        value: (f64, f64),
     },
     /// Displays a checkbox
     Checkbox {
         /// If the field should appear disabled
         disabled: bool,
         /// Checkbox state
-        value: bool
+        value: bool,
     },
     /// Displays a toggle switch
     Toggle {
         /// If the field should appear disabled
         disabled: bool,
         /// Toggle switch state
-        value: bool
+        value: bool,
     },
     /// Displays a dropdown with provided choices
     Choice {
@@ -183,7 +187,7 @@ pub enum ParameterVariant {
         /// Possible choices
         choices: Vec<String>,
         /// Current choice
-        value: String
+        value: String,
     },
     /// Displays color picker
     Color {
@@ -191,7 +195,7 @@ pub enum ParameterVariant {
         disabled: bool,
         /// Color value
         value: Color,
-    }
+    },
 }
 
 /// RGBA Color tuple
@@ -201,7 +205,7 @@ pub type Color = (u8, u8, u8, u8);
 pub fn flatten_parameter(parameter: Parameter) -> Vec<Parameter> {
     match &parameter.variant {
         ParameterVariant::CollapsableMenu(params) => params.clone(),
-        _ => vec![parameter]
+        _ => vec![parameter],
     }
 }
 
@@ -234,13 +238,34 @@ pub trait ParameterImpl {
     /// Gets the parameter
     fn parameter(&self, options: ParameterOptions) -> ReturnedParameter;
     /// Sets parameter's value
-    fn set_parameter(&mut self, options: ParameterOptions, value: Parameter) -> Result<(), ParameterError> { Err(ParameterError::NotImplemented) }
+    fn set_parameter(
+        &mut self,
+        options: ParameterOptions,
+        value: Parameter,
+    ) -> Result<(), ParameterError> {
+        Err(ParameterError::NotImplemented)
+    }
     /// Adds new element to an array
-    fn add_element(&mut self, options: ParameterOptions) -> Result<(), ParameterError> { Err(ParameterError::NotImplemented) }
+    fn add_element(&mut self, options: ParameterOptions) -> Result<(), ParameterError> {
+        Err(ParameterError::NotImplemented)
+    }
     /// Removes element from an array
-    fn remove_element(&mut self, options: ParameterOptions, index: usize) -> Result<(), ParameterError> { Err(ParameterError::NotImplemented) }
+    fn remove_element(
+        &mut self,
+        options: ParameterOptions,
+        index: usize,
+    ) -> Result<(), ParameterError> {
+        Err(ParameterError::NotImplemented)
+    }
     /// Moves element in the array
-    fn move_element(&mut self, options: ParameterOptions, from_index: usize, to_index: usize) -> Result<(), ParameterError> { Err(ParameterError::NotImplemented) }
+    fn move_element(
+        &mut self,
+        options: ParameterOptions,
+        from_index: usize,
+        to_index: usize,
+    ) -> Result<(), ParameterError> {
+        Err(ParameterError::NotImplemented)
+    }
 }
 
 /// Returned parameter by [ParameterImpl]
@@ -249,7 +274,7 @@ pub enum ReturnedParameter {
     /// Single parameter, nothing nested here
     Single(Parameter),
     /// Multiple parameters, nested stuff
-    Multiple(Vec<Parameter>)
+    Multiple(Vec<Parameter>),
 }
 
 impl ReturnedParameter {
@@ -257,7 +282,7 @@ impl ReturnedParameter {
     pub fn as_vec(&self) -> Vec<Parameter> {
         match self {
             ReturnedParameter::Single(p) => vec![p.clone()],
-            ReturnedParameter::Multiple(l) => l.clone()
+            ReturnedParameter::Multiple(l) => l.clone(),
         }
     }
 }
@@ -274,7 +299,7 @@ pub struct ParameterOptions {
     /// If the parameter should be disabled
     pub disabled: bool,
     /// Preferred variant
-    pub preferred_variant: PreferredParameterVariant
+    pub preferred_variant: PreferredParameterVariant,
 }
 
 /// Option that tells which kind of variant the parameter should be retrieved as
@@ -304,7 +329,7 @@ impl Default for PreferredParameterVariant {
 #[derive(Default)]
 pub struct DynamicChoice {
     choices: Vec<String>,
-    value: String
+    value: String,
 }
 
 impl ParameterImpl for DynamicChoice {
@@ -314,8 +339,8 @@ impl ParameterImpl for DynamicChoice {
             ParameterVariant::Choice {
                 disabled: options.disabled,
                 choices: self.choices.clone(),
-                value: self.value.clone()
-            }
+                value: self.value.clone(),
+            },
         ))
     }
 }
@@ -326,8 +351,8 @@ impl ParameterImpl for i32 {
             &options,
             ParameterVariant::IntegerInput {
                 disabled: options.disabled,
-                value: *self
-            }
+                value: *self,
+            },
         ))
     }
 
@@ -351,8 +376,8 @@ impl ParameterImpl for (i32, i32) {
             &options,
             ParameterVariant::Integer2Input {
                 disabled: options.disabled,
-                value: *self
-            }
+                value: *self,
+            },
         ))
     }
 }
@@ -363,8 +388,8 @@ impl ParameterImpl for u32 {
             &options,
             ParameterVariant::PositiveIntegerInput {
                 disabled: options.disabled,
-                value: *self
-            }
+                value: *self,
+            },
         ))
     }
 }
@@ -375,8 +400,8 @@ impl ParameterImpl for (u32, u32) {
             &options,
             ParameterVariant::PositiveInteger2Input {
                 disabled: options.disabled,
-                value: *self
-            }
+                value: *self,
+            },
         ))
     }
 }
@@ -387,8 +412,8 @@ impl ParameterImpl for f64 {
             &options,
             ParameterVariant::NumberInput {
                 disabled: options.disabled,
-                value: *self
-            }
+                value: *self,
+            },
         ))
     }
 
@@ -412,8 +437,8 @@ impl ParameterImpl for (f64, f64) {
             &options,
             ParameterVariant::Number2Input {
                 disabled: options.disabled,
-                value: *self
-            }
+                value: *self,
+            },
         ))
     }
 }
@@ -424,8 +449,8 @@ impl ParameterImpl for Color {
             &options,
             ParameterVariant::Color {
                 disabled: options.disabled,
-                value: *self
-            }
+                value: *self,
+            },
         ))
     }
 }
@@ -434,20 +459,15 @@ impl ParameterImpl for String {
     fn parameter(&self, options: ParameterOptions) -> ReturnedParameter {
         ReturnedParameter::Single(match options.preferred_variant {
             PreferredParameterVariant::Label => {
-                Parameter::new_from_options(
-                    &options,
-                    ParameterVariant::Label(self.clone())
-                )
+                Parameter::new_from_options(&options, ParameterVariant::Label(self.clone()))
             }
-            _ => {
-                Parameter::new_from_options(
-                    &options,
-                    ParameterVariant::TextInput {
-                        disabled: options.disabled,
-                        value: self.clone()
-                    }
-                )
-            }
+            _ => Parameter::new_from_options(
+                &options,
+                ParameterVariant::TextInput {
+                    disabled: options.disabled,
+                    value: self.clone(),
+                },
+            ),
         })
     }
 
@@ -472,24 +492,20 @@ impl ParameterImpl for String {
 impl ParameterImpl for bool {
     fn parameter(&self, options: ParameterOptions) -> ReturnedParameter {
         ReturnedParameter::Single(match options.preferred_variant {
-            PreferredParameterVariant::Checkbox => {
-                Parameter::new_from_options(
-                    &options,
-                    ParameterVariant::Checkbox {
-                        disabled: options.disabled,
-                        value: *self
-                    }
-                )
-            }
-            _ => {
-                Parameter::new_from_options(
-                    &options,
-                    ParameterVariant::Toggle {
-                        disabled: options.disabled,
-                        value: *self
-                    }
-                )
-            }
+            PreferredParameterVariant::Checkbox => Parameter::new_from_options(
+                &options,
+                ParameterVariant::Checkbox {
+                    disabled: options.disabled,
+                    value: *self,
+                },
+            ),
+            _ => Parameter::new_from_options(
+                &options,
+                ParameterVariant::Toggle {
+                    disabled: options.disabled,
+                    value: *self,
+                },
+            ),
         })
     }
 
@@ -524,30 +540,35 @@ impl ParameterImpl for bool {
 
 impl<T: ParameterImpl + Default> ParameterImpl for Option<T> {
     fn parameter(&self, options: ParameterOptions) -> ReturnedParameter {
-        let mut params = self.as_ref().map_or_else(
-            || vec![],
-            |x| x.parameter(Default::default()).as_vec()
-        );
+        let mut params = self
+            .as_ref()
+            .map_or_else(|| vec![], |x| x.parameter(Default::default()).as_vec());
 
         match options.preferred_variant {
             PreferredParameterVariant::Checkbox => {
-                params.insert(0, Parameter::new_from_options(
-                    &options,
-                    ParameterVariant::Checkbox {
-                        disabled: options.disabled,
-                        value: self.is_some()
-                    }
-                ));
+                params.insert(
+                    0,
+                    Parameter::new_from_options(
+                        &options,
+                        ParameterVariant::Checkbox {
+                            disabled: options.disabled,
+                            value: self.is_some(),
+                        },
+                    ),
+                );
             }
 
             PreferredParameterVariant::Toggle => {
-                params.insert(0, Parameter::new_from_options(
-                    &options,
-                    ParameterVariant::Toggle {
-                        disabled: options.disabled,
-                        value: self.is_some()
-                    }
-                ));
+                params.insert(
+                    0,
+                    Parameter::new_from_options(
+                        &options,
+                        ParameterVariant::Toggle {
+                            disabled: options.disabled,
+                            value: self.is_some(),
+                        },
+                    ),
+                );
             }
 
             _ => {}
@@ -569,10 +590,12 @@ impl<T: ParameterImpl + Default> ParameterImpl for Vec<T> {
     fn parameter(&self, options: ParameterOptions) -> ReturnedParameter {
         ReturnedParameter::Single(Parameter::new_from_options(
             &options,
-            ParameterVariant::Array(self.clone().into_iter()
-                .map(|x| x.parameter(Default::default()).as_vec())
-                .collect()
-            )
+            ParameterVariant::Array(
+                self.clone()
+                    .into_iter()
+                    .map(|x| x.parameter(Default::default()).as_vec())
+                    .collect(),
+            ),
         ))
     }
 }

@@ -4,13 +4,13 @@ use streamduck_core::parameters::{Color, DynamicChoice, ParameterImpl};
 pub struct RendererParameters {
     background_parameters: BackgroundParams,
     text_parameters: TextParams,
-    caching: bool
+    caching: bool,
 }
 
 #[derive(ParameterImpl, Default)]
 struct BackgroundParams {
     #[param(flatten, choice, loc_key = "what")]
-    background_type: BackgroundType
+    background_type: BackgroundType,
 }
 
 #[derive(ParameterImpl)]
@@ -20,22 +20,22 @@ enum BackgroundType {
     },
     HorizontalGradient {
         start_color: Color,
-        end_color: Color
+        end_color: Color,
     },
-    Test(Color)
+    Test(Color),
 }
 
 impl Default for BackgroundType {
     fn default() -> Self {
         Self::SolidColor {
-            background_color: Default::default()
+            background_color: Default::default(),
         }
     }
 }
 
 #[derive(ParameterImpl, Default)]
 struct TextParams {
-    text_objects: Vec<TextObject>
+    text_objects: Vec<TextObject>,
 }
 
 #[derive(ParameterImpl, Default)]
@@ -55,7 +55,7 @@ struct TextObject {
 #[derive(ParameterImpl, Default)]
 struct TextShadow {
     text_shadow_color: Color,
-    text_shadow_offset: (i32, i32)
+    text_shadow_offset: (i32, i32),
 }
 
 #[derive(ParameterImpl)]
@@ -68,7 +68,7 @@ enum TextAlignment {
     MiddleRight,
     BottomLeft,
     BottomCenter,
-    BottomRight
+    BottomRight,
 }
 
 impl Default for TextAlignment {

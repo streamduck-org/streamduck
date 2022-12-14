@@ -1,31 +1,13 @@
-use std::{
-    path::PathBuf,
-    sync::Arc,
-    time::Duration,
-};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
-use tokio::{
-    io::AsyncWriteExt,
-    sync::RwLock,
-};
-use tracing::{
-    debug,
-    error,
-    trace,
-    warn,
-};
+use tokio::{io::AsyncWriteExt, sync::RwLock};
+use tracing::{debug, error, trace, warn};
 
 use crate::config::{
-    device_config::{
-        DeviceConfig,
-        retrieve_device_configs,
-    },
-    global_config::{
-        GlobalConfig,
-        retrieve_global_config,
-    },
+    device_config::{retrieve_device_configs, DeviceConfig},
+    global_config::{retrieve_global_config, GlobalConfig},
 };
 
 /// Device Configuration specifc data
@@ -71,7 +53,11 @@ impl From<toml::ser::Error> for ConfigError {
 }
 
 /// folder name for the other subdirs, capital case on Windows, lower case on Unix
-pub const CONFIG_FOLDER: &'static str = if cfg!(windows) { "Streamduck" } else { "streamduck" };
+pub const CONFIG_FOLDER: &'static str = if cfg!(windows) {
+    "Streamduck"
+} else {
+    "streamduck"
+};
 /// folder name for the fonts
 pub const FONTS_FOLDER: &'static str = "fonts";
 /// folder name for the plugins
@@ -81,7 +67,7 @@ pub const DEVICE_CONFIG_FOLDER: &'static str = "devices";
 /// file name for the global config
 pub const GLOBAL_CONFIG_FILE: &'static str = "config.toml";
 
-/// Returns config directory (path: [`dirs::config_dir()`]/[`CONFIG_FOLDER`]) or returns the current dir. 
+/// Returns config directory (path: [`dirs::config_dir()`]/[`CONFIG_FOLDER`]) or returns the current dir.
 /// Data is allowed to be changed by a user.
 pub fn config_dir() -> PathBuf {
     match dirs::config_dir() {
@@ -144,10 +130,13 @@ impl ConfigManager {
             global_config: RwLock::new(global_config),
         });
         // start autosave loop if needed
-        if manager.global_configuration().await.autosave.unwrap_or(true) {
-            tokio::spawn(
-                autosave_loop(manager.clone(), Duration::from_secs(10))
-            );
+        if manager
+            .global_configuration()
+            .await
+            .autosave
+            .unwrap_or(true)
+        {
+            tokio::spawn(autosave_loop(manager.clone(), Duration::from_secs(10)));
         }
         Ok(manager)
     }
@@ -161,7 +150,7 @@ impl ConfigManager {
                 drop(config);
                 match self.write_global_configuration().await {
                     Err(e) => error!("Writing failed: {:?}", e),
-                    Ok(_) => trace!("Saved")
+                    Ok(_) => trace!("Saved"),
                 }
                 self.mut_global_configuration().await.mark_clean();
             }
@@ -210,7 +199,12 @@ impl ConfigManager {
 
         // retrieve the configuration and write it to the file
         let conf = self.global_configuration().await;
-        let mut file = tokio::fs::OpenOptions::new().read(true).write(true).create(true).open(path).await?;
+        let mut file = tokio::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(path)
+            .await?;
 
         file.write(toml::to_string(&*conf)?.as_bytes()).await?;
 
@@ -221,7 +215,6 @@ impl ConfigManager {
         conf.mark_clean();
         Ok(())
     }
-
 
     /// return the path to the fonts folder
     pub fn fonts_path() {}

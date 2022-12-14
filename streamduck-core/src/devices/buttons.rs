@@ -1,5 +1,5 @@
-use serde::{Serialize, Deserialize};
 use crate::events::Event;
+use serde::{Deserialize, Serialize};
 
 /// Button position
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
@@ -8,14 +8,14 @@ pub struct ButtonPosition {
     pub row: u16,
 
     /// Column of the button / Number of the button in the row
-    pub column: u16
+    pub column: u16,
 }
 
 impl From<(u16, u16)> for ButtonPosition {
     fn from(tuple: (u16, u16)) -> Self {
         Self {
             row: tuple.0,
-            column: tuple.1
+            column: tuple.1,
         }
     }
 }
@@ -26,7 +26,7 @@ pub enum ButtonEvent {
     /// Button was pressed down
     ButtonDown(ButtonPosition),
     /// Button was released
-    ButtonUp(ButtonPosition)
+    ButtonUp(ButtonPosition),
 }
 
 impl Event for ButtonEvent {

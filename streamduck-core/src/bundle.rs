@@ -14,7 +14,7 @@ pub struct ManagerBundle {
     pub(crate) driver_manager: Arc<DriverManager>,
     pub(crate) global_dispatcher: Arc<EventDispatcher>,
     pub(crate) config_manager: Arc<ConfigManager>,
-    pub(crate) localization_manager: Arc<LocalizationManager>
+    pub(crate) localization_manager: Arc<LocalizationManager>,
 }
 
 impl ManagerBundle {
@@ -24,7 +24,7 @@ impl ManagerBundle {
             config_manager: ConfigManager::new(None).await?,
             driver_manager: DriverManager::new()?,
             global_dispatcher: EventDispatcher::new(),
-            localization_manager: LocalizationManager::new()
+            localization_manager: LocalizationManager::new(),
         }))
     }
 
@@ -59,7 +59,7 @@ pub enum ManagerInitError {
     HidError(HidError),
 
     /// Config related error
-    ConfigError(ConfigError)
+    ConfigError(ConfigError),
 }
 
 impl Display for ManagerInitError {

@@ -1,34 +1,31 @@
-use tracing::{
-    warn,
-    error,
-    info,
-};
-use tokio::fs;
+use serde::{Deserialize, Serialize};
 use std::{
     path::PathBuf,
-    time::{Instant, Duration}
+    time::{Duration, Instant},
 };
-use serde::{Serialize, Deserialize};
+use tokio::fs;
 use toml;
+use tracing::{error, info, warn};
 
 /// Returns the GlobalConfig from the path.
 /// Defaults to default if not available.
 pub async fn retrieve_global_config(path: &PathBuf) -> GlobalConfig {
     let config = match fs::read_to_string(&path).await {
-        Ok(content) => {
-            match toml::from_str(&content) {
-                Ok(config) => config,
-                Err(e) => {
-                    error!("Configuration error in {}:\n{}", &path.display(), e);
-                    info!("Using standard configuration");
-                    Default::default()
-                }
+        Ok(content) => match toml::from_str(&content) {
+            Ok(config) => config,
+            Err(e) => {
+                error!("Configuration error in {}:\n{}", &path.display(), e);
+                info!("Using standard configuration");
+                Default::default()
             }
         },
         Err(e) => {
             match e.kind() {
-                std::io::ErrorKind::NotFound => info!("The configuration file ({}) was not created yet.", &path.display()),
-                _ => warn!("Access to the configuration file failed: \"{}\".", e)
+                std::io::ErrorKind::NotFound => info!(
+                    "The configuration file ({}) was not created yet.",
+                    &path.display()
+                ),
+                _ => warn!("Access to the configuration file failed: \"{}\".", e),
             }
             info!("Using standard configuration");
             Default::default()
@@ -50,7 +47,7 @@ pub struct GlobalConfig {
     commit_time: Option<Instant>,
     /// If the config got changed and now needs to be saved.
     #[serde(skip)]
-    dirty_state: bool
+    dirty_state: bool,
 }
 
 impl GlobalConfig {
@@ -74,7 +71,7 @@ impl GlobalConfig {
     pub fn last_commit(&self) -> Option<Duration> {
         match self.commit_time {
             Some(commit_time) => Some(Instant::now().duration_since(commit_time)),
-            None => None
+            None => None,
         }
     }
 }

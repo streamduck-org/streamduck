@@ -6,7 +6,7 @@ use hidapi::HidApi;
 use crate::devices::drivers::{Driver, DriverError, DriverManager};
 use crate::devices::metadata::{ButtonLayout, DeviceMetadata};
 use crate::devices::SharedDevice;
-use crate::tests::lib::{DataPoint, start_benchmark};
+use crate::tests::lib::{start_benchmark, DataPoint};
 
 pub struct TestDriver {}
 
@@ -22,7 +22,7 @@ impl Driver for TestDriver {
             identifier: "test_serial".to_string(),
             has_screen: true,
             resolution: (16, 16),
-            layout: ButtonLayout(vec![5, 5, 5])
+            layout: ButtonLayout(vec![5, 5, 5]),
         }]
     }
 
@@ -37,15 +37,16 @@ async fn test_driver_device_list() {
 
     let driver_manager = DriverManager::new().unwrap();
 
-    driver_manager.register_driver(Arc::new(TestDriver {})).await;
+    driver_manager
+        .register_driver(Arc::new(TestDriver {}))
+        .await;
 
     let list = driver_manager.list_devices().await;
 
     bench.stop();
 
     assert_eq!(
-        list
-            .iter()
+        list.iter()
             .position(|x| x.identifier == "test_serial")
             .is_some(),
         true

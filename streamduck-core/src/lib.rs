@@ -9,20 +9,20 @@ pub use image as image_lib;
 use crate::bundle::{ManagerBundle, ManagerInitError};
 use crate::events::EventDispatcher;
 
-/// Everything related to devices
-pub mod devices;
-/// Everything related to images
-pub mod images;
-/// Event system of the core
-pub mod events;
-/// Assortment of various useful macros
-mod macros;
 /// Manager bundle definition
 pub mod bundle;
-/// Localization types
-pub mod localization;
 /// Everything related to file writes and reads
 pub mod config;
+/// Everything related to devices
+pub mod devices;
+/// Event system of the core
+pub mod events;
+/// Everything related to images
+pub mod images;
+/// Localization types
+pub mod localization;
+/// Assortment of various useful macros
+mod macros;
 /// Dynamic parameters
 pub mod parameters;
 

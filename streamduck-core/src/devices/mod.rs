@@ -1,20 +1,20 @@
-use std::error::Error;
-use std::fmt::{Display, Formatter};
-use std::sync::Arc;
+use crate::devices::buttons::ButtonPosition;
 use async_trait::async_trait;
 use hidapi::HidError;
 use image::{DynamicImage, ImageError};
-use crate::devices::buttons::ButtonPosition;
+use std::error::Error;
+use std::fmt::{Display, Formatter};
+use std::sync::Arc;
 
 use crate::devices::metadata::DeviceMetadata;
 use crate::EventDispatcher;
 
+/// Button structures
+pub mod buttons;
 /// Device drivers
 pub mod drivers;
 /// Device metadata
 pub mod metadata;
-/// Button structures
-pub mod buttons;
 
 /// Device interface
 #[async_trait]
@@ -45,9 +45,13 @@ pub trait Device {
 
     /// Clears image from button on specified position
     async fn clear_button_image(&self, position: ButtonPosition) -> Result<(), DeviceError>;
-    
+
     /// Sets image under specified key to device's screen on specified position
-    async fn set_button_image(&self, position: ButtonPosition, key: u128) -> Result<(), DeviceError>;
+    async fn set_button_image(
+        &self,
+        position: ButtonPosition,
+        key: u128,
+    ) -> Result<(), DeviceError>;
 }
 
 /// Device interface contained in a reference counter
@@ -67,7 +71,7 @@ pub enum DeviceError {
     /// Image error
     ImageError(ImageError),
     /// Any other error
-    Other(Box<dyn Error>)
+    Other(Box<dyn Error>),
 }
 
 impl From<HidError> for DeviceError {

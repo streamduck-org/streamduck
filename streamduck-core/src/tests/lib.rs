@@ -1,5 +1,5 @@
-use std::{env, io};
 use std::time::{Duration, Instant};
+use std::{env, io};
 
 use serde::{Deserialize, Serialize};
 use toml;
@@ -11,12 +11,12 @@ pub enum DataPoint {
 
 #[derive(Debug, Deserialize, Serialize, Default, Copy, Clone)]
 pub struct Config {
-    pub test_driver_device_list: Duration
+    pub test_driver_device_list: Duration,
 }
 
 pub struct Benchmark {
     start: Instant,
-    data_point: Option<DataPoint>
+    data_point: Option<DataPoint>,
 }
 
 /// benchmark output
@@ -25,10 +25,16 @@ impl Benchmark {
         let duration = self.start.elapsed();
         println!("time: {:?}", duration);
 
-        if let Ok(conf) = self.read_toml()  {
+        if let Ok(conf) = self.read_toml() {
             if let Some(point) = &self.data_point {
                 let values = match point {
-                    DataPoint::DriverDeviceList => { (Config { test_driver_device_list: duration, ..conf}, conf.test_driver_device_list) }
+                    DataPoint::DriverDeviceList => (
+                        Config {
+                            test_driver_device_list: duration,
+                            ..conf
+                        },
+                        conf.test_driver_device_list,
+                    ),
                 };
                 let duration_before = values.1;
                 let new_config = values.0;
@@ -39,7 +45,10 @@ impl Benchmark {
                 println!("No data point selected")
             }
         } else {
-            println!("Data file not available: {:?}", self.read_toml().err().unwrap().to_string())
+            println!(
+                "Data file not available: {:?}",
+                self.read_toml().err().unwrap().to_string()
+            )
         }
     }
 
@@ -74,7 +83,11 @@ impl Benchmark {
         }
         // can't divide by zero
         if before > 0.0 && after > 0.0 {
-            println!("loss/gain: \u{1b}[33m{:?}%\u{1b}[0m ({}s)", after/before*100.0, before-after);
+            println!(
+                "loss/gain: \u{1b}[33m{:?}%\u{1b}[0m ({}s)",
+                after / before * 100.0,
+                before - after
+            );
         }
     }
 }
@@ -83,6 +96,6 @@ impl Benchmark {
 pub fn start_benchmark(data_point: Option<DataPoint>) -> Benchmark {
     Benchmark {
         start: Instant::now(),
-        data_point
+        data_point,
     }
 }

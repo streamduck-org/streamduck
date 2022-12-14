@@ -1,5 +1,5 @@
-use std::any::{TypeId};
 use crate::events::{Event, EventInstance};
+use std::any::TypeId;
 
 /// Casts event object into concrete type
 pub fn cast_event<T: Event>(event: &dyn EventInstance) -> Option<T> {

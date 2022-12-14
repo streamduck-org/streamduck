@@ -1,14 +1,11 @@
-use serde::{Serialize, Deserialize};
-use std::{
-    time::Instant,
-    path::PathBuf,
-    collections::HashMap,
-    sync::Arc
-};
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, path::PathBuf, sync::Arc, time::Instant};
 use tokio::sync::RwLock;
 
 /// write the device configurations from a path into a HashMap
-pub async fn retrieve_device_configs(_path: &PathBuf) -> Result<HashMap<String, Arc<RwLock<DeviceConfig>>>, std::io::Error> {
+pub async fn retrieve_device_configs(
+    _path: &PathBuf,
+) -> Result<HashMap<String, Arc<RwLock<DeviceConfig>>>, std::io::Error> {
     todo!()
 }
 
@@ -24,6 +21,5 @@ pub struct DeviceConfig {
     pub commit_time: Option<Instant>,
     #[serde(skip)]
     /// If config is dirty
-    pub dirty_state: bool
-    // TODO: add other data
+    pub dirty_state: bool, // TODO: add other data
 }

@@ -3,14 +3,14 @@ use std::time::Duration;
 use tokio::time::sleep;
 use tracing::{debug, info, Level};
 
-use streamduck_core::{init_managers, type_of};
 use streamduck_core::devices::buttons::ButtonEvent;
 use streamduck_core::devices::SharedDevice;
-use streamduck_core::events::{EventDispatcher, EventInstance};
 use streamduck_core::events::listeners::{EventListener, ListensFor};
 use streamduck_core::events::util::cast_event;
+use streamduck_core::events::{EventDispatcher, EventInstance};
 use streamduck_core::image_lib::open;
 use streamduck_core::parameters::ParameterImpl;
+use streamduck_core::{init_managers, type_of};
 
 use crate::drivers::load_drivers;
 use crate::modules::RendererParameters;
@@ -39,7 +39,10 @@ async fn main() {
 
     load_drivers(&bundle).await;
 
-    let device_metadata = bundle.driver_manager().list_devices().await
+    let device_metadata = bundle
+        .driver_manager()
+        .list_devices()
+        .await
         .into_iter()
         // .find(|m| m.identifier.contains("AL10J2C00059"))
         .next()
@@ -47,8 +50,10 @@ async fn main() {
 
     debug!("Device metadata: {:#?}", device_metadata);
 
-    let device = bundle.driver_manager()
-        .connect_device(&device_metadata.driver_name, &device_metadata.identifier).await
+    let device = bundle
+        .driver_manager()
+        .connect_device(&device_metadata.driver_name, &device_metadata.identifier)
+        .await
         .expect("Failed to connect");
 
     let img = open("technician.jpg").unwrap();
@@ -56,20 +61,20 @@ async fn main() {
 
     let dispatcher = EventDispatcher::new();
 
-    let _listener = dispatcher.add_listener(LightUpListener {
-        device: device.clone()
-    }).await;
+    let _listener = dispatcher
+        .add_listener(LightUpListener {
+            device: device.clone(),
+        })
+        .await;
 
     loop {
-        device.poll(&dispatcher)
-            .await
-            .unwrap();
+        device.poll(&dispatcher).await.unwrap();
         sleep(Duration::from_micros(25)).await;
     }
 }
 
 pub struct LightUpListener {
-    device: SharedDevice
+    device: SharedDevice,
 }
 
 #[streamduck_core::async_trait]
