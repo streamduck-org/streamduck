@@ -1,7 +1,12 @@
-use std::ffi::{c_char, CStr};
+#![warn(missing_docs)]
 
-#[no_mangle]
-pub extern "C" fn print_test(str: *const c_char) {
-    let cstr = unsafe { CStr::from_ptr(str) };
-    println!("{}", cstr.to_str().unwrap());
-}
+//! Main functionality of the project
+
+/// Dynamic data definition
+pub mod data;
+
+/// Device types
+pub mod device;
+
+/// Structures for UI schema
+pub mod ui;

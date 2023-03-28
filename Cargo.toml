@@ -2,5 +2,7 @@
 
 members = [
     "streamduck-core",
-    "streamduck-daemon"
+    "streamduck-daemon",
+    "streamduck-plugin",
+    "test-rust-plugin"
 ]
