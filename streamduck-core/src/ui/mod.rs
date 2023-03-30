@@ -1,3 +1,6 @@
+/// Builders of UI types
+pub mod builder;
+
 use std::fmt::{Debug, Formatter};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{Error, SeqAccess, Visitor};
@@ -21,7 +24,10 @@ pub struct Field {
     pub description: Option<&'static str>,
 
     /// Type of the field
-    pub ty: FieldType
+    pub ty: FieldType,
+
+    /// Condition on which the field will be shown in UI
+    pub condition: FieldCondition
 }
 
 /// Different field types
@@ -30,7 +36,7 @@ pub enum FieldType {
     /// Displays title text in a large font
     Header,
 
-    /// Displays title text in a normal text font
+    /// Displays description text in a normal text font with optional title
     StaticText,
 
     /// Displays preset text or value if bound
@@ -82,6 +88,67 @@ pub enum FieldType {
     }
 }
 
+/// Condition that should be followed before the field will be visible
+#[derive(Clone, Debug, SerializeDerive, DeserializeDerive)]
+pub enum FieldCondition {
+    /// Field will always be shown, always true
+    Always,
+
+    /// Field will never be shown, always false
+    Never,
+
+    /// Field will be shown if a certain path exists
+    Exists(ValuePath),
+
+    /// Field will be shown if the path has the same value as specified
+    Equals(ValuePath, Value),
+
+    /// Field will be shown if the path contains specified value, example "hello" in "hello world"
+    Contains(ValuePath, Value),
+
+    /// Field will be shown if the path's value matches the regex pattern, should use ECMAScript flavor of Regex
+    RegexMatches {
+        /// Path to a value to test
+        value: ValuePath,
+
+        /// Regex pattern to match
+        pattern: String,
+
+        /// Regex flags that should be used, example "gm"
+        ///
+        /// - g - Global search
+        /// - i - Case-insensitive search
+        /// - m - Allows `^` and `$` to match newline characters
+        /// - s - Allows `.` to match newline characters
+        /// - u - Unicode
+        /// - y - Sticky search
+        ///
+        /// Look up "regex" in google if you need more help with this
+        flags: String,
+    },
+
+    /// Field will be shown if value at the path will have value greater than specified
+    GreaterThan(ValuePath, Value),
+
+    /// Field will be shown if value at the path will have value equal or greater than specified
+    GreaterThanOrEquals(ValuePath, Value),
+
+    /// Field will be shown if value at the path will have value lesser than specified
+    LesserThan(ValuePath, Value),
+
+    /// Field will be shown if value at the path will have value equal or lesser than specified
+    LesserThanOrEquals(ValuePath, Value),
+
+    /// Field will be shown if the condition inside is false
+    Not(Box<FieldCondition>),
+
+    /// Field will be shown if any condition inside is true
+    Or(Vec<FieldCondition>),
+
+    /// Field will be shown if all conditions inside are true
+    And(Vec<FieldCondition>)
+}
+
 /// Describes path to a value
 #[derive(Clone, Debug)]
 pub enum ValuePath {
@@ -90,6 +157,24 @@ pub enum ValuePath {
 
     /// Path to a value formatted as an array, see array example at [Lodash get](https://lodash.com/docs#get)
     Breadcrumbs(Vec<String>)
+}
+
+impl From<String> for ValuePath {
+    fn from(value: String) -> Self {
+        ValuePath::Path(value)
+    }
+}
+
+impl From<Vec<String>> for ValuePath {
+    fn from(value: Vec<String>) -> Self {
+        ValuePath::Breadcrumbs(value)
+    }
+}
+
+impl From<&str> for ValuePath {
+    fn from(value: &str) -> Self {
+        ValuePath::Path(value.to_string())
+    }
 }
 
 impl Serialize for ValuePath {
