@@ -2,11 +2,11 @@
 pub mod builder;
 
 use std::fmt::{Debug, Formatter};
+use rmpv::Value;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{Error, SeqAccess, Visitor};
 use serde::ser::SerializeSeq;
 use serde::{Serialize as SerializeDerive, Deserialize as DeserializeDerive};
-use serde_json::Value;
 
 /// Base type used to describe field dialog of device config, action, overlay, rendering options, etc
 pub type UISchema = Vec<Field>;
@@ -15,7 +15,7 @@ pub type UISchema = Vec<Field>;
 #[derive(Clone, Debug, SerializeDerive, DeserializeDerive)]
 pub struct Field {
     /// Value that the field is bound to
-    pub value: Option<ValuePath>,
+    pub value: Option<LodashValuePath>,
 
     /// Title of the field
     pub title: Option<&'static str>,
@@ -98,18 +98,18 @@ pub enum FieldCondition {
     Never,
 
     /// Field will be shown if a certain path exists
-    Exists(ValuePath),
+    Exists(LodashValuePath),
 
     /// Field will be shown if the path has the same value as specified
-    Equals(ValuePath, Value),
+    Equals(LodashValuePath, Value),
 
     /// Field will be shown if the path contains specified value, example "hello" in "hello world"
-    Contains(ValuePath, Value),
+    Contains(LodashValuePath, Value),
 
     /// Field will be shown if the path's value matches the regex pattern, should use ECMAScript flavor of Regex
     RegexMatches {
         /// Path to a value to test
-        value: ValuePath,
+        value: LodashValuePath,
 
         /// Regex pattern to match
         pattern: String,
@@ -128,21 +128,21 @@ pub enum FieldCondition {
     },
 
     /// Field will be shown if value at the path will have value greater than specified
-    GreaterThan(ValuePath, Value),
+    GreaterThan(LodashValuePath, Value),
 
     /// Field will be shown if value at the path will have value equal or greater than specified
-    GreaterThanOrEquals(ValuePath, Value),
+    GreaterThanOrEquals(LodashValuePath, Value),
 
     /// Field will be shown if value at the path will have value lesser than specified
-    LesserThan(ValuePath, Value),
+    LesserThan(LodashValuePath, Value),
 
     /// Field will be shown if value at the path will have value equal or lesser than specified
-    LesserThanOrEquals(ValuePath, Value),
+    LesserThanOrEquals(LodashValuePath, Value),
 
-    /// Field will be shown if the condition inside is false
+    /// Field will be shown if the trigger inside is false
     Not(Box<FieldCondition>),
 
-    /// Field will be shown if any condition inside is true
+    /// Field will be shown if any trigger inside is true
     Or(Vec<FieldCondition>),
 
     /// Field will be shown if all conditions inside are true
@@ -151,7 +151,7 @@ pub enum FieldCondition {
 
 /// Describes path to a value
 #[derive(Clone, Debug)]
-pub enum ValuePath {
+pub enum LodashValuePath {
     /// Lodash formatted path to a value, see [Lodash get](https://lodash.com/docs#get)
     Path(String),
 
@@ -159,31 +159,31 @@ pub enum ValuePath {
     Breadcrumbs(Vec<String>)
 }
 
-impl From<String> for ValuePath {
+impl From<String> for LodashValuePath {
     fn from(value: String) -> Self {
-        ValuePath::Path(value)
+        LodashValuePath::Path(value)
     }
 }
 
-impl From<Vec<String>> for ValuePath {
+impl From<Vec<String>> for LodashValuePath {
     fn from(value: Vec<String>) -> Self {
-        ValuePath::Breadcrumbs(value)
+        LodashValuePath::Breadcrumbs(value)
     }
 }
 
-impl From<&str> for ValuePath {
+impl From<&str> for LodashValuePath {
     fn from(value: &str) -> Self {
-        ValuePath::Path(value.to_string())
+        LodashValuePath::Path(value.to_string())
     }
 }
 
-impl Serialize for ValuePath {
+impl Serialize for LodashValuePath {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
         match self {
-            ValuePath::Path(str) => {
+            LodashValuePath::Path(str) => {
                 serializer.serialize_str(str)
             }
-            ValuePath::Breadcrumbs(crumbs) => {
+            LodashValuePath::Breadcrumbs(crumbs) => {
                 let mut seq = serializer.serialize_seq(Some(crumbs.len()))?;
 
                 for crumb in crumbs {
@@ -199,18 +199,18 @@ impl Serialize for ValuePath {
 struct ValuePathVisitor;
 
 impl<'de> Visitor<'de> for ValuePathVisitor {
-    type Value = ValuePath;
+    type Value = LodashValuePath;
 
     fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
         write!(formatter, "string or array of strings")
     }
 
     fn visit_str<E>(self, v: &str) -> Result<Self::Value, E> where E: Error {
-        Ok(ValuePath::Path(v.to_string()))
+        Ok(LodashValuePath::Path(v.to_string()))
     }
 
     fn visit_string<E>(self, v: String) -> Result<Self::Value, E> where E: Error {
-        Ok(ValuePath::Path(v))
+        Ok(LodashValuePath::Path(v))
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error> where A: SeqAccess<'de> {
@@ -224,11 +224,11 @@ impl<'de> Visitor<'de> for ValuePathVisitor {
             breadcrumbs.push(value);
         }
 
-        Ok(ValuePath::Breadcrumbs(breadcrumbs))
+        Ok(LodashValuePath::Breadcrumbs(breadcrumbs))
     }
 }
 
-impl<'de> Deserialize<'de> for ValuePath {
+impl<'de> Deserialize<'de> for LodashValuePath {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
         deserializer.deserialize_any(ValuePathVisitor)
     }

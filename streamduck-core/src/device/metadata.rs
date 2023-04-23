@@ -7,8 +7,11 @@ pub struct DeviceIdentifier {
     /// Driver that defined the device
     pub driver_name: String,
 
-    /// Identifier used for the device
-    pub identifier: String
+    /// Identifier used for the device, eg. serial number
+    pub identifier: String,
+
+    /// Short description of the device, eg. "Elgato Stream Deck Plus"
+    pub description: String,
 }
 
 /// Metadata describing the device
