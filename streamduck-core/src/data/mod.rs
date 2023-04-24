@@ -1,10 +1,42 @@
 use std::error::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde::de::{Visitor};
+use serde::de::Visitor;
 use std::fmt::{Display, Formatter};
 use rmpv::Value;
 use tokio::sync::RwLock;
+use crate::device::DeviceIdentifier;
+use crate::plugin::Plugin;
 use crate::ui::UISchema;
+
+/// Name that also contains plugin name, used to differentiate things made by different plugins
+#[derive(Clone, Debug, Hash, PartialEq, Serialize, Deserialize)]
+pub struct NamespacedName {
+    /// Plugin name that the thing originated from
+    pub(crate) plugin_name: String,
+
+    /// Name of the thing
+    pub name: String
+}
+
+impl NamespacedName {
+    /// Creates a new name based on a plugin
+    pub fn from_plugin(plugin: &Plugin, name: &str) -> NamespacedName {
+        NamespacedName {
+            plugin_name: plugin.name.clone(),
+            name: name.to_string(),
+        }
+    }
+}
+
+/// Source of the thing, used when user changes an option on an action, or presses an action, etc
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Source {
+    /// Device the thing originated from
+    pub device: DeviceIdentifier,
+
+    /// Input where the thing originated from
+    pub input: u16,
+}
 
 /// Dynamic options
 pub struct Options {
@@ -260,4 +292,7 @@ impl<'de> Deserialize<'de> for Number {
         deserializer.deserialize_any(NumberVisitor)
     }
 }
+
+/// Array of keys/indexes to reach the value
+pub type ValuePath = Vec<Value>;
 

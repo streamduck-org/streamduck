@@ -2,7 +2,7 @@ use serde::{Serialize, Deserialize};
 use crate::device::input::InputLayout;
 
 /// Unique data that differentiates a certain device from any other
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Hash)]
 pub struct DeviceIdentifier {
     /// Driver that defined the device
     pub driver_name: String,

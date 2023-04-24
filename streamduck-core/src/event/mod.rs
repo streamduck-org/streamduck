@@ -1,10 +1,5 @@
 use rmpv::Value;
 use serde::{Serialize, Deserialize};
-use crate::device::input::InputType;
-
-pub struct EventDispatcher {
-
-}
 
 /// An event
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -43,21 +38,25 @@ pub enum InputEvent {
 
     /// Hover occured over a position for XY Panel
     XYPanelHover {
+        /// Position that the hover happened over
         position: (u32, u32)
     },
 
     /// XY Panel received a press at certain position
     XYPanelPress {
+        /// Position that the press happened at
         position: (u32, u32)
     },
 
     /// XY Panel press was released at certain position
     XYPanelRelease {
+        /// Position that the press release happened at
         position: (u32, u32)
     },
 
     /// XY Panel drag
     XYPanelDrag {
+        /// Position that has been dragged over
         position: (u32, u32)
     },
 

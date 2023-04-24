@@ -1,6 +1,6 @@
 use rmpv::Value;
-use serde::{Serialize, Deserialize};
-use crate::data::Number;
+use serde::{Deserialize, Serialize};
+use crate::data::{Number, ValuePath};
 use crate::util::traverse_msgpack;
 
 /// Condition that needs to be met for action to be triggered
@@ -119,6 +119,3 @@ impl Condition {
         }
     }
 }
-
-/// Array of keys/indexes to reach the value
-pub type ValuePath = Vec<Value>;
