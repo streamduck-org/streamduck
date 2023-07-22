@@ -9,7 +9,7 @@ use crate::plugin::Plugin;
 use crate::ui::UISchema;
 
 /// Name that also contains plugin name, used to differentiate things made by different plugins
-#[derive(Clone, Debug, Hash, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct NamespacedName {
     /// Plugin name that the thing originated from
     pub(crate) plugin_name: String,
@@ -28,7 +28,7 @@ impl NamespacedName {
     }
 }
 
-/// Source of the thing, used when user changes an option on an action, or presses an action, etc
+/// Source of the thing, used when user changes an option on an action, or presses an action, or on which input tick happened
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Source {
     /// Device the thing originated from
@@ -39,12 +39,22 @@ pub struct Source {
 }
 
 /// Dynamic options
+#[derive(Debug)]
 pub struct Options {
     /// Options data
     pub data: RwLock<Value>,
 
     /// UI Schema that should be used by UI to let users change the data
     pub ui: UISchema
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Self {
+            data: RwLock::new(Value::Nil),
+            ui: vec![],
+        }
+    }
 }
 
 /// Any numberable value

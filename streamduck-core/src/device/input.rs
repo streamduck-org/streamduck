@@ -3,10 +3,10 @@ use serde::{Serialize, Deserialize};
 use crate::trigger::TriggerCondition;
 
 /// Map of key index to input description
-pub type InputLayout = HashMap<u16, Input>;
+pub type InputLayout = Vec<Input>;
 
 /// An input piece for a device
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Input {
     /// Horizontal position of the input. Left is negative value, right is positive value
     pub x: i32,
@@ -31,7 +31,7 @@ pub struct Input {
 }
 
 /// Defines what kind of input the thing provides
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum InputType {
     /// Digital button
     Button,

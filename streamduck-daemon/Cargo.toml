@@ -7,7 +7,11 @@ edition = "2021"
 
 [dependencies]
 streamduck-core = { path = "../streamduck-core" }
+hidapi = "2.2"
+elgato-streamdeck = { version = "0.4", features = [ "async" ] }
+tokio = { version = "1", features = [ "full" ] }
 libloading = "0.8.0"
 rmp-serde = "1.1"
 rmpv = { version = "1", features = [ "with-serde" ] }
 base64 = "0.21"
+async-trait = "0.1"
