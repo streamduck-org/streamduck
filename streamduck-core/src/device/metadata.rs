@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use serde::{Serialize, Deserialize};
 use crate::data::NamespacedName;
 use crate::device::input::InputLayout;
@@ -22,6 +23,12 @@ impl DeviceIdentifier {
             identifier: self.identifier,
             description: self.description,
         }
+    }
+}
+
+impl Display for DeviceIdentifier {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "( driver: '{}', iden: '{}', desc: '{}' )", self.driver_name, self.identifier, self.description)
     }
 }
 

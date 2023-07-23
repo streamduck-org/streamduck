@@ -13,6 +13,7 @@ use serde::{Serialize, Deserialize};
 use tokio::fs;
 use tokio::io;
 use tokio::task::block_in_place;
+use tracing::{error, info, trace};
 use crate::config::device::DeviceConfig;
 use crate::device::DeviceIdentifier;
 use crate::util::sha256_digest;
@@ -40,7 +41,7 @@ pub struct Config {
     /// How often Streamduck should find new devices to use, interval in seconds
     pub device_check_frequency: f32,
     /// Interval in seconds of how often Streamduck will autosave all data
-    pub autosave_interval: u32,
+    pub autosave_interval: f32,
     /// Devices that should be autoconnected
     pub autoconnect_devices: HashSet<DeviceIdentifier>
 }
@@ -52,7 +53,7 @@ impl Default for Config {
             tick_rate: 50.0,
             frame_rate: 60.0,
             device_check_frequency: 30.0,
-            autosave_interval: 60,
+            autosave_interval: 60.0,
             autoconnect_devices: HashSet::new(),
         }
     }
@@ -92,19 +93,37 @@ impl Config {
 
     /// Retrieves device config if it exists
     pub async fn get_device_config(&self, device_identifier: &DeviceIdentifier) -> Option<DeviceConfig> {
-        /// If it was already loaded
+        // If it was already loaded
         if let Some(config) = self.device_configs.get_async(device_identifier).await {
             return Some(config.get().clone());
         }
 
-        /// Load if not loaded
-        // TODO: actually report errors
-        let name = sha256_digest(&device_identifier).ok()?;
+        // Load if not loaded
+        let name = match sha256_digest(&device_identifier) {
+            Ok(n) => n,
+            Err(e) => {
+                error!(%e, identifier = %device_identifier, "Failed to hash identifier");
+                return None;
+            }
+        };
+
         let path = get_streamduck_device_configs_dir().join(format!("{}.bin", name));
 
         if path.exists() {
-            let contents = fs::read(path).await.ok()?;
-            let config: DeviceConfig = block_in_place(move || { rmp_serde::from_slice(contents.as_slice()) }).ok()?;
+            let contents = match fs::read(path.clone()).await {
+                Ok(c) => c,
+                Err(e) => {
+                    error!(%e, identifier = %device_identifier, ?path, "Failed to read device config");
+                    return None;
+                }
+            };
+            let config: DeviceConfig = match block_in_place(move || { rmp_serde::from_slice(contents.as_slice()) }) {
+                Ok(c) => c,
+                Err(e) => {
+                    error!(%e, identifier = %device_identifier, ?path, "Error trying to deserialize device config");
+                    return None;
+                }
+            };
 
             self.device_configs.insert_async(device_identifier.clone(), config.clone()).await.ok();
 
@@ -119,16 +138,34 @@ impl Config {
         let name = sha256_digest(&device_identifier).ok()?;
         let configs_path = get_streamduck_device_configs_dir();
 
-        fs::create_dir_all(&configs_path).await.ok();
+        match fs::create_dir_all(&configs_path).await {
+            Ok(_) => {}
+            Err(e) => {
+                error!(%e, "Error happened trying to create directories");
+            }
+        }
 
         let path = configs_path.join(format!("{}.bin", name));
 
-        self.device_configs.insert_async(device_identifier, config.clone()).await.ok()?;
+        self.device_configs.insert_async(device_identifier.clone(), config.clone()).await.ok();
 
-        let config_data = block_in_place(move || { rmp_serde::to_vec_named(&config) }).ok()?;
+        let config_data = match block_in_place(move || { rmp_serde::to_vec_named(&config) }) {
+            Ok(data) => data,
+            Err(e) => {
+                error!(%e, identifier = %device_identifier, "Couldn't serialize config into MsgPack");
+                return None;
+            }
+        };
 
-        // TODO: actually report the errors at some point bruh
-        fs::write(&path, config_data).await.ok()?;
+        match fs::write(&path, config_data).await {
+            Ok(_) => {
+                info!(identifier = %device_identifier, ?path, "Successfully saved device config to path");
+            }
+            Err(e) => {
+                error!(%e, identifier = %device_identifier, ?path, "Failed to write device config");
+                return None;
+            }
+        }
 
         Some(())
     }

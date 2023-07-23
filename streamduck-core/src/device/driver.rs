@@ -45,6 +45,7 @@ impl Driver {
         self.implement.describe_device(&self.options, device).await.upgrade(&self.name)
     }
 
+    /// Connects to the device and returns a [SharedDevice]
     pub async fn connect_device(&self, device: &DeviceIdentifier) -> Result<Arc<Device>, DeviceError> {
         let connection = self.implement.connect_device(&self.options, device).await?;
 

@@ -28,6 +28,12 @@ impl NamespacedName {
     }
 }
 
+impl Display for NamespacedName {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}@{}", self.name,self.plugin_name)
+    }
+}
+
 /// Source of the thing, used when user changes an option on an action, or presses an action, or on which input tick happened
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Source {

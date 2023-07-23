@@ -4,22 +4,18 @@
 
 //! Main functionality of the project
 
-use std::collections::HashSet;
-use std::ops::Deref;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
-use arc_swap::{ArcSwap, AsRaw};
-use futures::future::join_all;
-use scc::{HashIndex, HashMap};
-use scc::ebr::Barrier;
-use scc::hash_map::OccupiedEntry;
+use arc_swap::{ArcSwap};
 use tokio::task;
 use tokio::time::sleep;
+use tracing::{error, info, trace, warn};
 use crate::config::{Config, SharedConfig};
 use crate::core::{Core, SharedCore, WeakAction, WeakOverlay};
 use crate::data::NamespacedName;
-use crate::device::{DeviceError, DeviceIdentifier, DeviceMetadata, SharedDevice};
+use crate::device::{DeviceIdentifier, DeviceMetadata};
 use crate::device::driver::WeakDriver;
 use crate::plugin::{SharedPlugin};
 
@@ -57,12 +53,12 @@ pub type SharedStreamduck = Arc<Streamduck>;
 pub struct Streamduck {
     running: AtomicBool,
     config: SharedConfig,
-    plugins: HashMap<String, SharedPlugin>,
+    plugins: ArcSwap<HashMap<String, SharedPlugin>>,
     discovered_devices: ArcSwap<HashSet<DeviceIdentifier>>,
-    cores: HashMap<DeviceIdentifier, SharedCore>,
-    overlays: HashMap<NamespacedName, WeakOverlay>,
-    actions: HashMap<NamespacedName, WeakAction>,
-    drivers: HashMap<NamespacedName, WeakDriver>,
+    cores: ArcSwap<HashMap<DeviceIdentifier, SharedCore>>,
+    overlays: ArcSwap<HashMap<NamespacedName, WeakOverlay>>,
+    actions: ArcSwap<HashMap<NamespacedName, WeakAction>>,
+    drivers: ArcSwap<HashMap<NamespacedName, WeakDriver>>,
 }
 
 impl Streamduck {
@@ -90,56 +86,52 @@ impl Streamduck {
     /// Adds plugin to the software
     pub async fn load_plugin(&self, plugin: SharedPlugin) {
         // Adding it to main map
-        self.plugins.insert_async(plugin.name.clone(), plugin.clone()).await.ok();
+        self.plugins.rcu(|cache| {
+            let mut new_plugin_map = cache.as_ref().clone();
+            new_plugin_map.insert(plugin.name.clone(), plugin.clone());
+            new_plugin_map
+        });
 
         // Adding it to all indices
-        join_all(plugin.overlays().iter()
-            .map(|(name, overlay)| {
-                (plugin.new_name(name), Arc::downgrade(overlay))
-            })
-            .map(|(k, v)| {
-                self.overlays.insert_async(k, v)
-            })).await;
+        self.overlays.rcu(|cache| {
+            let mut new_overlay_map = cache.as_ref().clone();
+            new_overlay_map.extend(plugin.overlays().iter()
+                .map(|(name, overlay)| {
+                    (plugin.new_name(name), Arc::downgrade(overlay))
+                }));
+            new_overlay_map
+        });
 
-        join_all(plugin.actions().iter()
-            .map(|(name, action)| {
-                (plugin.new_name(name), Arc::downgrade(action))
-            })
-            .map(|(k, v)| {
-                self.actions.insert_async(k, v)
-            })).await;
+        self.actions.rcu(|cache| {
+            let mut new_action_map = cache.as_ref().clone();
+            new_action_map.extend(plugin.actions().iter()
+                .map(|(name, action)| {
+                    (plugin.new_name(name), Arc::downgrade(action))
+                }));
+            new_action_map
+        });
 
-        join_all(plugin.drivers().iter()
-            .map(|(name, driver)| {
-                (plugin.new_name(name), Arc::downgrade(driver))
-            })
-            .map(|(k, v)| {
-                self.drivers.insert_async(k, v)
-            })).await;
+        self.drivers.rcu(|cache| {
+            let mut new_driver_map = cache.as_ref().clone();
+            new_driver_map.extend(plugin.drivers().iter()
+                .map(|(name, driver)| {
+                    (plugin.new_name(name), Arc::downgrade(driver))
+                }));
+            new_driver_map
+        });
     }
 
     /// Gets new devices from all loaded drivers
     pub async fn refresh_devices(&self) {
         let mut new_device_list = HashSet::new();
 
-        let mut entry_iter = self.drivers.first_occupied_entry_async().await;
+        info!("Refreshing devices");
 
-        while let Some(entry) = entry_iter {
-            let name = entry.key();
-            let driver = entry.get();
-
-            println!("driver: {:?}", name);
-
+        for (name, driver) in self.drivers.load().iter() {
             if let Some(driver) = driver.upgrade() {
                 new_device_list.extend(driver.list_devices().await);
-            } else {
-                self.drivers.remove_async(name).await;
             }
-
-            entry_iter = entry.next_async().await;
         }
-
-        println!("devices: {:?}", new_device_list);
 
         self.discovered_devices.store(Arc::new(new_device_list));
     }
@@ -152,8 +144,9 @@ impl Streamduck {
     /// Describes device found under the identifier, returns none if driver no longer exists,
     /// or if device is no longer there in some cases
     pub async fn describe_device(&self, device_identifier: &DeviceIdentifier) -> Option<DeviceMetadata> {
-        let driver = self.drivers.get_async(&device_identifier.driver_name).await?;
-        let upgraded_driver = driver.get().upgrade()?;
+        let guard = self.drivers.load();
+        let driver = guard.get(&device_identifier.driver_name)?;
+        let upgraded_driver = driver.upgrade()?;
 
         Some(upgraded_driver.describe_device(device_identifier).await)
     }
@@ -161,69 +154,107 @@ impl Streamduck {
     /// Adds device to autoconnect
     pub async fn add_device_to_autoconnect(&self, device_identifier: &DeviceIdentifier) {
         if !self.config.load().autoconnect_devices.contains(device_identifier) {
-            let mut new_config = self.config.load().as_ref().clone();
+            info!(%device_identifier, "Adding device to autoconnect");
 
-            new_config.autoconnect_devices.insert(device_identifier.clone());
+            self.config.rcu(|cache| {
+                let mut new_config = cache.as_ref().clone();
+                new_config.autoconnect_devices.insert(device_identifier.clone());
+                new_config
+            });
 
-            self.config.store(Arc::new(new_config));
+            self.save_config().await;
         }
 
-        if !self.cores.contains(device_identifier) {
+        if !self.cores.load().contains_key(device_identifier) {
             self.connect_to_device(device_identifier).await;
         }
     }
 
     /// Connects to the device and initializes a core for it
     pub async fn connect_to_device(&self, device_identifier: &DeviceIdentifier) -> bool {
-        let Some(driver) = self.drivers.get_async(&device_identifier.driver_name).await else {
+        info!(%device_identifier, "Connecting to the device");
+
+        let guard = self.drivers.load();
+
+        let Some(driver) = guard.get(&device_identifier.driver_name) else {
+            warn!(%device_identifier, "Driver wasn't found for the device identifier");
             return false
         };
 
-        let Some(upgraded_driver) = driver.get().upgrade() else {
+        let Some(upgraded_driver) = driver.upgrade() else {
+            warn!(%device_identifier, "Driver for the device was already removed");
             return false
         };
 
-        let Ok(device) = upgraded_driver.connect_device(device_identifier).await else {
-            return false;
+        let device = match upgraded_driver.connect_device(device_identifier).await {
+            Ok(d) => d,
+            Err(e) => {
+                error!(%e, "Error happened trying to connect to a device");
+                return false;
+            }
         };
 
         // Device config should exist at this point because of driver
         let device_config = self.config.load().get_device_config(device_identifier).await.unwrap();
 
         let core = Core::init_core(self.config.clone(), device, device_config).await;
-        self.cores.insert_async(device_identifier.clone(), core).await.ok().is_some()
+
+        self.cores.rcu(|cores| {
+            let mut new_cores = (**cores).clone();
+            new_cores.insert(device_identifier.clone(), core.clone());
+            new_cores
+        });
+
+        true
     }
 
     /// Removes device from autoconnect
-    pub fn remove_device_to_autoconnect(&self, device_identifier: &DeviceIdentifier) {
+    pub async fn remove_device_to_autoconnect(&self, device_identifier: &DeviceIdentifier) {
         if self.config.load().autoconnect_devices.contains(device_identifier) {
-            let mut new_config = self.config.load().as_ref().clone();
+            info!(%device_identifier, "Removing device from autoconnect");
 
-            new_config.autoconnect_devices.remove(device_identifier);
+            self.config.rcu(|cache| {
+                let mut new_config = cache.as_ref().clone();
+                new_config.autoconnect_devices.remove(device_identifier);
+                new_config
+            });
 
-            self.config.store(Arc::new(new_config));
+            self.save_config().await;
         }
     }
 
     /// Cleans up any dead device
     pub async fn clean_up_dead_devices(&self) {
-        let mut entry = self.cores.first_occupied_entry_async().await;
+        let mut dead_entries= vec![];
 
-        while let Some(some_entry) = entry {
-            if !some_entry.get().active.load(Ordering::Acquire) {
-                some_entry.get().save_data().await;
-                self.cores.remove_async(some_entry.key()).await;
-            }
+        self.cores.rcu(|cache| {
+            let (alive, dead): (Vec<_>, Vec<_>) = cache.as_ref().clone().into_iter()
+                .partition(|(_, c)| c.active.load(Ordering::Acquire));
 
-            entry = some_entry.next_async().await;
+            dead_entries = dead;
+
+            HashMap::from_iter(alive)
+        });
+
+        for (iden, dead_core) in dead_entries {
+            trace!(%iden, "Device is dead, cleaning up");
+            dead_core.die().await;
         }
     }
 
     /// Drops the connected device, but lets it save first
     pub async fn drop_device(&self, device_identifier: &DeviceIdentifier) {
-        if let Some(entry) = self.cores.get_async(device_identifier).await {
-            entry.get().die().await;
-            let _ = entry.remove_entry();
+        if let Some(entry) = self.cores.load().get(device_identifier) {
+            entry.die().await;
+        }
+    }
+
+    /// Writes global config to file
+    pub async fn save_config(&self) {
+        let guard = self.config.load();
+
+        if let Err(e) = guard.save().await {
+            error!(?e, "Error happened while trying to save global config");
         }
     }
 
@@ -231,16 +262,19 @@ impl Streamduck {
     pub async fn run(self: &Arc<Self>) {
         self.running.store(true, Ordering::Release);
 
+        info!("Spawning rendering thread");
         // Rendering thread
         let self_copy = self.clone();
         std::thread::spawn(move || {
             rendering_tick(self_copy);
         });
 
+        info!("Spawning device check task");
         // Device check task
         let self_copy = self.clone();
         task::spawn(device_check_tick(self_copy));
 
+        info!("Running the tick task");
         // Tick
         let self_copy = self.clone();
         tick(self_copy).await;
@@ -277,7 +311,7 @@ fn rendering_tick(self_copy: SharedStreamduck) {
         frame_count += 1;
 
         if frame_start.floor() > last_frame_time.floor() {
-            println!("rendering - frames counted: {}, frame diff: {}, target diff: {}", frame_count, elapsed_time, target_diff);
+            // trace!("rendering - frames counted: {}, frame diff: {}, target diff: {}", frame_count, elapsed_time, target_diff);
             frame_count = 0;
         }
 
@@ -299,8 +333,8 @@ async fn tick(self_copy: SharedStreamduck) {
         let tick_start = start_time.elapsed().as_secs_f32();
         let config_guard = self_copy.config.load();
 
-        // do actual code here
-        sleep(Duration::from_micros(15000)).await;
+        // device tick
+        tokio::task::spawn(device_poll_tick_impl(self_copy.clone()));
 
 
         // tick limiter
@@ -313,7 +347,7 @@ async fn tick(self_copy: SharedStreamduck) {
         tick_count += 1;
 
         if tick_start.floor() > last_tick_time.floor() {
-            println!("tick - ticks counted: {}, tick diff: {}, target diff: {}", tick_count, elapsed_time, target_diff);
+            // trace!("tick - ticks counted: {}, tick diff: {}, target diff: {}", tick_count, elapsed_time, target_diff);
             tick_count = 0;
         }
 
@@ -322,6 +356,14 @@ async fn tick(self_copy: SharedStreamduck) {
         }
 
         last_tick_time = tick_start;
+    }
+}
+
+async fn device_poll_tick_impl(self_copy: SharedStreamduck) {
+    for (_, core) in self_copy.cores.load().iter() {
+        if core.active.load(Ordering::Acquire) {
+            core.poll_device().await;
+        }
     }
 }
 
@@ -334,14 +376,15 @@ async fn device_check_tick(self_copy: SharedStreamduck) {
         self_copy.refresh_devices().await;
 
         for identifier in self_copy.discovered_devices.load().iter() {
+
             // Skip device if it's not included in autoconnect
             if !config_guard.autoconnect_devices.contains(identifier) {
                 continue;
             }
 
             // Skip device if it's already connected and active
-            if let Some(device) = self_copy.cores.get_async(identifier).await {
-                if device.get().active.load(Ordering::Acquire) {
+            if let Some(device) = self_copy.cores.load().get(identifier) {
+                if device.active.load(Ordering::Acquire) {
                     continue;
                 }
             }

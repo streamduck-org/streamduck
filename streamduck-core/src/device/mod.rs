@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::sync::{Arc, Weak};
+use std::sync::atomic::{AtomicBool, Ordering};
 use async_trait::async_trait;
 use image::DynamicImage;
 use rmpv::Value;
@@ -17,6 +18,7 @@ pub mod driver;
 pub use driver::{Driver, DriverImpl};
 pub use metadata::{DeviceIdentifier, DeviceMetadata};
 use crate::config::SharedConfig;
+use crate::core::Core;
 use crate::plugin::{Plugin, WeakPlugin};
 use crate::ui::UISchema;
 
@@ -26,6 +28,9 @@ pub type SharedDevice = Arc<Device>;
 /// Connected device
 pub struct Device {
     pub(crate) config: SharedConfig,
+
+    /// If the device is still processing its tick
+    pub busy: AtomicBool,
 
     /// Plugin that the device originated from
     pub original_plugin: Weak<Plugin>,
@@ -53,6 +58,7 @@ impl DriverConnection {
     pub(crate) fn upgrade(self, config: SharedConfig, identifier: DeviceIdentifier, plugin: WeakPlugin, device_data: Value) -> SharedDevice {
         Arc::new(Device {
             config,
+            busy: Default::default(),
             original_plugin: plugin,
             identifier,
             options: Options {
@@ -65,6 +71,14 @@ impl DriverConnection {
 }
 
 impl Device {
+    /// Polls the device
+    pub async fn poll(&self, core: Arc<Core>) -> Result<(), DeviceError> {
+        self.implement.poll_device(&self.options, core).await?;
+
+        self.busy.store(false, Ordering::Release);
+        Ok(())
+    }
+
     /// Asks the device instance to disconnect
     pub async fn disconnect(&self) {
         self.implement.disconnect().await;
@@ -78,7 +92,7 @@ pub trait DeviceImpl: Send + Sync + ImageOps {
     async fn options_changed(&self, options: &Options, new_data: Value);
 
     /// Polls the device in case the device needs to check the state, read from the device and so on
-    async fn poll_device(&self, options: &Options) -> Result<(), DeviceError>;
+    async fn poll_device(&self, options: &Options, core: Arc<Core>) -> Result<(), DeviceError>;
 
     /// Called when device is being forcefully disconnected
     async fn disconnect(&self);

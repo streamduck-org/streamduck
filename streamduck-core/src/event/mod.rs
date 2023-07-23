@@ -1,5 +1,12 @@
-use rmpv::Value;
+/// Event dispatcher implementation
+pub mod dispatcher;
+
+use rmpv::{Value};
 use serde::{Serialize, Deserialize};
+use crate::util::serialize_into_value;
+
+/// Name for all input events
+pub const INPUT_EVENT_NAME: &str = "input_event";
 
 /// An event
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -15,10 +22,16 @@ pub struct Event {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct InputPayload {
     /// Which input got the event
-    input: u16,
+    pub input: u16,
 
     /// The event that happened to the input
-    event: InputEvent
+    pub event: InputEvent
+}
+
+impl From<&InputPayload> for Value {
+    fn from(value: &InputPayload) -> Self {
+        serialize_into_value(value).unwrap()
+    }
 }
 
 /// Input event, describes what happened to the input
@@ -51,7 +64,10 @@ pub enum InputEvent {
     /// XY Panel press was released at certain position
     XYPanelRelease {
         /// Position that the press release happened at
-        position: (u32, u32)
+        position: (u32, u32),
+
+        /// Time for how long the press happened
+        time_held: f32,
     },
 
     /// XY Panel drag

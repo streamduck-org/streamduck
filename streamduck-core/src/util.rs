@@ -1,9 +1,17 @@
-use std::hash::Hash;
+use std::error::Error;
 use rmpv::Value;
 use serde::Serialize;
 use sha2::Sha256;
 use sha2::Digest;
 use tokio::task::block_in_place;
+
+/// Takes in anything that could be turned into Value using Into trait, and returns a Value
+#[macro_export]
+macro_rules! msgpack {
+    ($e:expr) => {
+        rmpv::Value::from($e)
+    };
+}
 
 /// Takes in anything that could be turned into Value using Into trait, and returns a vector with Values
 #[macro_export]
@@ -71,6 +79,7 @@ pub fn traverse_msgpack_mut<'a>(value: &'a mut Value, path: &[Value]) -> Option<
     Some(target)
 }
 
+/// Hashes anything that can be serialized into SHA-256
 pub fn sha256_digest(serializable: impl Serialize) -> Result<String, rmp_serde::encode::Error> {
     let msg = block_in_place(move || { rmp_serde::to_vec(&serializable) })?;
 
@@ -79,4 +88,10 @@ pub fn sha256_digest(serializable: impl Serialize) -> Result<String, rmp_serde::
     let hash = hasher.finalize();
 
     Ok(format!("{:x}", hash))
+}
+
+/// Attempts to serialize input into a value
+pub fn serialize_into_value(serializable: impl Serialize) -> Result<Value, Box<dyn Error>> {
+    let data = rmp_serde::to_vec_named(&serializable)?;
+    Ok(rmp_serde::from_slice(data.as_slice())?)
 }

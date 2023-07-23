@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 use crate::trigger::TriggerCondition;
 

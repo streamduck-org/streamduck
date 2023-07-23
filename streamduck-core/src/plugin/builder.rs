@@ -142,5 +142,6 @@ struct DriverTemplate {
     options: Options
 }
 
+/// Represents a PluginHolder that doesn't hold anything
 pub struct EmptyHolder;
 impl PluginHolder for EmptyHolder {}
