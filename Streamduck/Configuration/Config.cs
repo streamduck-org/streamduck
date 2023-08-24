@@ -4,18 +4,18 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using NLog;
 
-namespace Streamduck.Config;
+namespace Streamduck.Configuration;
 
 /**
  * Configuration for Streamduck
  */
-public class AppConfig {
+public class Config {
 	private const string StreamduckFolderName = "streamduck";
 	private const string ConfigFileName = "config.json";
 
 	private static readonly Logger L = LogManager.GetCurrentClassLogger();
 
-	private static AppConfig? _configInstance;
+	private static Config? _configInstance;
 
 	/**
 	 * How often to tick all the button scripts, in hz
@@ -27,35 +27,35 @@ public class AppConfig {
 	 */
 	public double FrameRate { get; set; } = 60.0;
 
-	private static async Task<AppConfig> _loadConfig() {
+	private static async Task<Config> _loadConfig() {
 		var path = Path.Join(
 			Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
 			StreamduckFolderName,
 			ConfigFileName
 		);
-		
+
 		L.Info("Loading config...");
 
 		if (File.Exists(path)) {
 			var content = await File.ReadAllBytesAsync(path);
 
 			L.Debug("Trying to read existing config...");
-			
+
 			try {
-				var deserializedConfig = await JsonSerializer.DeserializeAsync<AppConfig>(
-					new MemoryStream(content)
+				using var memoryStream = new MemoryStream(content);
+
+				var deserializedConfig = await JsonSerializer.DeserializeAsync<Config>(
+					memoryStream
 				);
 
-				if (deserializedConfig != null) {
-					return deserializedConfig;
-				}
+				if (deserializedConfig != null) return deserializedConfig;
 			} catch (Exception e) {
 				L.Error("Error happened while trying to load config {0}", e);
 			}
 		}
 
 		L.Debug("No config found, creating new one...");
-		var config = new AppConfig();
+		var config = new Config();
 
 		await config.SaveConfig();
 
@@ -84,7 +84,7 @@ public class AppConfig {
 		);
 
 		try {
-			var buffer = new MemoryStream();
+			using var buffer = new MemoryStream();
 
 			await JsonSerializer.SerializeAsync(
 				buffer,
@@ -104,7 +104,7 @@ public class AppConfig {
 	 * If file doesn't exist, creates a default AppConfig and saves it.
 	 * If config is already loaded, provides that config instance
 	 */
-	public static async Task<AppConfig> GetConfig() {
+	public static async Task<Config> GetConfig() {
 		_configInstance ??= await _loadConfig();
 		return _configInstance;
 	}

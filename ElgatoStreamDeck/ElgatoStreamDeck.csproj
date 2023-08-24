@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net7.0</TargetFramework>
+        <ImplicitUsings>disable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="HidApi.Net" Version="0.4.0"/>
+        <PackageReference Include="SixLabors.ImageSharp" Version="3.0.1"/>
+    </ItemGroup>
+
+
+</Project>
