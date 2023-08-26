@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Loader;
 using NLog;
 
 namespace Streamduck.Plugins.Loaders;
@@ -10,20 +11,22 @@ namespace Streamduck.Plugins.Loaders;
 public static class PluginLoader {
 	private static readonly Logger L = LogManager.GetCurrentClassLogger();
 
-	public static IEnumerable<WrappedPlugin> Load(string path) {
+	public static PluginAssembly? Load(string path) {
 		var curDir = Directory.GetCurrentDirectory();
 		var fullPath = Path.Combine(curDir, path);
 
+		var context = new PluginLoadContext(fullPath);
+
 		try {
-			var plugin = CreatePlugins(LoadPlugin(fullPath));
-			return plugin;
+			var plugins = CreatePlugins(context, LoadPlugin(context, fullPath));
+			return new PluginAssembly(context, plugins.ToArray());
 		} catch (Exception e) {
 			L.Error("Failed to load plugin at {0}\nReason: {1}", path, e);
-			return Array.Empty<WrappedPlugin>();
+			return null;
 		}
 	}
 
-	public static IEnumerable<WrappedPlugin> LoadFromFolder(string pathToFolder) {
+	public static IEnumerable<PluginAssembly> LoadFromFolder(string pathToFolder) {
 		L.Info("Loading plugins in {0} folder...", pathToFolder);
 
 		var curDir = Directory.GetCurrentDirectory();
@@ -32,7 +35,11 @@ public static class PluginLoader {
 		foreach (var filePath in Directory.GetFiles(pathToFolder)) {
 			if (!filePath.EndsWith("dll")) continue;
 
-			foreach (var plugin in Load(filePath)) yield return plugin;
+			var assembly = Load(filePath);
+
+			if (assembly == null) continue;
+
+			yield return assembly;
 		}
 
 		foreach (var directory in Directory.GetDirectories(pathToFolder)) {
@@ -40,25 +47,32 @@ public static class PluginLoader {
 
 			var dllPath = Path.Combine(directory, $"{directoryName}.dll");
 
-			foreach (var plugin in Load(dllPath)) yield return plugin;
+			var assembly = Load(dllPath);
+
+			if (assembly == null) continue;
+
+			yield return assembly;
 		}
 	}
 
-	private static Assembly LoadPlugin(string assemblyPath) {
-		var context = new PluginLoadContext(assemblyPath);
-		return context.LoadFromAssemblyName(new AssemblyName(Path.GetFileNameWithoutExtension(assemblyPath)));
-	}
+	private static Assembly LoadPlugin(AssemblyLoadContext context, string assemblyPath) =>
+		context.LoadFromAssemblyName(new AssemblyName(Path.GetFileNameWithoutExtension(assemblyPath)));
 
-	private static IEnumerable<WrappedPlugin> CreatePlugins(Assembly assembly) {
+	private static IEnumerable<WrappedPlugin> CreatePlugins(PluginLoadContext context, Assembly assembly) {
 		var loadedPlugins = 0;
 
 		foreach (var type in assembly.GetTypes()) {
 			if (!typeof(Plugin).IsAssignableFrom(type)) continue;
+
 			if (Activator.CreateInstance(type) is not Plugin plugin) continue;
 
+			L.Info("Loading plugin \"{0}\"...", plugin.Name);
+
 			loadedPlugins++;
-			var wrapped = new WrappedPlugin(plugin);
-			L.Info("Loaded plugin \"{0}\" ({1})", wrapped.Name, assembly.Location);
+			var wrapped = new WrappedPlugin(plugin, context);
+
+			L.Info("Loaded plugin \"{0}\" ({1})", plugin.Name, assembly.Location);
+
 			yield return wrapped;
 		}
 

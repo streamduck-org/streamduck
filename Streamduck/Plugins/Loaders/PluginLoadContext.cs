@@ -7,7 +7,7 @@ namespace Streamduck.Plugins.Loaders;
 public class PluginLoadContext : AssemblyLoadContext {
 	private readonly AssemblyDependencyResolver _resolver;
 
-	public PluginLoadContext(string pluginPath) {
+	public PluginLoadContext(string pluginPath) : base(true) {
 		_resolver = new AssemblyDependencyResolver(pluginPath);
 	}
 

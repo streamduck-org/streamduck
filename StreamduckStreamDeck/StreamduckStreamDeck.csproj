@@ -8,6 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\ElgatoStreamDeck\ElgatoStreamDeck.csproj"/>
         <ProjectReference Include="..\StreamduckShared\StreamduckShared.csproj">
             <Private>false</Private>
             <ExcludeAssets>runtime</ExcludeAssets>

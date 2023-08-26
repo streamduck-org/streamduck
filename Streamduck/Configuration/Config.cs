@@ -27,6 +27,11 @@ public class Config {
 	 */
 	public double FrameRate { get; set; } = 60.0;
 
+	/*
+	 * How long to wait between checking for new devices from all loaded drivers
+	 */
+	public double DeviceCheckDelay { get; set; } = 30.0;
+
 	private static async Task<Config> _loadConfig() {
 		var path = Path.Join(
 			Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
