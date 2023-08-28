@@ -8,4 +8,9 @@
     </PropertyGroup>
 
 
+
+    <ItemGroup>
+      <Folder Include="Configuration\" />
+    </ItemGroup>
+
 </Project>
