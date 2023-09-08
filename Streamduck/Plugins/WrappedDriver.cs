@@ -22,4 +22,7 @@ public class WrappedDriver {
 		return (await _instance.ListDevices())
 			.Select(i => new NamespacedDeviceIdentifier(Name, i));
 	}
+
+	public async Task<Device> ConnectDevice(NamespacedDeviceIdentifier identifier) => 
+		await _instance.ConnectDevice(identifier._identifier);
 }

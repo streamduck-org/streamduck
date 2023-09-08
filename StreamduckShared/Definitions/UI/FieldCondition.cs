@@ -1,13 +1,27 @@
 using System;
+using System.Text.Json.Serialization;
 
-namespace StreamduckPlugin.Definitions.UI; 
+namespace Streamduck.Definitions.UI;
 
+[JsonDerivedType(typeof(Always))]
+[JsonDerivedType(typeof(Never))]
+[JsonDerivedType(typeof(Exists))]
+[JsonDerivedType(typeof(EqualTo))]
+[JsonDerivedType(typeof(Contains))]
+[JsonDerivedType(typeof(RegexMatches))]
+[JsonDerivedType(typeof(GreaterThan))]
+[JsonDerivedType(typeof(GreaterThanOrEquals))]
+[JsonDerivedType(typeof(LesserThan))]
+[JsonDerivedType(typeof(LesserThanOrEquals))]
+[JsonDerivedType(typeof(Not))]
+[JsonDerivedType(typeof(Or))]
+[JsonDerivedType(typeof(And))]
 public abstract class FieldCondition {
 	/**
 	 * Object Type
 	 */
 	public abstract string Type { get; }
-	
+
 	/**
 	 * Field is always visible
 	 */
@@ -21,7 +35,7 @@ public abstract class FieldCondition {
 	public class Never : FieldCondition {
 		public override string Type => "Never";
 	}
-	
+
 	/**
 	 * Field will be shown if a certain path exists in the state
 	 */
@@ -29,7 +43,7 @@ public abstract class FieldCondition {
 		public override string Type => "Exists";
 		public string[] ValuePath { get; init; } = Array.Empty<string>();
 	}
-    
+
 	/**
 	 * Field will be shown if path has the same value as specified
 	 */
@@ -38,7 +52,7 @@ public abstract class FieldCondition {
 		public string[] ValuePath { get; init; } = Array.Empty<string>();
 		public object? ExpectedValue { get; init; }
 	}
-	
+
 	/**
 	 * Field will be shown if path contains specified value, example "hello" in "hello world"
 	 */
@@ -47,7 +61,7 @@ public abstract class FieldCondition {
 		public string[] ValuePath { get; init; } = Array.Empty<string>();
 		public string ContainsValue { get; init; } = "";
 	}
-	
+
 	/**
 	 * Field will be shown if path's value matches the regex pattern, should use ECMAScript flavor of Regex
 	 */
@@ -55,21 +69,33 @@ public abstract class FieldCondition {
 		public override string Type => "RegexMatches";
 		public string[] ValuePath { get; init; } = Array.Empty<string>();
 		public string Pattern { get; init; } = "";
-		
+
 		/**
 		 * Regex flags that should be used, example "gm"
 		 * <list type="bullet">
-		 * <item><description>g - Global search</description></item>
-		 * <item><description>i - Case-insensitive search</description></item>
-		 * <item><description>m - Allows `^` and `$` to match newline characters</description></item>
-		 * <item><description>s - Allows `.` to match newline characters</description></item>
-		 * <item><description>u - Unicode</description></item>
-		 * <item><description>y - Sticky search</description></item>
+		 *     <item>
+		 *         <description>g - Global search</description>
+		 *     </item>
+		 *     <item>
+		 *         <description>i - Case-insensitive search</description>
+		 *     </item>
+		 *     <item>
+		 *         <description>m - Allows `^` and `$` to match newline characters</description>
+		 *     </item>
+		 *     <item>
+		 *         <description>s - Allows `.` to match newline characters</description>
+		 *     </item>
+		 *     <item>
+		 *         <description>u - Unicode</description>
+		 *     </item>
+		 *     <item>
+		 *         <description>y - Sticky search</description>
+		 *     </item>
 		 * </list>
 		 */
 		public string Flags { get; init; } = "";
 	}
-	
+
 	/**
 	 * Field will be shown if value at the path will have value greater than specified
 	 */
@@ -78,7 +104,7 @@ public abstract class FieldCondition {
 		public string[] ValuePath { get; init; } = Array.Empty<string>();
 		public object? Value { get; init; }
 	}
-	
+
 	/**
 	 * Field will be shown if value at the path will have value equal or greater than specified
 	 */
@@ -87,7 +113,7 @@ public abstract class FieldCondition {
 		public string[] ValuePath { get; init; } = Array.Empty<string>();
 		public object? Value { get; init; }
 	}
-	
+
 	/**
 	 * Field will be shown if value at the path will have value lesser than specified
 	 */
@@ -96,7 +122,7 @@ public abstract class FieldCondition {
 		public string[] ValuePath { get; init; } = Array.Empty<string>();
 		public object? Value { get; init; }
 	}
-	
+
 	/**
 	 * Field will be shown if value at the path will have value equal or lesser than specified
 	 */
@@ -105,7 +131,7 @@ public abstract class FieldCondition {
 		public string[] ValuePath { get; init; } = Array.Empty<string>();
 		public object? Value { get; init; }
 	}
-	
+
 	/**
 	 * Field will be shown if condition inside is false
 	 */
@@ -113,7 +139,7 @@ public abstract class FieldCondition {
 		public override string Type => "Not";
 		public FieldCondition Condition { get; init; } = new Always();
 	}
-	
+
 	/**
 	 * Field will be shown if any condition inside is true
 	 */
@@ -121,7 +147,7 @@ public abstract class FieldCondition {
 		public override string Type => "Or";
 		public FieldCondition[] Conditions { get; init; } = Array.Empty<FieldCondition>();
 	}
-	
+
 	/**
 	 * Field will be shown if all conditions inside are true
 	 */

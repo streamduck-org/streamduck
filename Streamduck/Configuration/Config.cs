@@ -109,7 +109,7 @@ public class Config {
 	 * If file doesn't exist, creates a default AppConfig and saves it.
 	 * If config is already loaded, provides that config instance
 	 */
-	public static async Task<Config> GetConfig() {
+	public static async Task<Config> Get() {
 		_configInstance ??= await _loadConfig();
 		return _configInstance;
 	}

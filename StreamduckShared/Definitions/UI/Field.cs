@@ -1,8 +1,8 @@
-namespace StreamduckPlugin.Definitions.UI; 
+namespace Streamduck.Definitions.UI;
 
 public class Field {
 	public string[]? ValuePath { get; init; }
 	public string? Title { get; init; }
-    public string? Description { get; init; }
-    public FieldType Type { get; init; } = new FieldType.Header();
+	public string? Description { get; init; }
+	public FieldType Type { get; init; } = new FieldType.Header();
 }

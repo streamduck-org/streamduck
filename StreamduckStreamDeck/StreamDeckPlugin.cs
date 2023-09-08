@@ -5,7 +5,7 @@ using Streamduck.Plugins;
 
 namespace StreamduckStreamDeck;
 
-public class StreamDeckPlugin : Plugin {
+public class StreamDeckPlugin : Plugin, IDisposable {
 	private readonly DeviceManager _manager = DeviceManager.Get();
 
 	public override string Name => "StreamDeckPlugin";
@@ -14,7 +14,7 @@ public class StreamDeckPlugin : Plugin {
 		new StreamDeckDriver(_manager)
 	};
 
-	public override void Dispose() {
+	public void Dispose() {
 		_manager.Dispose();
 		GC.SuppressFinalize(this);
 	}

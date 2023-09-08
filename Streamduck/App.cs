@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using NLog;
 using Streamduck.Configuration;
 using Streamduck.Definitions.Devices;
+using Streamduck.Definitions.Inputs;
 using Streamduck.Plugins;
 using Streamduck.Plugins.Loaders;
 
@@ -13,14 +14,15 @@ namespace Streamduck;
 
 public class App {
 	private static readonly Logger L = LogManager.GetCurrentClassLogger();
-    
-	private readonly List<NamespacedDeviceIdentifier>  _discoveredDevices = new();
-	
+
+	private readonly List<NamespacedDeviceIdentifier> _discoveredDevices = new();
+	private Config? _config;
+
 	private ConcurrentDictionary<NamespacedName, WeakReference<WrappedDriver>> _driverMap = new();
+
+	private bool _initialized;
 	private ConcurrentDictionary<string, WeakReference<WrappedPlugin>> _pluginMap = new();
 	private PluginAssembly[] _plugins = Array.Empty<PluginAssembly>();
-	private Config _config;
-
 	private bool _running;
 
 	public IEnumerable<WrappedPlugin> Plugins() => _pluginMap
@@ -67,7 +69,9 @@ public class App {
 				.SelectMany(p => p.Drivers)
 				.ToDictionary(d => d.Name, d => new WeakReference<WrappedDriver>(d))
 		);
-		_config = await Config.GetConfig();
+		_config = await Config.Get();
+
+		_initialized = true;
 	}
 
 	public void Unload(WrappedPlugin plugin) {
@@ -81,24 +85,54 @@ public class App {
 	 * Runs the Streamduck software
 	 */
 	public async Task Run() {
+		if (!_initialized) throw new ApplicationException("Init method was not called");
+
 		_running = true;
 
 		await Task.Run(DeviceDiscoverTask);
 	}
+
 	private async Task DeviceDiscoverTask() {
 		while (_running) {
 			L.Debug("Checking all drivers for devices...");
 			_discoveredDevices.Clear();
-			
-			foreach (var driver in Drivers()) {
-				_discoveredDevices.AddRange(await driver.ListDevices());
+
+			// foreach (var driver in Drivers()) {
+			// 	_discoveredDevices.AddRange(await driver.ListDevices());
+			// }
+
+			var firstDriver = Drivers().First();
+			var firstDeviceIdentifier = (await firstDriver.ListDevices()).First();
+			var firstDevice = await firstDriver.ConnectDevice(firstDeviceIdentifier);
+
+			for (var i = 0; i < firstDevice.Inputs.Length; i++) {
+				var input = firstDevice.Inputs[i];
+
+				if (input is IInputButton button) {
+					var captured = i;
+					button.ButtonPressed += () => L.Info("{} pressed", captured);
+					button.ButtonReleased += () => L.Info("{} released", captured);
+				}
+				
+				if (input is IInputEncoder encoder) {
+					var captured = i;
+					encoder.EncoderTwisted += val => L.Info("{} twisted {}", captured, val);
+				}
+				
+				if (input is IInputTouchScreen touchScreen) {
+					var captured = i;
+					touchScreen.TouchScreenPressed += pos => L.Info("{} pressed at {}", captured, pos);
+					touchScreen.TouchScreenReleased += pos => L.Info("{} released at {}", captured, pos);
+				}
+				
+				if (input is IInputTouchScreen.Drag drag) {
+					var captured = i;
+					drag.TouchScreenDragStart += pos => L.Info("{} drag start at {}", captured, pos);
+					drag.TouchScreenDragEnd += pos => L.Info("{} drag end at {}", captured, pos);
+				}
 			}
 
-			foreach (var device in _discoveredDevices) {
-				L.Info("Got {}", device);
-			}
-
-			await Task.Delay(TimeSpan.FromSeconds(_config.DeviceCheckDelay));
+			await Task.Delay(TimeSpan.FromSeconds(50000));
 		}
 	}
 }

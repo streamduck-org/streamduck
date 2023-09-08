@@ -23,17 +23,13 @@ public class DeviceManager {
 		.Select(info => (info.ProductId.ToKind(), info.SerialNumber));
 
 	public Device ConnectDevice(Kind kind, string serial) {
-		if (kind == Kind.Unknown) {
-			throw new ArgumentException("Can't connect to unrecognized device kind");
-		}
+		if (kind == Kind.Unknown) throw new ArgumentException("Can't connect to unrecognized device kind");
 
 		return new Device(new HidApi.Device(ElgatoVendorId, kind.ToPid(), serial), kind);
 	}
-	
+
 	public ConcurrentDevice ConnectDeviceConcurrent(Kind kind, string serial) {
-		if (kind == Kind.Unknown) {
-			throw new ArgumentException("Can't connect to unrecognized device kind");
-		}
+		if (kind == Kind.Unknown) throw new ArgumentException("Can't connect to unrecognized device kind");
 
 		return new ConcurrentDevice(new Device(new HidApi.Device(ElgatoVendorId, kind.ToPid(), serial), kind));
 	}

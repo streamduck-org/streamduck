@@ -1,8 +1,8 @@
 namespace Streamduck.Definitions.Devices;
 
 public readonly struct NamespacedDeviceIdentifier {
-	private readonly NamespacedName _driver;
-	private readonly DeviceIdentifier _identifier;
+	internal readonly NamespacedName _driver;
+	internal readonly DeviceIdentifier _identifier;
 
 	public NamespacedDeviceIdentifier(NamespacedName driver, DeviceIdentifier identifier) {
 		_driver = driver;

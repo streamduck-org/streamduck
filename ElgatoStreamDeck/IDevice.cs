@@ -10,7 +10,7 @@ public interface IDevice {
 	string Product();
 	string SerialNumber();
 	string FirmwareVersion();
-	Input? ReadInput(int? timeout);
+	Input? ReadInput(int? timeout = null);
 	void Reset();
 	void SetBrightness(byte percent);
 	void WriteImage(byte keyIndex, ReadOnlySpan<byte> imageData);

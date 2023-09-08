@@ -4,13 +4,24 @@
         <TargetFramework>net7.0</TargetFramework>
         <ImplicitUsings>disable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <RootNamespace>StreamduckPlugin</RootNamespace>
+        <RootNamespace>Streamduck</RootNamespace>
     </PropertyGroup>
 
 
+    <ItemGroup>
+        <Folder Include="Configuration\"/>
+    </ItemGroup>
+
 
     <ItemGroup>
-      <Folder Include="Configuration\" />
+        <Reference Include="MessagePack.Annotations">
+            <HintPath>..\..\..\.nuget\packages\messagepack.annotations\2.5.124\lib\netstandard2.0\MessagePack.Annotations.dll</HintPath>
+        </Reference>
+    </ItemGroup>
+
+
+    <ItemGroup>
+        <PackageReference Include="SixLabors.ImageSharp" Version="3.0.1"/>
     </ItemGroup>
 
 </Project>
