@@ -8,8 +8,11 @@ public interface IInputTouchScreen {
 
 	public interface Drag {
 		event Action<Int2>? TouchScreenDragStart;
-		event Action<Int2>? TouchScreenDragging;
 		event Action<Int2>? TouchScreenDragEnd;
+	}
+	
+	public interface Dragging {
+		event Action<Int2>? TouchScreenDragging;
 	}
 
 	public interface Hover {

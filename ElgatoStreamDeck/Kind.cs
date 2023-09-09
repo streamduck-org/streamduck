@@ -16,7 +16,7 @@ public enum Kind {
 	Unknown
 }
 
-public static class KindMethods {
+public static class KindExtensions {
 	private const ushort PidStreamdeckOriginal = 0x0060;
 	private const ushort PidStreamdeckOriginalV2 = 0x006d;
 	private const ushort PidStreamdeckMini = 0x0063;

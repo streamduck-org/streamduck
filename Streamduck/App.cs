@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using NLog;
+using SixLabors.ImageSharp;
 using Streamduck.Configuration;
 using Streamduck.Definitions.Devices;
 using Streamduck.Definitions.Inputs;
@@ -105,6 +106,9 @@ public class App {
 			var firstDeviceIdentifier = (await firstDriver.ListDevices()).First();
 			var firstDevice = await firstDriver.ConnectDevice(firstDeviceIdentifier);
 
+			var catKey = 1;
+			var dogKey = 2;
+
 			for (var i = 0; i < firstDevice.Inputs.Length; i++) {
 				var input = firstDevice.Inputs[i];
 
@@ -112,6 +116,23 @@ public class App {
 					var captured = i;
 					button.ButtonPressed += () => L.Info("{} pressed", captured);
 					button.ButtonReleased += () => L.Info("{} released", captured);
+
+					if (input is IInputDisplay display) {
+						button.ButtonPressed += async () => {
+							var appended = display.AppendHashKey(catKey);
+							if (await display.ApplyImage(appended)) return;
+							using var cat = await Image.LoadAsync("cat-1285634_1920.png");
+							await display.UploadImage(appended, cat);
+							await display.ApplyImage(appended);
+						};
+						button.ButtonReleased += async () => {
+							var appended = display.AppendHashKey(dogKey);
+							if (await display.ApplyImage(appended)) return;
+							using var dog = await Image.LoadAsync("download.jpeg");
+							await display.UploadImage(appended, dog);
+							await display.ApplyImage(appended);
+						};
+					}
 				}
 				
 				if (input is IInputEncoder encoder) {

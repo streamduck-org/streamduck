@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using ElgatoStreamDeck;
+using Microsoft.Extensions.Caching.Memory;
 using SixLabors.ImageSharp;
 using Streamduck.Definitions;
 using Streamduck.Definitions.Devices;
@@ -15,10 +16,13 @@ using Input = Streamduck.Definitions.Inputs.Input;
 namespace StreamduckStreamDeck;
 
 public class StreamDeckDevice : Device, IDisposable {
-	private readonly ElgatoDevice _device;
+	internal readonly ElgatoDevice _device;
 	private readonly DeviceReader _deviceReader;
 	private readonly Thread _readingThread;
-	private readonly ConcurrentDictionary<int, byte[]> _imageCache = new();
+	internal readonly IMemoryCache _imageCache = new MemoryCache(new MemoryCacheOptions());
+	internal readonly MemoryCacheEntryOptions _imageCacheEntryOptions = new() {
+		SlidingExpiration = TimeSpan.FromMinutes(5)
+	};
 
 	public StreamDeckDevice(ElgatoDevice device, DeviceIdentifier identifier) : base(identifier) {
 		_device = device;
@@ -35,12 +39,14 @@ public class StreamDeckDevice : Device, IDisposable {
 
 		for (var x = 0; x < kind.ColumnCount(); x++) {
 			for (var y = 0; y < kind.RowCount(); y++) {
-				inputs[x + y * kind.ColumnCount()] = hasScreen
+				var i = x + y * kind.ColumnCount();
+				inputs[i] = hasScreen
 					? new StreamDeckButton(
 						this,
 						x,
 						y,
-						new UInt2(resolution.Item1, resolution.Item2)
+						new UInt2(resolution.Item1, resolution.Item2),
+						(byte)i
 					)
 					: new StreamDeckButtonWithoutDisplay(x, y);
 			}
@@ -149,6 +155,10 @@ public class StreamDeckDevice : Device, IDisposable {
 				}
 			}
 		}
+	}
+
+	internal void SetCache(int key, byte[] data) {
+		_imageCache.Set(key, data, _imageCacheEntryOptions);
 	}
 
 	public override Input[] Inputs { get; }
