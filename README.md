@@ -5,7 +5,9 @@ Open Source and Cross Platform software to manage macro devices like Elgato Stre
 
 ### Currently in heavy development, groundwork is being laid!
 
+#### [docs.streamduck.org](https://docs.streamduck.org/) will be rewritten once the project is ready to be used
 #### [Learn why I switched to C# for this project](why-dotnet.md)
+#### If you're looking for Rust version's code, [here it is](https://github.com/streamduck-org/streamduck/tree/old-master)
 
 ## Project Structure
 
