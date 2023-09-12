@@ -27,11 +27,13 @@ public class StreamDeckButton : Input, IInputButton, IInputDisplay {
 	public int AppendHashKey(int key) => $"{key}button".GetHashCode();
 
 	public async Task UploadImage(int key, Image image) {
+		_device.ThrowDisconnectedIfDead();
 		var data = await ImageUtils.EncodeImageForButtonAsync(image, _device._device.Kind());
 		_device.SetCache(key, data);
 	}
 
 	public ValueTask<bool> ApplyImage(int key) {
+		_device.ThrowDisconnectedIfDead();
 		if (!_device._imageCache.TryGetValue(key, out byte[]? data)) 
 			return ValueTask.FromResult(false);
 		

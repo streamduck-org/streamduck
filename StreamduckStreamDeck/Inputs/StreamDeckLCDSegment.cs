@@ -22,11 +22,13 @@ public class StreamDeckLCDSegment : Input, IInputTouchScreen, IInputTouchScreen.
 	public int AppendHashKey(int key) => $"{key}lcd".GetHashCode();
 
 	public async Task UploadImage(int key, Image image) {
+		_device.ThrowDisconnectedIfDead();
 		var data = await ImageUtils.EncodeImageForLcdAsync(image, image.Width, image.Height);
 		_device.SetCache(key, data);
 	}
 
 	public ValueTask<bool> ApplyImage(int key) {
+		_device.ThrowDisconnectedIfDead();
 		_device._imageCache.TryGetValue(key, out byte[]? data);
 
 		if (data == null) return ValueTask.FromResult(false);

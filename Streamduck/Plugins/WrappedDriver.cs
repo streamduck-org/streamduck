@@ -24,5 +24,5 @@ public class WrappedDriver {
 	}
 
 	public async Task<Device> ConnectDevice(NamespacedDeviceIdentifier identifier) => 
-		await _instance.ConnectDevice(identifier._identifier);
+		await _instance.ConnectDevice(identifier.DeviceIdentifier);
 }

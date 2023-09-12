@@ -2,6 +2,8 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices.ComTypes;
+using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using SixLabors.ImageSharp;
@@ -85,15 +87,16 @@ public class App {
 	/**
 	 * Runs the Streamduck software
 	 */
-	public async Task Run() {
+	public async Task Run(CancellationTokenSource cts) {
 		if (!_initialized) throw new ApplicationException("Init method was not called");
 
 		_running = true;
+		cts.Token.Register(() => _running = false);
 
-		await Task.Run(DeviceDiscoverTask);
+		await DeviceDiscoverTask(cts);
 	}
 
-	private async Task DeviceDiscoverTask() {
+	private async Task DeviceDiscoverTask(CancellationTokenSource cts) {
 		while (_running) {
 			L.Debug("Checking all drivers for devices...");
 			_discoveredDevices.Clear();
@@ -153,7 +156,7 @@ public class App {
 				}
 			}
 
-			await Task.Delay(TimeSpan.FromSeconds(50000));
+			await Task.Delay(TimeSpan.FromSeconds(50000), cts.Token);
 		}
 	}
 }

@@ -4,9 +4,14 @@
         <OutputType>Exe</OutputType>
         <TargetFramework>net7.0</TargetFramework>
         <Nullable>enable</Nullable>
+        <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Avalonia" Version="11.0.4" />
+        <PackageReference Include="Avalonia.Desktop" Version="11.0.4" />
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="11.0.4" />
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.4" />
         <PackageReference Include="MessagePack" Version="2.5.124"/>
         <PackageReference Include="MessagePackAnalyzer" Version="2.5.124">
             <PrivateAssets>all</PrivateAssets>
@@ -20,6 +25,13 @@
 
     <ItemGroup>
         <ProjectReference Include="..\StreamduckShared\StreamduckShared.csproj"/>
+    </ItemGroup>
+
+
+    <ItemGroup>
+      <AvaloniaResource Include="streamducklogo.ico">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </AvaloniaResource>
     </ItemGroup>
 
 </Project>

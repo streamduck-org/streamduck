@@ -1,11 +1,9 @@
 using System;
-using System.Collections.Concurrent;
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 using ElgatoStreamDeck;
+using HidApi;
 using Microsoft.Extensions.Caching.Memory;
-using SixLabors.ImageSharp;
 using Streamduck.Definitions;
 using Streamduck.Definitions.Devices;
 using StreamduckStreamDeck.Inputs;
@@ -79,79 +77,87 @@ public class StreamDeckDevice : Device, IDisposable {
 		var encoderOffset = _device.Kind().KeyCount() + 1;
 		
 		while (Alive) {
-			foreach (var input in _deviceReader.Read()) {
-				switch (input) {
-					case DeviceReader.Input.ButtonPressed buttonPressed: {
-						if (Inputs[buttonPressed.key] is StreamDeckButton button) {
-							button.CallPressed();
-						}
-						
-						break;
-					}
-					
-					case DeviceReader.Input.ButtonReleased buttonReleased: {
-						if (Inputs[buttonReleased.key] is StreamDeckButton button) {
-							button.CallReleased();
-						}
-						
-						break;
-					}
+			try {
+				foreach (var input in _deviceReader.Read()) {
+					switch (input) {
+						case DeviceReader.Input.ButtonPressed buttonPressed: {
+							if (Inputs[buttonPressed.key] is StreamDeckButton button) {
+								button.CallPressed();
+							}
 
-					case DeviceReader.Input.EncoderPressed encoderPressed: {
-						if (Inputs[encoderOffset + encoderPressed.encoder] is StreamDeckEncoder encoder) {
-							encoder.CallPressed();
+							break;
 						}
-						
-						break;
-					}
-					
-					case DeviceReader.Input.EncoderReleased encoderReleased: {
-						if (Inputs[encoderOffset + encoderReleased.encoder] is StreamDeckEncoder encoder) {
-							encoder.CallReleased();
+
+						case DeviceReader.Input.ButtonReleased buttonReleased: {
+							if (Inputs[buttonReleased.key] is StreamDeckButton button) {
+								button.CallReleased();
+							}
+
+							break;
 						}
-						
-						break;
-					}
-					
-					case DeviceReader.Input.EncoderTwist encoderTwist: {
-						if (Inputs[encoderOffset + encoderTwist.encoder] is StreamDeckEncoder encoder) {
-							encoder.CallTwist(encoderTwist.value);
+
+						case DeviceReader.Input.EncoderPressed encoderPressed: {
+							if (Inputs[encoderOffset + encoderPressed.encoder] is StreamDeckEncoder encoder) {
+								encoder.CallPressed();
+							}
+
+							break;
 						}
-						
-						break;
-					}
-					
-					case DeviceReader.Input.TouchScreenPress touchScreenPress: {
-						if (Inputs[lcdIndex] is StreamDeckLCDSegment segment) {
-							segment.CallPressed(new Int2(touchScreenPress.X, touchScreenPress.Y));
-							segment.CallReleased(new Int2(touchScreenPress.X, touchScreenPress.Y));
+
+						case DeviceReader.Input.EncoderReleased encoderReleased: {
+							if (Inputs[encoderOffset + encoderReleased.encoder] is StreamDeckEncoder encoder) {
+								encoder.CallReleased();
+							}
+
+							break;
 						}
-						
-						break;
-					}
-					
-					case DeviceReader.Input.TouchScreenLongPress touchScreenPress: {
-						if (Inputs[lcdIndex] is StreamDeckLCDSegment segment) {
-							Task.Run(async () => {
+
+						case DeviceReader.Input.EncoderTwist encoderTwist: {
+							if (Inputs[encoderOffset + encoderTwist.encoder] is StreamDeckEncoder encoder) {
+								encoder.CallTwist(encoderTwist.value);
+							}
+
+							break;
+						}
+
+						case DeviceReader.Input.TouchScreenPress touchScreenPress: {
+							if (Inputs[lcdIndex] is StreamDeckLCDSegment segment) {
 								segment.CallPressed(new Int2(touchScreenPress.X, touchScreenPress.Y));
-								await Task.Delay(TimeSpan.FromSeconds(1));
 								segment.CallReleased(new Int2(touchScreenPress.X, touchScreenPress.Y));
-							});
+							}
+
+							break;
 						}
-						
-						break;
-					}
-					
-					case DeviceReader.Input.TouchScreenSwipe touchScreenSwipe: {
-						if (Inputs[lcdIndex] is StreamDeckLCDSegment segment) {
-							segment.CallDrag(
-								new Int2(touchScreenSwipe.StartX, touchScreenSwipe.StartY),
-								new Int2(touchScreenSwipe.EndX, touchScreenSwipe.EndY)
-							);
+
+						case DeviceReader.Input.TouchScreenLongPress touchScreenPress: {
+							if (Inputs[lcdIndex] is StreamDeckLCDSegment segment) {
+								Task.Run(async () => {
+									segment.CallPressed(new Int2(touchScreenPress.X, touchScreenPress.Y));
+									await Task.Delay(TimeSpan.FromSeconds(1));
+									segment.CallReleased(new Int2(touchScreenPress.X, touchScreenPress.Y));
+								});
+							}
+
+							break;
 						}
-						
-						break;
+
+						case DeviceReader.Input.TouchScreenSwipe touchScreenSwipe: {
+							if (Inputs[lcdIndex] is StreamDeckLCDSegment segment) {
+								segment.CallDrag(
+									new Int2(touchScreenSwipe.StartX, touchScreenSwipe.StartY),
+									new Int2(touchScreenSwipe.EndX, touchScreenSwipe.EndY)
+								);
+							}
+
+							break;
+						}
 					}
+				}
+			} catch (HidException e) {
+				if (e.Message.Contains("Input/output error")) {
+					Die();
+				} else {
+					throw;
 				}
 			}
 		}
@@ -164,7 +170,7 @@ public class StreamDeckDevice : Device, IDisposable {
 	public override Input[] Inputs { get; }
 	
 	public void Dispose() {
-		Alive = false;
+		Die();
 		_readingThread.Interrupt();
 		GC.SuppressFinalize(this);
 	}
