@@ -8,7 +8,7 @@ using Streamduck.Definitions;
 using Streamduck.Definitions.Devices;
 using StreamduckStreamDeck.Inputs;
 using Device = Streamduck.Definitions.Devices.Device;
-using ElgatoDevice = ElgatoStreamDeck.Device;
+using ElgatoDevice = ElgatoStreamDeck.IDevice;
 using Input = Streamduck.Definitions.Inputs.Input;
 
 namespace StreamduckStreamDeck;
@@ -172,6 +172,7 @@ public class StreamDeckDevice : Device, IDisposable {
 	public void Dispose() {
 		Die();
 		_readingThread.Interrupt();
+		_device.Dispose();
 		GC.SuppressFinalize(this);
 	}
 }

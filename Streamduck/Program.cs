@@ -68,7 +68,7 @@ internal class Program {
 
 				uiApp.CancellationTokenSource = cts;
 				
-				L.Debug("Running loop");
+				L.Debug("Running UI Loop");
 				uiApp.Run(cts.Token);
 				L.Debug("UI Loop ended");
 			}, Array.Empty<string>());

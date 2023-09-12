@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using NLog;
 using SixLabors.ImageSharp;
 using Streamduck.Configuration;
+using Streamduck.Definitions;
+using Streamduck.Definitions.Api;
 using Streamduck.Definitions.Devices;
 using Streamduck.Definitions.Inputs;
 using Streamduck.Plugins;
@@ -19,6 +21,8 @@ public class App {
 	private static readonly Logger L = LogManager.GetCurrentClassLogger();
 
 	private readonly List<NamespacedDeviceIdentifier> _discoveredDevices = new();
+	private readonly ConcurrentDictionary<NamespacedDeviceIdentifier, Core> _connectedDevices = new ();
+	
 	private Config? _config;
 
 	private ConcurrentDictionary<NamespacedName, WeakReference<WrappedDriver>> _driverMap = new();
@@ -96,67 +100,54 @@ public class App {
 		await DeviceDiscoverTask(cts);
 	}
 
+	public async Task ConnectDevice(NamespacedDeviceIdentifier deviceIdentifier) {
+		try {
+			if (_connectedDevices.ContainsKey(deviceIdentifier)) {
+				throw new ApplicationException("Device is already connected");
+			}
+			
+			var driver = GetDriver(deviceIdentifier.NamespacedName);
+
+			if (driver == null) {
+				L.Error("Driver '{}' wasn't found", deviceIdentifier.NamespacedName);
+				return;
+			}
+
+			var device = await driver.ConnectDevice(deviceIdentifier);
+			var core = new CoreImpl(device, deviceIdentifier);
+			if (!_connectedDevices.TryAdd(deviceIdentifier, core)) {
+				throw new ApplicationException("Couldn't add device, another connection was already made?");
+			}
+		} catch (Exception e) {
+			L.Error(e, "Failed to connect to device");
+		}
+	}
+
 	private async Task DeviceDiscoverTask(CancellationTokenSource cts) {
 		while (_running) {
+			L.Debug("Cleaning up dead devices...");
+			foreach (var (identifier, _) in _connectedDevices
+				         .Where(k => !k.Value.IsAlive())) {
+				_connectedDevices.TryRemove(identifier, out var core);
+				core?.Dispose();
+			}
+			
 			L.Debug("Checking all drivers for devices...");
 			_discoveredDevices.Clear();
 
-			// foreach (var driver in Drivers()) {
-			// 	_discoveredDevices.AddRange(await driver.ListDevices());
-			// }
-
-			var firstDriver = Drivers().First();
-			var firstDeviceIdentifier = (await firstDriver.ListDevices()).First();
-			var firstDevice = await firstDriver.ConnectDevice(firstDeviceIdentifier);
-
-			var catKey = 1;
-			var dogKey = 2;
-
-			for (var i = 0; i < firstDevice.Inputs.Length; i++) {
-				var input = firstDevice.Inputs[i];
-
-				if (input is IInputButton button) {
-					var captured = i;
-					button.ButtonPressed += () => L.Info("{} pressed", captured);
-					button.ButtonReleased += () => L.Info("{} released", captured);
-
-					if (input is IInputDisplay display) {
-						button.ButtonPressed += async () => {
-							var appended = display.AppendHashKey(catKey);
-							if (await display.ApplyImage(appended)) return;
-							using var cat = await Image.LoadAsync("cat-1285634_1920.png");
-							await display.UploadImage(appended, cat);
-							await display.ApplyImage(appended);
-						};
-						button.ButtonReleased += async () => {
-							var appended = display.AppendHashKey(dogKey);
-							if (await display.ApplyImage(appended)) return;
-							using var dog = await Image.LoadAsync("download.jpeg");
-							await display.UploadImage(appended, dog);
-							await display.ApplyImage(appended);
-						};
-					}
-				}
-				
-				if (input is IInputEncoder encoder) {
-					var captured = i;
-					encoder.EncoderTwisted += val => L.Info("{} twisted {}", captured, val);
-				}
-				
-				if (input is IInputTouchScreen touchScreen) {
-					var captured = i;
-					touchScreen.TouchScreenPressed += pos => L.Info("{} pressed at {}", captured, pos);
-					touchScreen.TouchScreenReleased += pos => L.Info("{} released at {}", captured, pos);
-				}
-				
-				if (input is IInputTouchScreen.Drag drag) {
-					var captured = i;
-					drag.TouchScreenDragStart += pos => L.Info("{} drag start at {}", captured, pos);
-					drag.TouchScreenDragEnd += pos => L.Info("{} drag end at {}", captured, pos);
-				}
+			foreach (var driver in Drivers()) {
+				_discoveredDevices.AddRange(await driver.ListDevices());
 			}
 
-			await Task.Delay(TimeSpan.FromSeconds(50000), cts.Token);
+			// Autoconnect
+			foreach (var discoveredDevice in _discoveredDevices
+				         .Where(discoveredDevice => !_connectedDevices.ContainsKey(discoveredDevice))
+				         .Where(discoveredDevice => _config!.AutoconnectDevices.Contains(discoveredDevice))) {
+				L.Info("Autoconnecting to {}", discoveredDevice);
+				await ConnectDevice(discoveredDevice);
+			}
+
+			await Task.Delay(TimeSpan.FromSeconds(_config!.DeviceCheckDelay), cts.Token);
 		}
 	}
 }

@@ -1,8 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using NLog;
+using Streamduck.Definitions.Devices;
 
 namespace Streamduck.Configuration;
 
@@ -31,6 +34,32 @@ public class Config {
 	 * How long to wait between checking for new devices from all loaded drivers
 	 */
 	public double DeviceCheckDelay { get; set; } = 30.0;
+
+	/**
+	 * Devices that should be automatically connected to
+	 */
+	[JsonInclude]
+	public HashSet<NamespacedDeviceIdentifier> AutoconnectDevices { get; private set; } = new();
+
+	public async Task AddDeviceToAutoconnect(NamespacedDeviceIdentifier deviceIdentifier) {
+		lock (AutoconnectDevices) {
+			AutoconnectDevices.Add(deviceIdentifier);
+		}
+		
+		L.Info("Added {} to autoconnect", deviceIdentifier.DeviceIdentifier);
+
+		await SaveConfig();
+	}
+	
+	public async Task RemoveDeviceFromAutoconnect(NamespacedDeviceIdentifier deviceIdentifier) {
+		lock (AutoconnectDevices) {
+			AutoconnectDevices.Remove(deviceIdentifier);
+		}
+		
+		L.Info("Removed {} from autoconnect", deviceIdentifier.DeviceIdentifier);
+
+		await SaveConfig();
+	}
 
 	private static async Task<Config> _loadConfig() {
 		var path = Path.Join(

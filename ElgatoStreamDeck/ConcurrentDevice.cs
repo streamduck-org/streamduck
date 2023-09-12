@@ -92,4 +92,9 @@ public class ConcurrentDevice : IDevice {
 			_device.SetButtonImage(keyIndex, image, width, height);
 		}
 	}
+
+	public void Dispose() {
+		_device.Dispose();
+		GC.SuppressFinalize(this);
+	}
 }

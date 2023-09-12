@@ -24,10 +24,7 @@ public sealed class WrappedPlugin {
 	public IEnumerable<WrappedDriver> Drivers => _drivers;
 
 	public NamespacedName NamespaceName(string name) =>
-		new() {
-			PluginName = Name,
-			Name = name
-		};
+		new(Name, name);
 
 	public bool BelongsTo(PluginAssembly assembly) => assembly.Context.Equals(_originatedFrom);
 }

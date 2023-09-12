@@ -5,10 +5,10 @@
     <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
     <TrayIcon.Icons>
         <TrayIcons>
-            <TrayIcon Icon="streamducklogo.ico" ToolTipText="Streamduck" Clicked="OpenUI">
+            <TrayIcon Icon="/UI/Assets/streamducklogo.ico" ToolTipText="Streamduck" Clicked="OpenUI">
                 <TrayIcon.Menu>
                     <NativeMenu>
-                        <NativeMenuItem Header="Streamduck" Icon="streamducklogo.ico" IsEnabled="False"/>
+                        <NativeMenuItem Header="Streamduck" Icon="/UI/Assets/streamducklogo.ico" IsEnabled="False"/>
                         <NativeMenuItemSeparator/>
                         <NativeMenuItem Header="Show UI" Click="OpenUI"/>
                         <NativeMenuItemSeparator/>

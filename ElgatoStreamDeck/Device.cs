@@ -447,4 +447,10 @@ public class Device : IDevice {
 			_ => throw new InvalidDataException("Bad data sent by the device")
 		};
 	}
+
+	public void Dispose() {
+		_buffer.Dispose();
+		_device.Dispose();
+		GC.SuppressFinalize(this);
+	}
 }

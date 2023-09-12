@@ -4,7 +4,7 @@ using SixLabors.ImageSharp.PixelFormats;
 
 namespace ElgatoStreamDeck;
 
-public interface IDevice {
+public interface IDevice : IDisposable {
 	Kind Kind();
 	string Manufacturer();
 	string Product();

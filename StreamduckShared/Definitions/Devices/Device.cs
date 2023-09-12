@@ -19,7 +19,7 @@ public abstract class Device {
 	public abstract Input[] Inputs { get; }
 
 	protected void Die() {
-		Died.Invoke();
+		if (Alive) Died.Invoke();
 	}
 
 	public void ThrowDisconnectedIfDead() {

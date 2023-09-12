@@ -32,13 +32,11 @@ public class StreamDeckDriver : Driver {
 
 	public override Task<IEnumerable<DeviceIdentifier>> ListDevices() => Task.FromResult(_manager.ListDevices()
 		.Where(t => IsValid(t.Item1))
-		.Select(t => new DeviceIdentifier {
-			Identifier = t.Item2,
-			Description = KindToDescription(t.Item1)
-		}));
+		.Select(t => new DeviceIdentifier(t.Item2, KindToDescription(t.Item1)))
+	);
 
 	public override Task<Device> ConnectDevice(DeviceIdentifier identifier) {
-		var device = _manager.ConnectDevice(DescriptionToKind(identifier.Description), identifier.Identifier);
+		var device = _manager.ConnectDeviceConcurrent(DescriptionToKind(identifier.Description), identifier.Identifier);
 		return Task.FromResult(new StreamDeckDevice(device, identifier) as Device);
 	}
 

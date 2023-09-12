@@ -29,9 +29,7 @@
 
 
     <ItemGroup>
-      <AvaloniaResource Include="streamducklogo.ico">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </AvaloniaResource>
+      <AvaloniaResource Include="UI\Assets\**"/>
     </ItemGroup>
 
 </Project>
