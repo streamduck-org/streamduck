@@ -1,7 +1,8 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Streamduck.UIApp"
-             RequestedThemeVariant="Default">
+             xmlns:local="using:Streamduck"
+             RequestedThemeVariant="Dark">
     <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
     <TrayIcon.Icons>
         <TrayIcons>
@@ -20,5 +21,10 @@
     </TrayIcon.Icons>
     <Application.Styles>
         <FluentTheme />
+        <StyleInclude Source="UI/Styles/Classes.axaml"/>
+        <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml"/>
     </Application.Styles>
+    <Application.DataTemplates>
+        <local:ViewLocator/>
+    </Application.DataTemplates>
 </Application>

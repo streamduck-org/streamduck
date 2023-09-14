@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.ReactiveUI;
 using NLog;
 using NLog.Config;
 using NLog.Layouts;
@@ -21,7 +22,8 @@ internal class Program {
 		=> AppBuilder.Configure<UIApp>()
 			.UsePlatformDetect()
 			.WithInterFont()
-			.LogToTrace();
+			.LogToTrace()
+			.UseReactiveUI();
 	
 	public static async Task Main(string[] args) {
 		var cts = new CancellationTokenSource();

@@ -9,8 +9,11 @@
 
     <ItemGroup>
         <PackageReference Include="Avalonia" Version="11.0.4" />
+        <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.0.4" />
+        <PackageReference Include="Avalonia.Controls.ItemsRepeater" Version="11.0.4" />
         <PackageReference Include="Avalonia.Desktop" Version="11.0.4" />
         <PackageReference Include="Avalonia.Fonts.Inter" Version="11.0.4" />
+        <PackageReference Include="Avalonia.ReactiveUI" Version="11.0.4" />
         <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.4" />
         <PackageReference Include="MessagePack" Version="2.5.124"/>
         <PackageReference Include="MessagePackAnalyzer" Version="2.5.124">
@@ -29,7 +32,14 @@
 
 
     <ItemGroup>
+        <Folder Include="UI\Models\"/>
       <AvaloniaResource Include="UI\Assets\**"/>
     </ItemGroup>
+
+
+
+
+
+
 
 </Project>
