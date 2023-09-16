@@ -2,8 +2,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:views="clr-namespace:Streamduck.UI.Views"
         xmlns:viewModels="clr-namespace:Streamduck.UI.ViewModels"
+        xmlns:reactiveUi="clr-namespace:Avalonia.ReactiveUI;assembly=Avalonia.ReactiveUI"
+        xmlns:ui="clr-namespace:Streamduck.UI"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="Streamduck.UI.MainWindow"
         x:DataType="viewModels:MainWindowViewModel"
@@ -21,6 +22,22 @@
                 <GradientStop Offset="1" Color="{DynamicResource SystemAccentColorDark2}"/>
             </LinearGradientBrush>
         </Border.Background>
-        <views:DeviceList DataContext="{Binding DeviceList}"/>
+        <reactiveUi:RoutedViewHost Router="{Binding Router}"
+                                   HorizontalAlignment="Stretch"
+                                   VerticalAlignment="Stretch">
+            <reactiveUi:RoutedViewHost.PageTransition>
+                <CrossFade Duration="0.2">
+                    <CrossFade.FadeInEasing>
+                        <QuinticEaseInOut/>
+                    </CrossFade.FadeInEasing>
+                    <CrossFade.FadeOutEasing>
+                        <QuinticEaseInOut/>
+                    </CrossFade.FadeOutEasing>
+                </CrossFade>
+            </reactiveUi:RoutedViewHost.PageTransition>
+            <reactiveUi:RoutedViewHost.ViewLocator>
+                <ui:AppViewLocator/>
+            </reactiveUi:RoutedViewHost.ViewLocator>
+        </reactiveUi:RoutedViewHost>
     </Border>
 </Window>

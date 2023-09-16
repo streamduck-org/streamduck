@@ -5,7 +5,7 @@
              xmlns:ui="clr-namespace:Streamduck.UI"
              xmlns:deviceList="clr-namespace:Streamduck.UI.ViewModels.DeviceList"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="Streamduck.UI.Views.DeviceList"
+             x:Class="Streamduck.UI.Views.DeviceList.DeviceListView"
              x:DataType="deviceList:DeviceListViewModel"
              d:DataContext="{x:Static ui:DesignData.DeviceList}">
     <UserControl.Styles>
@@ -23,12 +23,12 @@
         </Style>
     </UserControl.Styles>
 
-    <Border Margin="50"
-            Background="{DynamicResource SystemRegionColor}"
+    <Border Background="{DynamicResource SystemRegionColor}"
             CornerRadius="15"
             BoxShadow="2 2 5 #77222222"
             Padding="20 20 0 20"
-            VerticalAlignment="Center">
+            VerticalAlignment="Center"
+            Margin="20">
 
         <Grid ColumnDefinitions="*" RowDefinitions="40, *">
             <Grid ColumnDefinitions="*,60" RowDefinitions="*">
@@ -61,6 +61,7 @@
                                             Padding="7"
                                             CornerRadius="15"
                                             HorizontalAlignment="Stretch"
+                                            Command="{Binding OpenDevice}"
                                             Classes.highlight="{Binding Connected}">
                                         <Button.Styles>
                                             <Style Selector="Button.highlight:pointerover /template/ ContentPresenter">

@@ -11,7 +11,9 @@ using Streamduck.Definitions.Devices;
 
 namespace Streamduck.UI.ViewModels.DeviceList; 
 
-public class DeviceListViewModel : ViewModelBase {
+public class DeviceListViewModel : ViewModelBase, IRoutableViewModel {
+	public string UrlPathSegment => "devices";
+	public IScreen HostScreen { get; }
 	public ObservableCollection<DeviceEntryViewModel> Devices { get; set; } = new();
 	public bool IsEmpty => Devices.Count <= 0;
 
@@ -33,7 +35,8 @@ public class DeviceListViewModel : ViewModelBase {
 		await streamduck.RefreshDevices();
 	}
 
-	public DeviceListViewModel() {
+	public DeviceListViewModel(IScreen hostScreen) {
+		HostScreen = hostScreen;
 		Devices.CollectionChanged += (_, _) => this.RaisePropertyChanged(nameof(IsEmpty));
 		
 		if (Application.Current is not UIApp app) return;
@@ -42,7 +45,7 @@ public class DeviceListViewModel : ViewModelBase {
 		streamduck.DeviceAppeared += device => {
 			lock (Devices) {
 				if (DevicesContains(device)) return; 
-				Devices.Add(new DeviceEntryViewModel(device, false));
+				Devices.Add(new DeviceEntryViewModel(device, false, HostScreen));
 			}
 		};
 		
@@ -60,7 +63,7 @@ public class DeviceListViewModel : ViewModelBase {
 						entry.Connected = true;
 					}
 				} else {
-					Devices.Add(new DeviceEntryViewModel(device, true));
+					Devices.Add(new DeviceEntryViewModel(device, true, HostScreen));
 				}
 			}
 		};

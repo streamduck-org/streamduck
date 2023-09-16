@@ -1,17 +1,30 @@
+using System.Reactive;
 using System.Threading.Tasks;
 using Avalonia;
 using ReactiveUI;
 using Streamduck.Configuration;
 using Streamduck.Definitions.Devices;
+using Streamduck.UI.ViewModels.DeviceEditor;
 
 namespace Streamduck.UI.ViewModels.DeviceList; 
 
 public class DeviceEntryViewModel : ViewModelBase {
-	public DeviceEntryViewModel(NamespacedDeviceIdentifier originalIdentifier, bool connected) {
+	private readonly IScreen _hostScreen;
+	
+	public DeviceEntryViewModel(NamespacedDeviceIdentifier originalIdentifier, bool connected, IScreen hostScreen) {
 		OriginalIdentifier = originalIdentifier;
 		_autoconnect = Config.IgnorantGet()?.AutoconnectDevices.Contains(originalIdentifier) ?? false;
 		_connected = connected;
+		_hostScreen = hostScreen;
+
+		OpenDevice = ReactiveCommand.CreateFromObservable(
+			() => _hostScreen.Router.Navigate.Execute(
+				new DeviceEditorViewModel(_hostScreen, originalIdentifier)
+			)
+		);
 	}
+	
+	public ReactiveCommand<Unit, IRoutableViewModel> OpenDevice { get; }
 	
 	public NamespacedDeviceIdentifier? OriginalIdentifier { get; }
 

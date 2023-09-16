@@ -12,6 +12,7 @@
         <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.0.4" />
         <PackageReference Include="Avalonia.Controls.ItemsRepeater" Version="11.0.4" />
         <PackageReference Include="Avalonia.Desktop" Version="11.0.4" />
+        <PackageReference Include="Avalonia.Diagnostics" Version="11.0.4" />
         <PackageReference Include="Avalonia.Fonts.Inter" Version="11.0.4" />
         <PackageReference Include="Avalonia.ReactiveUI" Version="11.0.4" />
         <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.4" />
@@ -30,15 +31,7 @@
         <ProjectReference Include="..\StreamduckShared\StreamduckShared.csproj"/>
     </ItemGroup>
 
-
     <ItemGroup>
       <AvaloniaResource Include="UI\Assets\**"/>
     </ItemGroup>
-
-
-
-
-
-
-
 </Project>

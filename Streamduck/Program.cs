@@ -34,6 +34,7 @@ internal class Program {
 		logConfig.AddRule(LogLevel.Debug, LogLevel.Fatal, new ColoredConsoleTarget {
 			Layout = Layout.FromString("${longdate} ${level:uppercase=true} (${logger}): ${message}${onexception:inner=\\: ${exception}}")
 		});
+		System.Diagnostics.Trace.Listeners.Add(new NLogTraceListener { Name = "SysTrace"});
 
 		LogManager.Configuration = logConfig;
 
