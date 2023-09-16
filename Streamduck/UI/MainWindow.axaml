@@ -6,6 +6,7 @@
         xmlns:viewModels="clr-namespace:Streamduck.UI.ViewModels"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="Streamduck.UI.MainWindow"
+        x:DataType="viewModels:MainWindowViewModel"
         Title="Streamduck"
         Icon="/UI/Assets/streamducklogo.ico">
     <Design.DataContext>
@@ -13,5 +14,13 @@
              to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
         <viewModels:MainWindowViewModel/>
     </Design.DataContext>
-    <views:DeviceList/>
+    <Border>
+        <Border.Background>
+            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                <GradientStop Offset="0" Color="{DynamicResource SystemAccentColor}"/>
+                <GradientStop Offset="1" Color="{DynamicResource SystemAccentColorDark2}"/>
+            </LinearGradientBrush>
+        </Border.Background>
+        <views:DeviceList DataContext="{Binding DeviceList}"/>
+    </Border>
 </Window>

@@ -11,6 +11,7 @@ using NLog.Layouts;
 using NLog.Targets;
 using Streamduck.Configuration;
 using Streamduck.UI;
+using Streamduck.UI.ViewModels;
 
 // Setting up logger
 
@@ -67,6 +68,7 @@ internal class Program {
 
 				L.Debug("Creating main window");
 				uiApp.MainWindow = new MainWindow();
+				uiApp.MainWindow.DataContext = new MainWindowViewModel();
 
 				uiApp.CancellationTokenSource = cts;
 				

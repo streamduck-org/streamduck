@@ -1,0 +1,76 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
+using Avalonia;
+using DynamicData;
+using DynamicData.Binding;
+using ReactiveUI;
+using Streamduck.Definitions.Devices;
+
+namespace Streamduck.UI.ViewModels.DeviceList; 
+
+public class DeviceListViewModel : ViewModelBase {
+	public ObservableCollection<DeviceEntryViewModel> Devices { get; set; } = new();
+	public bool IsEmpty => Devices.Count <= 0;
+
+	private bool DevicesContains(NamespacedDeviceIdentifier deviceIdentifier) =>
+		Devices.Any(entry => entry.OriginalIdentifier.Equals(deviceIdentifier));
+	
+	private IEnumerable<DeviceEntryViewModel> DevicesList(NamespacedDeviceIdentifier deviceIdentifier) =>
+		Devices.Where(entry => entry.OriginalIdentifier.Equals(deviceIdentifier));
+
+	private void RemoveDevice(NamespacedDeviceIdentifier deviceIdentifier) {
+		foreach (var entry in DevicesList(deviceIdentifier).ToArray()) {
+			Devices.Remove(entry);
+		}
+	}
+
+	public async Task RefreshDevices() {
+		if (Application.Current is not UIApp app) return;
+		if (app.StreamduckApp is not { } streamduck) return;
+		await streamduck.RefreshDevices();
+	}
+
+	public DeviceListViewModel() {
+		Devices.CollectionChanged += (_, _) => this.RaisePropertyChanged(nameof(IsEmpty));
+		
+		if (Application.Current is not UIApp app) return;
+		if (app.StreamduckApp is not { } streamduck) return;
+
+		streamduck.DeviceAppeared += device => {
+			lock (Devices) {
+				if (DevicesContains(device)) return; 
+				Devices.Add(new DeviceEntryViewModel(device, false));
+			}
+		};
+		
+		streamduck.DeviceDisappeared += device => {
+			lock (Devices) {
+				if (!DevicesContains(device)) return; 
+				RemoveDevice(device);
+			}
+		};
+
+		streamduck.DeviceConnected += device => {
+			lock (Devices) {
+				if (DevicesContains(device)) {
+					foreach (var entry in DevicesList(device)) {
+						entry.Connected = true;
+					}
+				} else {
+					Devices.Add(new DeviceEntryViewModel(device, true));
+				}
+			}
+		};
+
+		streamduck.DeviceDisconnected += device => {
+			lock (Devices) {
+				RemoveDevice(device);
+			}
+		};
+		
+		streamduck.RefreshDevices().Wait();
+	}
+}

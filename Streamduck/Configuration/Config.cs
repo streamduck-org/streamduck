@@ -85,6 +85,7 @@ public class Config {
 				if (deserializedConfig != null) return deserializedConfig;
 			} catch (Exception e) {
 				L.Error("Error happened while trying to load config {0}", e);
+				// TODO: Backup invalid config
 			}
 		}
 
@@ -142,4 +143,6 @@ public class Config {
 		_configInstance ??= await _loadConfig();
 		return _configInstance;
 	}
+
+	public static Config? IgnorantGet() => _configInstance;
 }

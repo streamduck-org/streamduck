@@ -2,12 +2,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:viewModels="clr-namespace:Streamduck.UI.ViewModels"
              xmlns:ui="clr-namespace:Streamduck.UI"
-             xmlns:devices="clr-namespace:Streamduck.UI.Models.Devices"
+             xmlns:deviceList="clr-namespace:Streamduck.UI.ViewModels.DeviceList"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="Streamduck.UI.Views.DeviceList"
-             x:DataType="viewModels:DeviceListViewModel"
+             x:DataType="deviceList:DeviceListViewModel"
              d:DataContext="{x:Static ui:DesignData.DeviceList}">
     <UserControl.Styles>
         <Style Selector="TextBlock.big">
@@ -23,110 +22,93 @@
             <Setter Property="FontWeight" Value="300"/>
         </Style>
     </UserControl.Styles>
-    <Border>
-        <Border.Background>
-            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                <GradientStop Offset="0" Color="{DynamicResource SystemAccentColor}"/>
-                <GradientStop Offset="1" Color="{DynamicResource SystemAccentColorDark2}"/>
-            </LinearGradientBrush>
-        </Border.Background>
-        <Border Margin="50"
-                Background="{DynamicResource SystemRegionColor}"
-                CornerRadius="15"
-                BoxShadow="2 2 5 #77222222"
-                Padding="20 20 0 20"
-                VerticalAlignment="Center">
 
-            <Grid ColumnDefinitions="*" RowDefinitions="35, *">
-                <TextBlock Classes="big">Connect to a device</TextBlock>
-                <ScrollViewer Grid.Row="1">
-                    <Border Padding="0 0 20 0">
-                        <StackPanel>
-                            <TextBlock Classes="small"
-                                       Margin="20 50"
-                                       HorizontalAlignment="Center"
-                                       Foreground="Gray"
-                                       IsVisible="{Binding IsEmpty}">
-                                No devices
-                            </TextBlock>
+    <Border Margin="50"
+            Background="{DynamicResource SystemRegionColor}"
+            CornerRadius="15"
+            BoxShadow="2 2 5 #77222222"
+            Padding="20 20 0 20"
+            VerticalAlignment="Center">
 
-                            <ItemsRepeater ItemsSource="{Binding ConnectedDevices}">
-                                <ItemsRepeater.ItemTemplate>
-                                    <DataTemplate DataType="devices:DeviceEntry">
-                                        <Button Margin="0 10 0 0"
-                                                Padding="7"
-                                                CornerRadius="15"
-                                                HorizontalAlignment="Stretch">
-                                            <Button.Styles>
-                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                    <Setter Property="Background"
-                                                            Value="{DynamicResource SystemAccentColorDark2}" />
-                                                </Style>
-                                            </Button.Styles>
-                                            <Button.Background>
-                                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                                    <GradientStop Offset="0"
-                                                                  Color="{DynamicResource SystemAccentColorDark1}" />
-                                                    <GradientStop Offset="1"
-                                                                  Color="{DynamicResource SystemAccentColorDark2}" />
-                                                </LinearGradientBrush>
-                                            </Button.Background>
-                                            <Grid ColumnDefinitions="*,100,60" RowDefinitions="48">
-                                                <StackPanel>
-                                                    <TextBlock Text="{Binding Identifier}"
-                                                               Classes="medium" />
-                                                    <TextBlock Text="{Binding Description}"
-                                                               Classes="small" Foreground="DarkGray" />
-                                                </StackPanel>
-                                                <TextBlock Grid.Column="1" Text="Connected"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center"
-                                                           Classes="small" Foreground="DarkGray" />
-                                                <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                                                    <TextBlock Classes="small" Foreground="DarkGray" HorizontalAlignment="Center">
-                                                        Auto
-                                                    </TextBlock>
-                                                    <CheckBox IsChecked="{Binding Autoconnect}"
-                                                              HorizontalAlignment="Center"
-                                                              Margin="7 0 0 0"/>
-                                                </StackPanel>
-                                            </Grid>
-                                        </Button>
-                                    </DataTemplate>
-                                </ItemsRepeater.ItemTemplate>
-                            </ItemsRepeater>
-                            <ItemsRepeater ItemsSource="{Binding DiscoveredDevices}">
-                                <ItemsRepeater.ItemTemplate>
-                                    <DataTemplate DataType="devices:DeviceEntry">
-                                        <Button Margin="0 10 0 0"
-                                                Padding="7"
-                                                CornerRadius="15"
-                                                HorizontalAlignment="Stretch">
-                                            <Grid ColumnDefinitions="*,60" RowDefinitions="48">
-                                                <StackPanel>
-                                                    <TextBlock Text="{Binding Identifier}"
-                                                               Classes="medium" />
-                                                    <TextBlock Text="{Binding Description}"
-                                                               Classes="small" Foreground="DarkGray" />
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                    <TextBlock Classes="small" Foreground="DarkGray" HorizontalAlignment="Center">
-                                                        Auto
-                                                    </TextBlock>
-                                                    <CheckBox IsChecked="{Binding Autoconnect}"
-                                                              HorizontalAlignment="Center"
-                                                              Margin="7 0 0 0"/>
-                                                </StackPanel>
-                                            </Grid>
-                                        </Button>
-                                    </DataTemplate>
-                                </ItemsRepeater.ItemTemplate>
-                            </ItemsRepeater>
-                        </StackPanel>
-                    </Border>
-                </ScrollViewer>
+        <Grid ColumnDefinitions="*" RowDefinitions="40, *">
+            <Grid ColumnDefinitions="*,60" RowDefinitions="*">
+                <TextBlock Classes="big"
+                           VerticalAlignment="Center">Connect to a device</TextBlock>
+                <Button Grid.Column="1" 
+                        HorizontalAlignment="Stretch" 
+                        Margin="0 0 20 0"
+                        VerticalAlignment="Center"
+                        HorizontalContentAlignment="Center"
+                        FontSize="16"
+                        Command="{Binding RefreshDevices}">↻</Button>
             </Grid>
-        </Border>
+                
+            <ScrollViewer Grid.Row="1">
+                <Border Padding="0 0 20 0">
+                    <StackPanel>
+                        <TextBlock Classes="small"
+                                   Margin="20 50"
+                                   HorizontalAlignment="Center"
+                                   Foreground="Gray"
+                                   IsVisible="{Binding IsEmpty}">
+                            No devices
+                        </TextBlock>
+
+                        <ItemsRepeater ItemsSource="{Binding Devices}">
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate DataType="deviceList:DeviceEntryViewModel">
+                                    <Button Margin="0 10 0 0"
+                                            Padding="7"
+                                            CornerRadius="15"
+                                            HorizontalAlignment="Stretch"
+                                            Classes.highlight="{Binding Connected}">
+                                        <Button.Styles>
+                                            <Style Selector="Button.highlight:pointerover /template/ ContentPresenter">
+                                                <Setter Property="Background"
+                                                        Value="{DynamicResource SystemAccentColorDark2}" />
+                                            </Style>
+                                            <Style Selector="Button.highlight">
+                                                <Setter Property="Background">
+                                                    <Setter.Value>
+                                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                                            <GradientStop Offset="0"
+                                                                          Color="{DynamicResource SystemAccentColorDark1}" />
+                                                            <GradientStop Offset="1"
+                                                                          Color="{DynamicResource SystemAccentColorDark2}" />
+                                                        </LinearGradientBrush>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </Button.Styles>
+                                        <Grid ColumnDefinitions="*,100,60" RowDefinitions="48">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Identifier}"
+                                                           Classes="medium" />
+                                                <TextBlock Text="{Binding Description}"
+                                                           Classes="small" Foreground="DarkGray" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1" Text="Connected"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       Classes="small" Foreground="DarkGray"
+                                                       IsVisible="{Binding Connected}"/>
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                <TextBlock Classes="small" Foreground="DarkGray" HorizontalAlignment="Center">
+                                                    Auto
+                                                </TextBlock>
+                                                <CheckBox IsChecked="{Binding AutoConnect}"
+                                                          HorizontalAlignment="Center"
+                                                          Margin="7 0 0 0"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+                    </StackPanel>
+                </Border>
+            </ScrollViewer>
+        </Grid>
     </Border>
     
 </UserControl>

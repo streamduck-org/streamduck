@@ -17,7 +17,8 @@ public partial class UIApp : Application {
 	}
 
 	public void OpenUI(object? sender, EventArgs eventArgs) {
-		MainWindow!.Show();
+		if (MainWindow!.IsVisible) MainWindow!.Hide();
+		else MainWindow!.Show();
 	}
 	
 	public void Exit(object? sender, EventArgs eventArgs) {

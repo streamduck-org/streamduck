@@ -32,7 +32,6 @@
 
 
     <ItemGroup>
-        <Folder Include="UI\Models\"/>
       <AvaloniaResource Include="UI\Assets\**"/>
     </ItemGroup>
 
