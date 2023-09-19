@@ -13,6 +13,7 @@ public abstract class Core : IDisposable {
 	public bool IsAlive() => _associatedDevice.Alive;
 	
 	public void Dispose() {
+		
 		if (_associatedDevice is IDisposable disposable) {
 			disposable.Dispose();
 		}

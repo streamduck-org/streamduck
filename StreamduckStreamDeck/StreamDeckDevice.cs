@@ -5,6 +5,7 @@ using ElgatoStreamDeck;
 using HidApi;
 using Microsoft.Extensions.Caching.Memory;
 using Streamduck.Definitions;
+using Streamduck.Definitions.Api;
 using Streamduck.Definitions.Devices;
 using StreamduckStreamDeck.Inputs;
 using Device = Streamduck.Definitions.Devices.Device;
@@ -13,7 +14,9 @@ using Input = Streamduck.Definitions.Inputs.Input;
 
 namespace StreamduckStreamDeck;
 
-public class StreamDeckDevice : Device, IDisposable {
+public class StreamDeckDevice : Device, IDisposable, IConfigurable<StreamDeckDeviceOptions> {
+	public StreamDeckDeviceOptions Options { get; set; }
+	
 	internal readonly ElgatoDevice _device;
 	private readonly DeviceReader _deviceReader;
 	private readonly Thread _readingThread;

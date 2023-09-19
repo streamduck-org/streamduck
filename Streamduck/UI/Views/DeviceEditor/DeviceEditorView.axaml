@@ -28,20 +28,31 @@
             <Border Background="{DynamicResource SystemChromeLowColor}"
                     Padding="10"
                     CornerRadius="10">
-                <StackPanel Orientation="Horizontal" Spacing="10" Height="35">
-                    <Button FontSize="18" VerticalAlignment="Top"
-                            Command="{Binding GoBack}">↩️</Button>
-                    <components:VerticalSeparator Margin="0 5"/>
-                    <StackPanel>
-                        <TextBlock Text="{Binding Identifier}"
-                                   Classes="medium" />
-                        <TextBlock Text="{Binding Description}"
-                                   Classes="small" Foreground="DarkGray" />
+                <DockPanel Height="35">
+                    <StackPanel Orientation="Horizontal" Spacing="10"
+                                DockPanel.Dock="Left">
+                        <Button FontSize="18" VerticalAlignment="Top"
+                                Command="{Binding GoBack}"
+                                Width="42"
+                                HorizontalContentAlignment="Center">↩️</Button>
+                        <components:VerticalSeparator Margin="0 5"/>
+                        <StackPanel>
+                            <TextBlock Text="{Binding Identifier}"
+                                       Classes="medium" />
+                            <TextBlock Text="{Binding Description}"
+                                       Classes="small" Foreground="DarkGray" />
+                        </StackPanel>
                     </StackPanel>
-                </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="10"
+                                DockPanel.Dock="Right"
+                                HorizontalAlignment="Right">
+                        <components:VerticalSeparator Margin="0 5"/>
+                        <Button FontSize="20" VerticalAlignment="Top"
+                                Width="42"
+                                HorizontalContentAlignment="Center">⚙️</Button>
+                    </StackPanel>
+                </DockPanel>
             </Border>
-            
         </StackPanel>
     </Border>
-    
 </UserControl>
