@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
-using Streamduck.Definitions.Devices;
+using Streamduck.Devices;
 using Streamduck.Plugins.Loaders;
 
 namespace Streamduck.Plugins;

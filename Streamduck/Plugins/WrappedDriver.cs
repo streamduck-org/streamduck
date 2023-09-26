@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using NLog;
-using Streamduck.Definitions.Devices;
+using Streamduck.Devices;
 
 namespace Streamduck.Plugins;
 
@@ -23,6 +23,6 @@ public class WrappedDriver {
 			.Select(i => new NamespacedDeviceIdentifier(Name, i));
 	}
 
-	public async Task<Device> ConnectDevice(NamespacedDeviceIdentifier identifier) => 
+	public async Task<Device> ConnectDevice(NamespacedDeviceIdentifier identifier) =>
 		await _instance.ConnectDevice(identifier.DeviceIdentifier);
 }

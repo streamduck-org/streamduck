@@ -3,9 +3,9 @@ using System.Threading.Tasks;
 using ElgatoStreamDeck;
 using Microsoft.Extensions.Caching.Memory;
 using SixLabors.ImageSharp;
-using Streamduck.Definitions;
-using Streamduck.Definitions.Inputs;
-using Input = Streamduck.Definitions.Inputs.Input;
+using Streamduck.Data;
+using Streamduck.Inputs;
+using Input = Streamduck.Inputs.Input;
 
 namespace StreamduckStreamDeck.Inputs;
 
@@ -17,6 +17,9 @@ public class StreamDeckLCDSegment : Input, IInputTouchScreen, IInputTouchScreen.
 		_device = device;
 		DisplayResolution = displayResolution;
 	}
+
+	public event Action<Int2>? TouchScreenDragStart;
+	public event Action<Int2>? TouchScreenDragEnd;
 
 	public UInt2 DisplayResolution { get; }
 	public int AppendHashKey(int key) => $"{key}lcd".GetHashCode();
@@ -32,7 +35,7 @@ public class StreamDeckLCDSegment : Input, IInputTouchScreen, IInputTouchScreen.
 		_device._imageCache.TryGetValue(key, out byte[]? data);
 
 		if (data == null) return ValueTask.FromResult(false);
-		
+
 		var resolution = _device._device.Kind().KeyImageMode().Resolution;
 		_device._device.WriteLcd(0, 0, (ushort)resolution.Item1, (ushort)resolution.Item2, data);
 
@@ -41,8 +44,6 @@ public class StreamDeckLCDSegment : Input, IInputTouchScreen, IInputTouchScreen.
 
 	public event Action<Int2>? TouchScreenPressed;
 	public event Action<Int2>? TouchScreenReleased;
-	public event Action<Int2>? TouchScreenDragStart;
-	public event Action<Int2>? TouchScreenDragEnd;
 
 	internal void CallPressed(Int2 position) {
 		TouchScreenPressed?.Invoke(position);
@@ -51,7 +52,7 @@ public class StreamDeckLCDSegment : Input, IInputTouchScreen, IInputTouchScreen.
 	internal void CallReleased(Int2 position) {
 		TouchScreenReleased?.Invoke(position);
 	}
-	
+
 	internal void CallDrag(Int2 start, Int2 end) {
 		TouchScreenDragStart?.Invoke(start);
 		TouchScreenDragEnd?.Invoke(end);

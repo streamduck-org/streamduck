@@ -11,12 +11,12 @@
              d:DataContext="{x:Static ui:DesignData.DeviceEditor}">
     <UserControl.Styles>
         <Style Selector="TextBlock.medium">
-            <Setter Property="FontSize" Value="16"/>
-            <Setter Property="FontWeight" Value="300"/>
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="300" />
         </Style>
         <Style Selector="TextBlock.small">
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontWeight" Value="300"/>
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="300" />
         </Style>
     </UserControl.Styles>
     <Border Background="{DynamicResource SystemRegionColor}"
@@ -34,8 +34,10 @@
                         <Button FontSize="18" VerticalAlignment="Top"
                                 Command="{Binding GoBack}"
                                 Width="42"
-                                HorizontalContentAlignment="Center">↩️</Button>
-                        <components:VerticalSeparator Margin="0 5"/>
+                                HorizontalContentAlignment="Center">
+                            ↩️
+                        </Button>
+                        <components:VerticalSeparator Margin="0 5" />
                         <StackPanel>
                             <TextBlock Text="{Binding Identifier}"
                                        Classes="medium" />
@@ -46,10 +48,12 @@
                     <StackPanel Orientation="Horizontal" Spacing="10"
                                 DockPanel.Dock="Right"
                                 HorizontalAlignment="Right">
-                        <components:VerticalSeparator Margin="0 5"/>
+                        <components:VerticalSeparator Margin="0 5" />
                         <Button FontSize="20" VerticalAlignment="Top"
                                 Width="42"
-                                HorizontalContentAlignment="Center">⚙️</Button>
+                                HorizontalContentAlignment="Center">
+                            ⚙️
+                        </Button>
                     </StackPanel>
                 </DockPanel>
             </Border>

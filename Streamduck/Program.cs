@@ -1,21 +1,23 @@
 ﻿using System;
+using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.ReactiveUI;
 using NLog;
 using NLog.Config;
 using NLog.Layouts;
 using NLog.Targets;
 using Streamduck.Configuration;
+using Streamduck.Fields;
 using Streamduck.UI;
 using Streamduck.UI.ViewModels;
 
 // Setting up logger
 
-namespace Streamduck; 
+namespace Streamduck;
 
 internal class Program {
 	// Avalonia configuration, don't remove; also used by visual designer.
@@ -26,15 +28,27 @@ internal class Program {
 			.LogToTrace()
 			.UseReactiveUI();
 	
+	private class TestOptions {
+		public string Label => "test";
+	}
+
 	public static async Task Main(string[] args) {
-		var cts = new CancellationTokenSource();
+		var fields = FieldReflector.AnalyzeObject(new TestOptions()).ToArray();
+		Console.WriteLine("Analyzed object");
+
+		foreach (var field in fields) {
+			Console.WriteLine(field.Title);
+		}
 		
+		var cts = new CancellationTokenSource();
+
 		var logConfig = new LoggingConfiguration();
 
 		logConfig.AddRule(LogLevel.Debug, LogLevel.Fatal, new ColoredConsoleTarget {
-			Layout = Layout.FromString("${longdate} ${level:uppercase=true} (${logger}): ${message}${onexception:inner=\\: ${exception}}")
+			Layout = Layout.FromString(
+				"${longdate} ${level:uppercase=true} (${logger}): ${message}${onexception:inner=\\: ${exception}}")
 		});
-		System.Diagnostics.Trace.Listeners.Add(new NLogTraceListener { Name = "SysTrace"});
+		Trace.Listeners.Add(new NLogTraceListener { Name = "SysTrace" });
 
 		LogManager.Configuration = logConfig;
 
@@ -57,13 +71,13 @@ internal class Program {
 				await config.SaveConfig();
 			}
 		}, cts.Token);
-		
+
 		// Starting UI
 		BuildAvaloniaApp()
 			.Start((app, strings) => {
 				L.Info("Starting UI...");
 				if (app is not UIApp uiApp) return;
-				
+
 				L.Debug("Setting Streamduck reference");
 				uiApp.StreamduckApp = streamduck;
 
@@ -72,7 +86,7 @@ internal class Program {
 				uiApp.MainWindow.DataContext = new MainWindowViewModel();
 
 				uiApp.CancellationTokenSource = cts;
-				
+
 				L.Debug("Running UI Loop");
 				uiApp.Run(cts.Token);
 				L.Debug("UI Loop ended");

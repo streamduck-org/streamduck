@@ -1,11 +1,9 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.ReactiveUI;
-using ReactiveUI;
 using Streamduck.UI.ViewModels;
-using Streamduck.UI.ViewModels.DeviceList;
 
-namespace Streamduck.UI; 
+namespace Streamduck.UI;
 
 public partial class MainWindow : ReactiveWindow<MainWindowViewModel> {
 	public MainWindow() {

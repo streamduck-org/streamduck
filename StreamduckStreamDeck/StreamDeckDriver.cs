@@ -1,11 +1,10 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using ElgatoStreamDeck;
-using Streamduck.Definitions.Devices;
+using Streamduck.Devices;
 using Streamduck.Plugins;
-using Device = Streamduck.Definitions.Devices.Device;
+using Device = Streamduck.Devices.Device;
 using ElgatoDevice = ElgatoStreamDeck.Device;
 
 namespace StreamduckStreamDeck;

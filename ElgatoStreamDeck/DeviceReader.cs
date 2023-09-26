@@ -7,7 +7,7 @@ using DeviceInput = Input;
 public class DeviceReader {
 	private readonly bool[] _buttonStates;
 	private readonly IDevice _device;
-	private bool[] _encoderStates;
+	private readonly bool[] _encoderStates;
 
 	public DeviceReader(IDevice device) {
 		_device = device;
@@ -28,7 +28,7 @@ public class DeviceReader {
 					var newState = buttonStateChange.Buttons[i];
 
 					if (oldState == newState) continue;
-					
+
 					_buttonStates[i] = newState;
 					yield return newState
 						? new Input.ButtonPressed((ushort)i)
@@ -42,11 +42,11 @@ public class DeviceReader {
 				for (var i = 0; i < encoderStateChange.Encoders.Length; i++) {
 					var oldState = _encoderStates[i];
 					var newState = encoderStateChange.Encoders[i];
-					
+
 					if (oldState == newState) continue;
-					
+
 					_encoderStates[i] = newState;
-					
+
 					yield return newState
 						? new Input.EncoderPressed((ushort)i)
 						: new Input.EncoderReleased((ushort)i);

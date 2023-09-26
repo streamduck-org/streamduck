@@ -1,5 +1,5 @@
 using ReactiveUI;
 
-namespace Streamduck.UI.ViewModels; 
+namespace Streamduck.UI.ViewModels;
 
 public class ViewModelBase : ReactiveObject { }

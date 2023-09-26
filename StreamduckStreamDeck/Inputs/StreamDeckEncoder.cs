@@ -1,5 +1,5 @@
 using System;
-using Streamduck.Definitions.Inputs;
+using Streamduck.Inputs;
 
 namespace StreamduckStreamDeck.Inputs;
 

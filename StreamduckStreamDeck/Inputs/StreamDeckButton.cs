@@ -3,9 +3,9 @@ using System.Threading.Tasks;
 using ElgatoStreamDeck;
 using Microsoft.Extensions.Caching.Memory;
 using SixLabors.ImageSharp;
-using Streamduck.Definitions;
-using Streamduck.Definitions.Inputs;
-using Input = Streamduck.Definitions.Inputs.Input;
+using Streamduck.Data;
+using Streamduck.Inputs;
+using Input = Streamduck.Inputs.Input;
 
 namespace StreamduckStreamDeck.Inputs;
 
@@ -34,9 +34,9 @@ public class StreamDeckButton : Input, IInputButton, IInputDisplay {
 
 	public ValueTask<bool> ApplyImage(int key) {
 		_device.ThrowDisconnectedIfDead();
-		if (!_device._imageCache.TryGetValue(key, out byte[]? data)) 
+		if (!_device._imageCache.TryGetValue(key, out byte[]? data))
 			return ValueTask.FromResult(false);
-		
+
 		_device._device.WriteImage(_keyIndex, data);
 
 		return ValueTask.FromResult(true);

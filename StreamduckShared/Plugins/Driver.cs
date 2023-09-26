@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Streamduck.Definitions.Devices;
+using Streamduck.Devices;
 
 namespace Streamduck.Plugins;
 

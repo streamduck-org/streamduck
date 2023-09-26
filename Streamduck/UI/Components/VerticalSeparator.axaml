@@ -5,6 +5,5 @@
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="Streamduck.UI.Components.VerticalSeparator">
     <Border Width="1"
-            Background="Gray">
-    </Border>
+            Background="Gray" />
 </UserControl>

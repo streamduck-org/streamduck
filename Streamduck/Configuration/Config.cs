@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using NLog;
-using Streamduck.Definitions.Devices;
+using Streamduck.Devices;
 
 namespace Streamduck.Configuration;
 
@@ -45,17 +45,17 @@ public class Config {
 		lock (AutoconnectDevices) {
 			AutoconnectDevices.Add(deviceIdentifier);
 		}
-		
+
 		L.Info("Added {} to autoconnect", deviceIdentifier.DeviceIdentifier);
 
 		await SaveConfig();
 	}
-	
+
 	public async Task RemoveDeviceFromAutoconnect(NamespacedDeviceIdentifier deviceIdentifier) {
 		lock (AutoconnectDevices) {
 			AutoconnectDevices.Remove(deviceIdentifier);
 		}
-		
+
 		L.Info("Removed {} from autoconnect", deviceIdentifier.DeviceIdentifier);
 
 		await SaveConfig();

@@ -10,16 +10,16 @@
              d:DataContext="{x:Static ui:DesignData.DeviceList}">
     <UserControl.Styles>
         <Style Selector="TextBlock.big">
-            <Setter Property="FontSize" Value="25"/>
-            <Setter Property="FontWeight" Value="200"/>
+            <Setter Property="FontSize" Value="25" />
+            <Setter Property="FontWeight" Value="200" />
         </Style>
         <Style Selector="TextBlock.medium">
-            <Setter Property="FontSize" Value="22"/>
-            <Setter Property="FontWeight" Value="300"/>
+            <Setter Property="FontSize" Value="22" />
+            <Setter Property="FontWeight" Value="300" />
         </Style>
         <Style Selector="TextBlock.small">
-            <Setter Property="FontSize" Value="16"/>
-            <Setter Property="FontWeight" Value="300"/>
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="300" />
         </Style>
     </UserControl.Styles>
 
@@ -33,16 +33,20 @@
         <Grid ColumnDefinitions="*" RowDefinitions="40, *">
             <Grid ColumnDefinitions="*,60" RowDefinitions="*">
                 <TextBlock Classes="big"
-                           VerticalAlignment="Center">Connect to a device</TextBlock>
-                <Button Grid.Column="1" 
-                        HorizontalAlignment="Stretch" 
+                           VerticalAlignment="Center">
+                    Connect to a device
+                </TextBlock>
+                <Button Grid.Column="1"
+                        HorizontalAlignment="Stretch"
                         Margin="0 0 20 0"
                         VerticalAlignment="Center"
                         HorizontalContentAlignment="Center"
                         FontSize="16"
-                        Command="{Binding RefreshDevices}">↻</Button>
+                        Command="{Binding RefreshDevices}">
+                    ↻
+                </Button>
             </Grid>
-                
+
             <ScrollViewer Grid.Row="1">
                 <Border Padding="0 0 20 0">
                     <StackPanel>
@@ -92,14 +96,15 @@
                                                        HorizontalAlignment="Center"
                                                        VerticalAlignment="Center"
                                                        Classes="small" Foreground="DarkGray"
-                                                       IsVisible="{Binding Connected}"/>
+                                                       IsVisible="{Binding Connected}" />
                                             <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                                                <TextBlock Classes="small" Foreground="DarkGray" HorizontalAlignment="Center">
+                                                <TextBlock Classes="small" Foreground="DarkGray"
+                                                           HorizontalAlignment="Center">
                                                     Auto
                                                 </TextBlock>
                                                 <CheckBox IsChecked="{Binding AutoConnect}"
                                                           HorizontalAlignment="Center"
-                                                          Margin="7 0 0 0"/>
+                                                          Margin="7 0 0 0" />
                                             </StackPanel>
                                         </Grid>
                                     </Button>
@@ -111,6 +116,5 @@
             </ScrollViewer>
         </Grid>
     </Border>
-    
-</UserControl>
 
+</UserControl>

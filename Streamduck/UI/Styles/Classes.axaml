@@ -12,14 +12,30 @@
 
     <FluentTheme>
         <FluentTheme.Palettes>
-            <ColorPaletteResources x:Key="Light" Accent="#ff329690" AltHigh="White" AltLow="White" AltMedium="White" AltMediumHigh="White" AltMediumLow="White" BaseHigh="#202020" BaseLow="#ffc1c1c1" BaseMedium="#ff818181" BaseMediumHigh="#ff575757" BaseMediumLow="#ff6c6c6c" ChromeAltLow="#ff575757" ChromeBlackHigh="Black" ChromeBlackLow="#ffc1c1c1" ChromeBlackMedium="#ff575757" ChromeBlackMediumLow="#ff818181" ChromeDisabledHigh="#ffc1c1c1" ChromeDisabledLow="#ff818181" ChromeGray="#ff6c6c6c" ChromeHigh="#ffc1c1c1" ChromeLow="#ffe8e8e8" ChromeMedium="#ffe0e0e0" ChromeMediumLow="#ffe8e8e8" ChromeWhite="White" ListLow="#ffe0e0e0" ListMedium="#ffc1c1c1" RegionColor="White" />
-            <ColorPaletteResources x:Key="Dark" Accent="#ff329690" AltHigh="Black" AltLow="Black" AltMedium="Black" AltMediumHigh="Black" AltMediumLow="Black" BaseHigh="LightGray" BaseLow="#ff404040" BaseMedium="#ffa0a0a0" BaseMediumHigh="#ffb8b8b8" BaseMediumLow="#ff707070" ChromeAltLow="#ffb8b8b8" ChromeBlackHigh="Black" ChromeBlackLow="#ffb8b8b8" ChromeBlackMedium="Black" ChromeBlackMediumLow="Black" ChromeDisabledHigh="#ff404040" ChromeDisabledLow="#ffa0a0a0" ChromeGray="#ff888888" ChromeHigh="#ff888888" ChromeLow="#ff1b1b1b" ChromeMedium="#ff242424" ChromeMediumLow="#ff373737" ChromeWhite="White" ListLow="#ff242424" ListMedium="#ff404040" RegionColor="#ff262626" />
+            <ColorPaletteResources x:Key="Light" Accent="#ff329690" AltHigh="White" AltLow="White" AltMedium="White"
+                                   AltMediumHigh="White" AltMediumLow="White" BaseHigh="#202020" BaseLow="#ffc1c1c1"
+                                   BaseMedium="#ff818181" BaseMediumHigh="#ff575757" BaseMediumLow="#ff6c6c6c"
+                                   ChromeAltLow="#ff575757" ChromeBlackHigh="Black" ChromeBlackLow="#ffc1c1c1"
+                                   ChromeBlackMedium="#ff575757" ChromeBlackMediumLow="#ff818181"
+                                   ChromeDisabledHigh="#ffc1c1c1" ChromeDisabledLow="#ff818181" ChromeGray="#ff6c6c6c"
+                                   ChromeHigh="#ffc1c1c1" ChromeLow="#ffe8e8e8" ChromeMedium="#ffe0e0e0"
+                                   ChromeMediumLow="#ffe8e8e8" ChromeWhite="White" ListLow="#ffe0e0e0"
+                                   ListMedium="#ffc1c1c1" RegionColor="White" />
+            <ColorPaletteResources x:Key="Dark" Accent="#ff329690" AltHigh="Black" AltLow="Black" AltMedium="Black"
+                                   AltMediumHigh="Black" AltMediumLow="Black" BaseHigh="LightGray" BaseLow="#ff404040"
+                                   BaseMedium="#ffa0a0a0" BaseMediumHigh="#ffb8b8b8" BaseMediumLow="#ff707070"
+                                   ChromeAltLow="#ffb8b8b8" ChromeBlackHigh="Black" ChromeBlackLow="#ffb8b8b8"
+                                   ChromeBlackMedium="Black" ChromeBlackMediumLow="Black"
+                                   ChromeDisabledHigh="#ff404040" ChromeDisabledLow="#ffa0a0a0" ChromeGray="#ff888888"
+                                   ChromeHigh="#ff888888" ChromeLow="#ff1b1b1b" ChromeMedium="#ff242424"
+                                   ChromeMediumLow="#ff373737" ChromeWhite="White" ListLow="#ff242424"
+                                   ListMedium="#ff404040" RegionColor="#ff262626" />
         </FluentTheme.Palettes>
     </FluentTheme>
-    
+
     <Styles>
         <Style Selector="TextBlock">
-            <Setter Property="Foreground" Value="LightGray"/>
+            <Setter Property="Foreground" Value="LightGray" />
         </Style>
     </Styles>
 </Styles>

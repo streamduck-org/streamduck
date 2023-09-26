@@ -13,13 +13,13 @@
     <Design.DataContext>
         <!-- This only sets the DataContext for the previewer in an IDE,
              to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
-        <viewModels:MainWindowViewModel/>
+        <viewModels:MainWindowViewModel />
     </Design.DataContext>
     <Border>
         <Border.Background>
             <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                <GradientStop Offset="0" Color="{DynamicResource SystemAccentColor}"/>
-                <GradientStop Offset="1" Color="{DynamicResource SystemAccentColorDark2}"/>
+                <GradientStop Offset="0" Color="{DynamicResource SystemAccentColor}" />
+                <GradientStop Offset="1" Color="{DynamicResource SystemAccentColorDark2}" />
             </LinearGradientBrush>
         </Border.Background>
         <reactiveUi:RoutedViewHost Router="{Binding Router}"
@@ -28,15 +28,15 @@
             <reactiveUi:RoutedViewHost.PageTransition>
                 <CrossFade Duration="0.2">
                     <CrossFade.FadeInEasing>
-                        <QuinticEaseInOut/>
+                        <QuinticEaseInOut />
                     </CrossFade.FadeInEasing>
                     <CrossFade.FadeOutEasing>
-                        <QuinticEaseInOut/>
+                        <QuinticEaseInOut />
                     </CrossFade.FadeOutEasing>
                 </CrossFade>
             </reactiveUi:RoutedViewHost.PageTransition>
             <reactiveUi:RoutedViewHost.ViewLocator>
-                <ui:AppViewLocator/>
+                <ui:AppViewLocator />
             </reactiveUi:RoutedViewHost.ViewLocator>
         </reactiveUi:RoutedViewHost>
     </Border>

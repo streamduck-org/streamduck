@@ -342,6 +342,12 @@ public class Device : IDevice {
 		WriteImage(keyIndex, imageData);
 	}
 
+	public void Dispose() {
+		_buffer.Dispose();
+		_device.Dispose();
+		GC.SuppressFinalize(this);
+	}
+
 	private int ImageReportLength() => _kind switch {
 		ElgatoStreamDeck.Kind.Original => 8191,
 		_ => 1024
@@ -446,11 +452,5 @@ public class Device : IDevice {
 			1 => new Input.EncoderTwist(ReadEncoderTwist(data).ToArray()),
 			_ => throw new InvalidDataException("Bad data sent by the device")
 		};
-	}
-
-	public void Dispose() {
-		_buffer.Dispose();
-		_device.Dispose();
-		GC.SuppressFinalize(this);
 	}
 }

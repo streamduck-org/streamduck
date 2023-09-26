@@ -4,26 +4,26 @@ using System.Threading.Tasks;
 using ElgatoStreamDeck;
 using HidApi;
 using Microsoft.Extensions.Caching.Memory;
-using Streamduck.Definitions;
-using Streamduck.Definitions.Api;
-using Streamduck.Definitions.Devices;
+using Streamduck.Api;
+using Streamduck.Data;
+using Streamduck.Devices;
 using StreamduckStreamDeck.Inputs;
-using Device = Streamduck.Definitions.Devices.Device;
+using Device = Streamduck.Devices.Device;
 using ElgatoDevice = ElgatoStreamDeck.IDevice;
-using Input = Streamduck.Definitions.Inputs.Input;
+using Input = Streamduck.Inputs.Input;
 
 namespace StreamduckStreamDeck;
 
 public class StreamDeckDevice : Device, IDisposable, IConfigurable<StreamDeckDeviceOptions> {
-	public StreamDeckDeviceOptions Options { get; set; }
-	
 	internal readonly ElgatoDevice _device;
 	private readonly DeviceReader _deviceReader;
-	private readonly Thread _readingThread;
 	internal readonly IMemoryCache _imageCache = new MemoryCache(new MemoryCacheOptions());
+
 	internal readonly MemoryCacheEntryOptions _imageCacheEntryOptions = new() {
 		SlidingExpiration = TimeSpan.FromMinutes(5)
 	};
+
+	private readonly Thread _readingThread;
 
 	public StreamDeckDevice(ElgatoDevice device, DeviceIdentifier identifier) : base(identifier) {
 		_device = device;
@@ -69,56 +69,59 @@ public class StreamDeckDevice : Device, IDisposable, IConfigurable<StreamDeckDev
 		}
 
 		Inputs = inputs;
-		
+
 		// Reading thread
 		_readingThread = new Thread(ReaderThread);
 		_readingThread.Start();
 	}
 
+	public override Input[] Inputs { get; }
+	public StreamDeckDeviceOptions Options { get; set; }
+
+	public void Dispose() {
+		Die();
+		_readingThread.Interrupt();
+		_device.Dispose();
+		GC.SuppressFinalize(this);
+	}
+
 	private void ReaderThread() {
 		var lcdIndex = _device.Kind().KeyCount();
 		var encoderOffset = _device.Kind().KeyCount() + 1;
-		
+
 		while (Alive) {
 			try {
 				foreach (var input in _deviceReader.Read()) {
 					switch (input) {
 						case DeviceReader.Input.ButtonPressed buttonPressed: {
-							if (Inputs[buttonPressed.key] is StreamDeckButton button) {
-								button.CallPressed();
-							}
+							if (Inputs[buttonPressed.key] is StreamDeckButton button) button.CallPressed();
 
 							break;
 						}
 
 						case DeviceReader.Input.ButtonReleased buttonReleased: {
-							if (Inputs[buttonReleased.key] is StreamDeckButton button) {
-								button.CallReleased();
-							}
+							if (Inputs[buttonReleased.key] is StreamDeckButton button) button.CallReleased();
 
 							break;
 						}
 
 						case DeviceReader.Input.EncoderPressed encoderPressed: {
-							if (Inputs[encoderOffset + encoderPressed.encoder] is StreamDeckEncoder encoder) {
+							if (Inputs[encoderOffset + encoderPressed.encoder] is StreamDeckEncoder encoder)
 								encoder.CallPressed();
-							}
 
 							break;
 						}
 
 						case DeviceReader.Input.EncoderReleased encoderReleased: {
-							if (Inputs[encoderOffset + encoderReleased.encoder] is StreamDeckEncoder encoder) {
+							if (Inputs[encoderOffset + encoderReleased.encoder] is StreamDeckEncoder encoder)
 								encoder.CallReleased();
-							}
 
 							break;
 						}
 
 						case DeviceReader.Input.EncoderTwist encoderTwist: {
-							if (Inputs[encoderOffset + encoderTwist.encoder] is StreamDeckEncoder encoder) {
+							if (Inputs[encoderOffset + encoderTwist.encoder] is StreamDeckEncoder encoder)
 								encoder.CallTwist(encoderTwist.value);
-							}
 
 							break;
 						}
@@ -133,49 +136,37 @@ public class StreamDeckDevice : Device, IDisposable, IConfigurable<StreamDeckDev
 						}
 
 						case DeviceReader.Input.TouchScreenLongPress touchScreenPress: {
-							if (Inputs[lcdIndex] is StreamDeckLCDSegment segment) {
+							if (Inputs[lcdIndex] is StreamDeckLCDSegment segment)
 								Task.Run(async () => {
 									segment.CallPressed(new Int2(touchScreenPress.X, touchScreenPress.Y));
 									await Task.Delay(TimeSpan.FromSeconds(1));
 									segment.CallReleased(new Int2(touchScreenPress.X, touchScreenPress.Y));
 								});
-							}
 
 							break;
 						}
 
 						case DeviceReader.Input.TouchScreenSwipe touchScreenSwipe: {
-							if (Inputs[lcdIndex] is StreamDeckLCDSegment segment) {
+							if (Inputs[lcdIndex] is StreamDeckLCDSegment segment)
 								segment.CallDrag(
 									new Int2(touchScreenSwipe.StartX, touchScreenSwipe.StartY),
 									new Int2(touchScreenSwipe.EndX, touchScreenSwipe.EndY)
 								);
-							}
 
 							break;
 						}
 					}
 				}
 			} catch (HidException e) {
-				if (e.Message.Contains("Input/output error")) {
+				if (e.Message.Contains("Input/output error"))
 					Die();
-				} else {
+				else
 					throw;
-				}
 			}
 		}
 	}
 
 	internal void SetCache(int key, byte[] data) {
 		_imageCache.Set(key, data, _imageCacheEntryOptions);
-	}
-
-	public override Input[] Inputs { get; }
-	
-	public void Dispose() {
-		Die();
-		_readingThread.Interrupt();
-		_device.Dispose();
-		GC.SuppressFinalize(this);
 	}
 }

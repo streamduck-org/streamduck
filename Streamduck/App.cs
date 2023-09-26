@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -7,10 +6,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
+using Streamduck.Api;
 using Streamduck.Configuration;
-using Streamduck.Definitions;
-using Streamduck.Definitions.Api;
-using Streamduck.Definitions.Devices;
+using Streamduck.Cores;
+using Streamduck.Devices;
 using Streamduck.Plugins;
 using Streamduck.Plugins.Loaders;
 
@@ -18,7 +17,9 @@ namespace Streamduck;
 
 public class App {
 	private static readonly Logger L = LogManager.GetCurrentClassLogger();
-	
+
+	private readonly List<NamespacedDeviceIdentifier> _discoveredDevices = new();
+
 	private Config? _config;
 
 	private ConcurrentDictionary<NamespacedName, WeakReference<WrappedDriver>> _driverMap = new();
@@ -28,32 +29,30 @@ public class App {
 	private PluginAssembly[] _plugins = Array.Empty<PluginAssembly>();
 	private bool _running;
 
-	private readonly List<NamespacedDeviceIdentifier> _discoveredDevices = new();
-
 	public IReadOnlyList<NamespacedDeviceIdentifier> DiscoveredDevices => _discoveredDevices;
 	public ConcurrentDictionary<NamespacedDeviceIdentifier, Core> ConnectedDevices { get; } = new();
 	public event Action? DeviceListRefreshed;
-	
+
 	/**
-	 * Device is connected to Streamduck 
+	 * Device is connected to Streamduck
 	 */
 	public event Action<NamespacedDeviceIdentifier>? DeviceConnected;
-	
+
 	/**
 	 * Device is disconnected from Streamduck
 	 */
 	public event Action<NamespacedDeviceIdentifier>? DeviceDisconnected;
-	
+
 	/**
 	 * Device is discovered by a driver
 	 */
 	public event Action<NamespacedDeviceIdentifier>? DeviceAppeared;
-	
+
 	/**
 	 * Device is no longer available
 	 */
 	public event Action<NamespacedDeviceIdentifier>? DeviceDisappeared;
-	
+
 	public IEnumerable<WrappedPlugin> Plugins() => _pluginMap
 		.Select(k => {
 			k.Value.TryGetTarget(out var v);
@@ -125,10 +124,9 @@ public class App {
 
 	public async Task ConnectDevice(NamespacedDeviceIdentifier deviceIdentifier) {
 		try {
-			if (ConnectedDevices.ContainsKey(deviceIdentifier)) {
+			if (ConnectedDevices.ContainsKey(deviceIdentifier))
 				throw new ApplicationException("Device is already connected");
-			}
-			
+
 			var driver = GetDriver(deviceIdentifier.NamespacedName);
 
 			if (driver == null) {
@@ -139,16 +137,15 @@ public class App {
 			var device = await driver.ConnectDevice(deviceIdentifier);
 			device.Died += () => DeviceDisconnected?.Invoke(deviceIdentifier);
 			var core = new CoreImpl(device, deviceIdentifier);
-			
+
 			lock (_discoveredDevices) {
 				_discoveredDevices.Remove(deviceIdentifier);
 			}
-			
+
 			DeviceConnected?.Invoke(deviceIdentifier);
 
-			if (!ConnectedDevices.TryAdd(deviceIdentifier, core)) {
+			if (!ConnectedDevices.TryAdd(deviceIdentifier, core))
 				throw new ApplicationException("Couldn't add device, another connection was already made?");
-			}
 		} catch (Exception e) {
 			L.Error(e, "Failed to connect to device");
 		}
@@ -181,18 +178,18 @@ public class App {
 		lock (_discoveredDevices) {
 			var newDevices = _newDeviceList
 				.Where(device => !_discoveredDevices.Contains(device));
-			
+
 			var removedDevices = _discoveredDevices
 				.Where(device => !_newDeviceList.Contains(device));
 
 			foreach (var device in newDevices) {
 				DeviceAppeared?.Invoke(device);
 			}
-			
+
 			foreach (var device in removedDevices) {
 				DeviceDisappeared?.Invoke(device);
 			}
-			
+
 			_discoveredDevices.Clear();
 			_discoveredDevices.AddRange(_newDeviceList);
 			DeviceListRefreshed?.Invoke();
