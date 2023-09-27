@@ -18,7 +18,8 @@ public static partial class FieldReflector {
 		typeof(NameAttribute),
 		typeof(DescriptionAttribute),
 		typeof(IncludeAttribute),
-		typeof(IgnoreAttribute)
+		typeof(IgnoreAttribute),
+		typeof(ReadOnlyAttribute)
 	};
 
 	public static IEnumerable<Field> AnalyzeObject(object obj) {
@@ -53,7 +54,7 @@ public static partial class FieldReflector {
 
 			if (type == typeof(string)) {
 				// Check if there's public setter
-				if (property.GetSetMethod(true)?.IsPublic ?? false) {
+				if (IsReadWrite(property, receivedAttributes)) {
 					// Do text field instead
 				} else {
 					// Do label
@@ -62,6 +63,10 @@ public static partial class FieldReflector {
 			}
 		}
 	}
+
+	private static bool IsReadWrite(PropertyInfo property, IDictionary<Type, object> receivedAttributes) =>
+		(property.GetSetMethod(true)?.IsPublic ?? false) 
+		&& !receivedAttributes.ContainsKey(typeof(ReadOnlyAttribute));
 
 	private static T? Cast<T>(this IDictionary<Type, object> dictionary) where T : class {
 		dictionary.TryGetValue(typeof(T), out var value);
