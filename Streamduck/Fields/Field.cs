@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 
 namespace Streamduck.Fields;
 
@@ -28,36 +29,74 @@ public abstract class Field {
 	 * Displays text from text accessor
 	 */
 	public class Label : Field {
-		public Label(string title, Func<string> textAccessor) : base(title) {
-			TextAccessor = textAccessor;
-		}
+		private readonly Func<string> _getter;
 		
-		public Func<string> TextAccessor { get; }
+		public Label(string title, Func<string> textGetter) : base(title) {
+			_getter = textGetter;
+		}
+
+		public string Text => _getter.Invoke();
+	}
+
+	/**
+	 * Checkbox
+	 */
+	public class Checkbox : Field {
+		public Checkbox(string title) : base(title) { }
+	}
+	
+	/**
+	 * Horizontal switch
+	 */
+	public class Switch : Field {
+		public Switch(string title) : base(title) { }
 	}
 
 	/**
 	 * Input field that changes the bound value, can contain any UTF-8 character
 	 */
 	public class StringInput : Field {
+		private readonly Func<string> _getter;
+		private readonly Action<string>? _setter;
 
-		public bool Disabled { get; init; }
-		public StringInput(string title) : base(title) { }
+		public bool Disabled { get; }
+		
+		public StringInput(string title, Func<string> getter, Action<string>? setter = null) : base(title) {
+			_getter = getter;
+			_setter = setter;
+			Disabled = _setter == null;
+		}
+
+		public string Value {
+			get => _getter.Invoke();
+			set => _setter?.Invoke(value);
+		}
 	}
 
 	/**
-	 * Input field that changes the bound value, can contain any whole number
+	 * Input field that changes the bound value, can contain any number
 	 */
-	public class IntegerInput : Field {
-		public bool Disabled { get; init; }
-		public IntegerInput(string title) : base(title) { }
-	}
+	public class NumberInput<T> : Field where T : INumber<T> {
+		private readonly Func<T> _getter;
+		private readonly Action<T>? _setter;
+		
+		public bool Disabled { get; }
+		public bool Slider { get; init; }
+		public bool EnforceLimit { get; init; }
+		
+		public T? Min { get; init; }
+		public T? Max { get; init; }
+		
+		public NumberInput(string title, Func<T> getter, Action<T>? setter = null) : base(title) {
+			_getter = getter;
+			_setter = setter;
+			Disabled = _setter == null;
+		}
 
-	/**
-	 * Input field that changes the bound value, can contain any real number
-	 */
-	public class NumberInput : Field {
-		public bool Disabled { get; init; }
-		public NumberInput(string title) : base(title) { }
+		public T Value {
+			get => _getter.Invoke();
+			set => _setter?.Invoke(value);
+		}
 	}
 
 	public class Array : Field {
