@@ -5,7 +5,7 @@ namespace Streamduck.Fields.Attributes;
 /**
  * Specifies description for the property
  */
-[AttributeUsage(AttributeTargets.Property)]
+[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
 public class DescriptionAttribute : Attribute {
 	public DescriptionAttribute(string description) {
 		Description = description;

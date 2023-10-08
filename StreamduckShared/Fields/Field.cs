@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Numerics;
 
 namespace Streamduck.Fields;
@@ -42,14 +43,22 @@ public abstract class Field {
 	 * Checkbox
 	 */
 	public class Checkbox : Field {
-		public Checkbox(string title) : base(title) { }
-	}
-	
-	/**
-	 * Horizontal switch
-	 */
-	public class Switch : Field {
-		public Switch(string title) : base(title) { }
+		private readonly Func<bool> _getter;
+		private readonly Action<bool>? _setter;
+		
+		public bool Disabled { get; }
+		public bool SwitchStyle { get; init; }
+		
+		public Checkbox(string title, Func<bool> getter, Action<bool>? setter) : base(title) {
+			_getter = getter;
+			_setter = setter;
+			Disabled = _setter == null;
+		}
+
+		public bool Value {
+			get => _getter.Invoke();
+			set => _setter?.Invoke(value);
+		}
 	}
 
 	/**
@@ -96,6 +105,70 @@ public abstract class Field {
 		public T Value {
 			get => _getter.Invoke();
 			set => _setter?.Invoke(value);
+		}
+	}
+	
+	public class Choice : Field {
+		private readonly Func<string> _getter;
+		private readonly Action<string>? _setter;
+		
+		public bool Disabled { get; }
+		public (string, string?)[] Variants { get; }
+
+		public string Value {
+			get => _getter.Invoke();
+			set => _setter?.Invoke(value);
+		}
+		
+		public Choice(string title, Func<string> getter, Action<string>? setter, (string, string?)[] variants) : base(title) {
+			_getter = getter;
+			_setter = setter;
+			Variants = variants;
+			Disabled = _setter == null;
+		}
+	}
+	
+	public class MultiChoice : Field {
+		private readonly Func<bool[]> _getter;
+		private readonly Action<string, bool>? _setter;
+		
+		public bool Disabled { get; }
+		public (string, string?)[] Variants { get; }
+
+		private int FindVariantIndex(string name) {
+			for (var i = 0; i < Variants.Length; i++) {
+				if (Variants[i].Item1.Equals(name)) {
+					return i;
+				}
+			}
+			
+			return -1;
+		}
+		
+		public bool? this[string name] {
+			get {
+				var index = FindVariantIndex(name);
+				if (index < 0 || index >= Variants.Length) return null;
+				return _getter.Invoke()[index];
+			}
+
+			set {
+				if (_setter == null) return;
+				if (value == null) return;
+				
+				var index = FindVariantIndex(name);
+				if (index == -1) return;
+				_setter.Invoke(name, value.Value);
+			}
+		}
+
+		public bool[] Values => _getter.Invoke();
+
+		public MultiChoice(string title, Func<bool[]> getter, Action<string, bool>? setter, (string, string?)[] variants) : base(title) {
+			_getter = getter;
+			_setter = setter;
+			Variants = variants;
+			Disabled = _setter == null;
 		}
 	}
 
