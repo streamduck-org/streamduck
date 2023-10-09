@@ -13,7 +13,12 @@ namespace Streamduck.Fields;
 public static partial class FieldReflector {
 	private const BindingFlags Flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
 
-	public static IEnumerable<Field> AnalyzeObject(object obj) {
+	public static IEnumerable<Field> AnalyzeObject(object? obj) {
+		if (obj == null) {
+			yield return new Field.StaticText("Object was null");
+			yield break;
+		}
+		
 		foreach (var property in obj.GetType().GetProperties(Flags)) {
 			// Handle Header first
 			if (property.GetCustomAttribute<HeaderAttribute>() is { } headerAttribute) 
@@ -55,18 +60,14 @@ public static partial class FieldReflector {
 						Description = description
 					};
 				}
-			}
-
-			if (type.IsAssignableTo(typeof(INumber<>))) {
+			} else if (type.IsAssignableTo(typeof(INumber<>))) {
 				yield return (Field)typeof(FieldReflector).GetMethod(
 						nameof(MakeGenericNumberField), 
 						BindingFlags.NonPublic | BindingFlags.Static
 						)!.MakeGenericMethod(type)
 					.Invoke(null, new[] { property, obj, title, description! })!;
-			}
-
-			if (type == typeof(bool)) {
-				bool Getter() => (bool)property!.GetValue(obj)!;
+			} else if (type == typeof(bool)) {
+				bool Getter() => (bool)property.GetValue(obj)!;
 				Action<bool>? setter = IsReadWrite(property)
 					? val => property.SetValue(obj, val)
 					: null;
@@ -75,9 +76,7 @@ public static partial class FieldReflector {
 					Description = description,
 					SwitchStyle = property.GetCustomAttribute<SwitchAttribute>() != null
 				};
-			}
-
-			if (type.IsAssignableTo(typeof(Enum))) {
+			} else if (type.IsAssignableTo(typeof(Enum))) {
 				var variants = type.GetFields(BindingFlags.Public | BindingFlags.Static);
 				var underlyingType = type.GetEnumUnderlyingType();
 				if (property.GetCustomAttribute<BitmaskAttribute>() != null) {
@@ -118,7 +117,14 @@ public static partial class FieldReflector {
 						Description = description
 					};
 				}
+			} else if (type.IsClass && Nullable.GetUnderlyingType(type) == null) { // Use recursion for anything else
+				yield return new Field.NestedFields(title) {
+					Description = description,
+					Schema = AnalyzeObject(property.GetValue(obj)).ToArray()
+				};
 			}
+			
+			// TODO: Split all field creation into private methods and implement collection support 
 		}
 	}
 

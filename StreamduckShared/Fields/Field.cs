@@ -173,7 +173,7 @@ public abstract class Field {
 	}
 
 	public class Array : Field {
-		public Field[] ElementSchema { get; init; } = System.Array.Empty<Field>();
+		public Field[][] Values { get; init; }
 
 		/**
 		 * Serializable object that will be created when UI is trying to add an element to the array.
@@ -189,11 +189,6 @@ public abstract class Field {
 
 	public class NestedFields : Field {
 		public Field[] Schema { get; init; } = System.Array.Empty<Field>();
-
-		/**
-		 * If the nested fields should be inside of a collapsable menu
-		 */
-		public bool Collapsable { get; init; }
 
 		public NestedFields(string title) : base(title) { }
 	}

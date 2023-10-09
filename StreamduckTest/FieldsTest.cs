@@ -10,6 +10,7 @@ using Desc = Streamduck.Fields.Attributes.DescriptionAttribute;
 namespace StreamduckTest; 
 
 [TestFixture]
+[SuppressMessage("Assertion", "NUnit2045:Use Assert.Multiple")]
 public class FieldsTest {
 	private class TestOptions {
 		[Desc("Description on label")]
@@ -49,6 +50,9 @@ public class FieldsTest {
 		[Bitmask]
 		[Desc("Description on bitmask")]
 		public TestBitmask BitmaskValue { get; set; } = TestBitmask.One;
+
+		[Desc("Description on nested field")]
+		public NestedOptions MoreOptions { get; } = new();
 	}
 
 	private enum TestEnum {
@@ -66,6 +70,12 @@ public class FieldsTest {
 		[Desc("This is two")]
 		Two = 2,
 		OneAndTwo = 3
+	}
+
+	private class NestedOptions {
+		public int MoreOptionsHere { get; set; }
+		public float OfDifferentTypes { get; set; }
+		public string EvenGotStrings => "";
 	}
 
 	[Test]
@@ -105,6 +115,16 @@ public class FieldsTest {
 			bitmaskField["One"] = false;
 			Assert.That(bitmaskField["One And Two"], Is.False, $"Field '{title}' incorrectly handled bitmasks");
 		}
+
+		{ // Testing nested objects
+			const string title = "More Options";
+			var nestedField = AssertFieldInfo<Field.NestedFields>(fields, title, "Description on nested field");
+
+			var nestedFields = nestedField.Schema.AsEnumerable().GetEnumerator();
+			AssertNumberField(nestedFields, "More Options Here", 0, false, true, false, 0, 1);
+			AssertNumberField(nestedFields, "Of Different Types", 0.0f, false, true, false, 0.0f, 1.0f);
+			AssertLabel(nestedFields, "Even Got Strings", "");
+		}
 	}
 
 	private static T AssertFieldInfo<T>(IEnumerator<Field> enumerator, string title, string? description = null) where T : class {
@@ -114,7 +134,7 @@ public class FieldsTest {
 		var field = enumerator.Current;
 		
 		Assert.That(field, Is.Not.Null, $"Field '{title}' was null");
-		Assert.That(field, Is.InstanceOf<T>(), $"Field '{title}' wasn't a label");
+		Assert.That(field, Is.InstanceOf<T>(), $"Field '{title}' wasn't of valid type");
 		Assert.That(field.Title, Is.EqualTo(title), $"Field '{title}' had invalid title");
 		
 		if (description != null) 
@@ -177,7 +197,6 @@ public class FieldsTest {
 		else Assert.That(checkbox.Value, Is.EqualTo(newValue), $"Field '{title}' didn't update its value after being set");
 	}
 	
-	[SuppressMessage("Assertion", "NUnit2045:Use Assert.Multiple")]
 	private static void AssertEnum(IEnumerator<Field> enumerator, string title, string currentValue, string newValue, bool readOnly, string? description = null, string? valueDescription = null) {
 		var enumField = AssertFieldInfo<Field.Choice>(enumerator, title, description);
 		Assert.That(enumField!.Value, Is.EqualTo(currentValue), $"Field '{title}' returned invalid value");
