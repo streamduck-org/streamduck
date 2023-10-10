@@ -1,6 +1,6 @@
 using System;
 
-namespace Streamduck.Fields.Attributes; 
+namespace Streamduck.Attributes; 
 
 /**
  * Makes boolean properties get switch style of a toggle

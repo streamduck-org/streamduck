@@ -1,6 +1,6 @@
 using System;
 
-namespace Streamduck.Fields.Attributes; 
+namespace Streamduck.Attributes; 
 
 /**
  * Will display field using the custom Avalonia Control type,

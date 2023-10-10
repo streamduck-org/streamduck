@@ -1,6 +1,6 @@
 using System;
 
-namespace Streamduck.Fields.Attributes; 
+namespace Streamduck.Attributes; 
 
 /**
  * Make property read only in UI despite having public setter

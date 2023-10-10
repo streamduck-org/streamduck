@@ -3,14 +3,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Reflection;
-using Streamduck.Fields.Attributes;
+using Streamduck.Attributes;
+using Streamduck.Utils;
 
 namespace Streamduck.Fields;
 
 /**
  * Class that analyzes objects for fields
  */
-public static partial class FieldReflector {
+public static class FieldReflector {
 	private const BindingFlags Flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
 
 	public static IEnumerable<Field> AnalyzeObject(object? obj) {
@@ -210,7 +211,7 @@ public static partial class FieldReflector {
 	
 	private static string GetMemberName(MemberInfo member) => 
 		member.GetCustomAttribute<NameAttribute>()?.Name 
-		?? FormatName(member.Name);
+		?? member.Name.FormatAsWords();
 
 	private static string? GetMemberDescription(MemberInfo member) =>
 		member.GetCustomAttribute<DescriptionAttribute>()?.Description;
@@ -220,7 +221,4 @@ public static partial class FieldReflector {
 		let name = GetMemberName(variant) 
 		let variantDescription = GetMemberDescription(variant)
 		select (name, variantDescription);
-
-	public static string FormatName(string name) => string.Concat(name
-		.Select(x => char.IsUpper(x) ? $" {x}" : $"{x}")).TrimStart(' ');
 }

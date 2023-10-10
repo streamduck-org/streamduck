@@ -3,15 +3,15 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Numerics;
+using Streamduck.Attributes;
 using Streamduck.Fields;
-using Streamduck.Fields.Attributes;
-using Desc = Streamduck.Fields.Attributes.DescriptionAttribute;
+using Desc = Streamduck.Attributes.DescriptionAttribute;
 
 namespace StreamduckTest; 
 
 [TestFixture]
 [SuppressMessage("Assertion", "NUnit2045:Use Assert.Multiple")]
-public class FieldsTest {
+public class FieldReflectorTest {
 	private class TestOptions {
 		[Desc("Description on label")]
 		public string LabelTest => "test";

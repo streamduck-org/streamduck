@@ -1,6 +1,6 @@
 using System;
 
-namespace Streamduck.Fields.Attributes;
+namespace Streamduck.Attributes;
 
 [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
 public class StaticTextAttribute : Attribute {

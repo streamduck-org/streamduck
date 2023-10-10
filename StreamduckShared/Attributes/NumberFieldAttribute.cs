@@ -1,7 +1,7 @@
 using System;
 using System.Numerics;
 
-namespace Streamduck.Fields.Attributes; 
+namespace Streamduck.Attributes; 
 
 /**
  * Settings for a number field. Min and Max can be used to limit the value to the bounds.

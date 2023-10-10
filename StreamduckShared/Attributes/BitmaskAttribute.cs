@@ -1,6 +1,6 @@
 using System;
 
-namespace Streamduck.Fields.Attributes; 
+namespace Streamduck.Attributes; 
 
 [AttributeUsage(AttributeTargets.Property)]
 public class BitmaskAttribute : Attribute { }

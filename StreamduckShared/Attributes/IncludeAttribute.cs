@@ -1,6 +1,6 @@
 using System;
 
-namespace Streamduck.Fields.Attributes;
+namespace Streamduck.Attributes;
 
 /**
  * Include non-public property in UI

@@ -1,6 +1,6 @@
 using System;
 
-namespace Streamduck.Fields.Attributes; 
+namespace Streamduck.Attributes; 
 
 /**
  * Makes property be ignored by UI

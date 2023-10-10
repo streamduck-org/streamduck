@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using ElgatoStreamDeck;
+using Streamduck.Attributes;
 using Streamduck.Plugins;
 
 namespace StreamduckStreamDeck;
@@ -17,5 +18,10 @@ public class StreamDeckPlugin : Plugin, IDisposable {
 	public void Dispose() {
 		_manager.Dispose();
 		GC.SuppressFinalize(this);
+	}
+
+	[PluginMethod]
+	public void MyAction() {
+		
 	}
 }

@@ -1,4 +1,4 @@
-using Streamduck.Fields.Attributes;
+using Streamduck.Attributes;
 
 namespace StreamduckStreamDeck;
 
