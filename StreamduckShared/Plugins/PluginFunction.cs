@@ -1,3 +1,4 @@
+using Streamduck.Api;
 using Streamduck.Scripting;
 
 namespace Streamduck.Plugins; 
@@ -5,7 +6,7 @@ namespace Streamduck.Plugins;
 /**
  * Indicates something that can be called by Scripting System
  */
-public abstract class PluginFunction {
+public abstract class PluginFunction : INamed {
 	public abstract string Name { get; }
 	
 	public abstract string? Description { get; }
@@ -17,5 +18,5 @@ public abstract class PluginFunction {
 	/**
 	 * <exception cref="System.ArgumentException">If arguments were of invalid type</exception>
 	 */
-	public abstract object[] Invoke(object[] arguments);
+	public abstract object?[] Invoke(object[] arguments);
 }

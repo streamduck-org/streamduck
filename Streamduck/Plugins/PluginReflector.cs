@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -55,7 +56,8 @@ public static class PluginReflector {
 			method.GetCustomAttribute<NameAttribute>()?.Name ?? method.Name.FormatAsWords(),
 			ParseParameters(method).ToArray(),
 			async args => {
-				var task = (Task)method.Invoke(obj, Flags, null, args, null);
+				var task = (Task?)method.Invoke(obj, Flags, null, args, null);
+				if (task == null) return;
 				await task.ConfigureAwait(false);
 			},
 			method.GetCustomAttribute<DescriptionAttribute>()?.Description
@@ -76,7 +78,8 @@ public static class PluginReflector {
 				Description = method.ReturnParameter.GetCustomAttribute<DescriptionAttribute>()?.Description
 			},
 			async args => {
-				var task = (Task)method.Invoke(obj, Flags, null, args, null);
+				var task = (Task?)method.Invoke(obj, Flags, null, args, null);
+				if (task == null) return Array.Empty<object>();
 				await task.ConfigureAwait(false);
 				return new[] { (object)((dynamic)task).Result };
 			},

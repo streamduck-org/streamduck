@@ -10,8 +10,10 @@ using NLog;
 using Streamduck.Api;
 using Streamduck.Configuration;
 using Streamduck.Cores;
+using Streamduck.Data;
 using Streamduck.Devices;
 using Streamduck.Plugins;
+using Streamduck.Plugins.Extensions;
 using Streamduck.Plugins.Loaders;
 
 namespace Streamduck;
@@ -22,13 +24,11 @@ public class App {
 	private readonly List<NamespacedDeviceIdentifier> _discoveredDevices = new();
 
 	private Config? _config;
-
-	private ConcurrentDictionary<NamespacedName, WeakReference<WrappedDriver>> _driverMap = new();
-
+	
 	private bool _initialized;
-	private ConcurrentDictionary<string, WeakReference<WrappedPlugin>> _pluginMap = new();
-	private PluginAssembly[] _plugins = Array.Empty<PluginAssembly>();
 	private bool _running;
+
+	public PluginCollection? Plugins { get; private set; }
 	
 	public IReadOnlyList<NamespacedDeviceIdentifier> DiscoveredDevices {
 		get {
@@ -61,60 +61,17 @@ public class App {
 	 */
 	public event Action<NamespacedDeviceIdentifier>? DeviceDisappeared;
 
-	public IEnumerable<WrappedPlugin> Plugins() => _pluginMap
-		.Select(k => {
-			k.Value.TryGetTarget(out var v);
-			return v;
-		})
-		.Where(t => t != null)
-		.Select(t => t!);
-
-	public IEnumerable<WrappedDriver> Drivers() => _driverMap
-		.Select(k => {
-			k.Value.TryGetTarget(out var v);
-			return v;
-		})
-		.Where(t => t != null)
-		.Select(t => t!);
-
-	public WrappedPlugin? GetPlugin(string name) {
-		if (!_pluginMap.ContainsKey(name)) return null;
-		_pluginMap[name].TryGetTarget(out var plugin);
-		return plugin;
-	}
-
-	public WrappedDriver? GetDriver(NamespacedName name) {
-		if (!_driverMap.ContainsKey(name)) return null;
-		_driverMap[name].TryGetTarget(out var driver);
-		return driver;
-	}
-
 	/**
 	 * Initializes Streamduck (eg. load plugins, load auto-connects)
 	 */
 	public async Task Init() {
 		Directory.CreateDirectory("plugins");
-		_plugins = PluginLoader.LoadFromFolder("plugins").ToArray();
-		_pluginMap = new ConcurrentDictionary<string, WeakReference<WrappedPlugin>>(
-			_plugins
-				.SelectMany(a => a.Plugins)
-				.ToDictionary(p => p.Name, p => new WeakReference<WrappedPlugin>(p))
-		);
-		_driverMap = new ConcurrentDictionary<NamespacedName, WeakReference<WrappedDriver>>(
-			_plugins
-				.SelectMany(a => a.Plugins)
-				.SelectMany(p => p.Drivers)
-				.ToDictionary(d => d.Name, d => new WeakReference<WrappedDriver>(d))
-		);
+		Plugins = new PluginCollection(PluginLoader.LoadFromFolder("plugins"));
+		await Plugins.InvokePluginsLoaded();
+		
 		_config = await Config.Get();
 
 		_initialized = true;
-	}
-
-	public void Unload(WrappedPlugin plugin) {
-		var assembly = _plugins.Single(plugin.BelongsTo);
-		_plugins = _plugins.Where(a => !a.Equals(assembly)).ToArray();
-		assembly.Unload();
 	}
 
 
@@ -135,7 +92,7 @@ public class App {
 			if (ConnectedDevices.ContainsKey(deviceIdentifier))
 				throw new ApplicationException("Device is already connected");
 
-			var driver = GetDriver(deviceIdentifier.NamespacedName);
+			var driver = Plugins!.SpecificDriver(deviceIdentifier.NamespacedName);
 
 			if (driver == null) {
 				L.Error("Driver '{}' wasn't found", deviceIdentifier.NamespacedName);
@@ -178,7 +135,7 @@ public class App {
 
 		var _newDeviceList = new List<NamespacedDeviceIdentifier>();
 
-		foreach (var driver in Drivers()) {
+		foreach (var driver in Plugins!.AllDrivers()) {
 			_newDeviceList.AddRange((await driver.ListDevices())
 				.Where(device => !ConnectedDevices.ContainsKey(device)));
 		}

@@ -1,54 +1,51 @@
 using System.Collections.Generic;
 using System.Linq;
-using Streamduck.Devices;
+using Streamduck.Api;
+using Streamduck.Data;
 using Streamduck.Plugins.Loaders;
-using Streamduck.Plugins.Methods;
 
 namespace Streamduck.Plugins;
 
+/**
+ * Plugin wrapper that includes namespaced versions of all plugin types
+ */
 public sealed class WrappedPlugin {
 	private readonly PluginLoadContext _originatedFrom;
 
-	public Plugin Instance { get; }
+	public AggregatedPlugin Instance { get; }
 	
 	public WrappedPlugin(Plugin instance, PluginLoadContext originatedFrom) {
-		Instance = instance;
-		Name = Instance.Name;
+		Instance = new AggregatedPlugin(instance);
 		_originatedFrom = originatedFrom;
+		
+		Name = Instance.Name;
 		Drivers = Instance.Drivers
-			.Select(d => new WrappedDriver(this, d))
+			.Select(Namespace)
 			.ToArray();
-
-		var methods = PluginReflector.GetMethods(instance).ToArray();
-
 		Actions = Instance.Actions
-			.Concat(PluginReflector.AnalyzeActions(methods, instance))
-			.Select(a => new WrappedPluginAction(this, a))
+			.Select(Namespace)
 			.ToArray();
 		Functions = Instance.Functions
-			.Concat(PluginReflector.AnalyzeFunctions(methods, instance))
-			.Select(f => new WrappedPluginFunction(this, f))
+			.Select(Namespace)
 			.ToArray();
 		AsyncActions = Instance.AsyncActions
-			.Concat(PluginReflector.AnalyzeAsyncActions(methods, instance))
-			.Select(a => new WrappedAsyncPluginAction(this, a))
+			.Select(Namespace)
 			.ToArray();
 		AsyncFunctions = Instance.AsyncFunctions
-			.Concat(PluginReflector.AnalyzeAsyncFunctions(methods, instance))
-			.Select(f => new WrappedAsyncPluginFunction(this, f))
+			.Select(Namespace)
 			.ToArray();
 	}
 
 	public string Name { get; }
 
-	public IEnumerable<WrappedDriver> Drivers { get; }
-	public IEnumerable<WrappedPluginAction> Actions { get; }
-	public IEnumerable<WrappedPluginFunction> Functions { get; }
-	public IEnumerable<WrappedAsyncPluginAction> AsyncActions { get; }
-	public IEnumerable<WrappedAsyncPluginFunction> AsyncFunctions { get; }
+	public IEnumerable<Namespaced<Driver>> Drivers { get; }
+	public IEnumerable<Namespaced<PluginAction>> Actions { get; }
+	public IEnumerable<Namespaced<PluginFunction>> Functions { get; }
+	public IEnumerable<Namespaced<AsyncPluginAction>> AsyncActions { get; }
+	public IEnumerable<Namespaced<AsyncPluginFunction>> AsyncFunctions { get; }
 
-	public NamespacedName NamespaceName(string name) =>
-		new(Name, name);
+	public Namespaced<T> Namespace<T>(T instance) where T : class, INamed =>
+		new(new NamespacedName(Name, instance.Name), instance);
 
 	public bool BelongsTo(PluginAssembly assembly) => assembly.Context.Equals(_originatedFrom);
 }

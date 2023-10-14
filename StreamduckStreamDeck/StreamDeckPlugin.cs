@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using ElgatoStreamDeck;
 using Streamduck.Attributes;
 using Streamduck.Plugins;
@@ -23,5 +24,13 @@ public class StreamDeckPlugin : Plugin, IDisposable {
 	[PluginMethod]
 	public void MyAction() {
 		
+	}
+
+	public override Task OnPluginsLoaded(IPluginQuery pluginQuery) {
+		foreach (var action in pluginQuery.AllPluginActions()) {
+			Console.WriteLine($"Action '{action.Name}' by '{action.PluginName}' was loaded");
+		}
+
+		return Task.CompletedTask;
 	}
 }

@@ -94,9 +94,10 @@ public class PluginReflectorTest {
 			Assert.That(output, Is.Not.Empty, "Square function didn't return anything");
 
 			var value = output[0];
+			Assert.That(value, Is.Not.Null, "Square function returned null");
 			Assert.That(value, Is.InstanceOf<int>(), "Square function returned something else than integer");
 			
-			Assert.That((int) value, Is.EqualTo(25), "Square function calculation was incorrect");
+			Assert.That((int) value!, Is.EqualTo(25), "Square function calculation was incorrect");
 		}
 	}
 

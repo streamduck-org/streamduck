@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using Streamduck.Api;
 using Streamduck.Scripting;
 
 namespace Streamduck.Plugins; 
@@ -6,7 +7,7 @@ namespace Streamduck.Plugins;
 /**
  * Indicates something that can be called by Scripting System
  */
-public abstract class AsyncPluginAction {
+public abstract class AsyncPluginAction : INamed {
 	public abstract string Name { get; }
 	
 	public abstract string? Description { get; }
