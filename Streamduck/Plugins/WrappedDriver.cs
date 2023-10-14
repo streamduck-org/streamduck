@@ -9,20 +9,20 @@ namespace Streamduck.Plugins;
 public class WrappedDriver {
 	private static readonly Logger L = LogManager.GetCurrentClassLogger();
 
-	private readonly Driver _instance;
+	public Driver Instance { get; }
 
 	public WrappedDriver(WrappedPlugin plugin, Driver instance) {
-		_instance = instance;
-		Name = plugin.NamespaceName(_instance.Name);
+		Instance = instance;
+		Name = plugin.NamespaceName(Instance.Name);
 	}
 
 	public NamespacedName Name { get; }
 
 	public async Task<IEnumerable<NamespacedDeviceIdentifier>> ListDevices() {
-		return (await _instance.ListDevices())
+		return (await Instance.ListDevices())
 			.Select(i => new NamespacedDeviceIdentifier(Name, i));
 	}
 
 	public async Task<Device> ConnectDevice(NamespacedDeviceIdentifier identifier) =>
-		await _instance.ConnectDevice(identifier.DeviceIdentifier);
+		await Instance.ConnectDevice(identifier.DeviceIdentifier);
 }

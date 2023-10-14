@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Threading.Tasks;
 using Streamduck.Attributes;
 using Streamduck.Plugins;
 using Streamduck.Scripting;
@@ -17,6 +18,20 @@ public class PluginReflectorTest {
 
 		public bool ActionWasCalled { get; private set; }
 
+		[PluginMethod]
+		public async Task TestAsyncAction(int value) {
+			if (value > 5) {
+				await Task.Delay(3);
+				ActionWasCalled = true;
+			}
+		}
+
+		[PluginMethod]
+		public async Task<int> TestAsyncFunction(int value) {
+			await Task.Delay(3);
+			return value * value;
+		}
+		
 		[PluginMethod]
 		[Name("Renamed Action")]
 		[Desc("Action description")]
@@ -85,32 +100,102 @@ public class PluginReflectorTest {
 		}
 	}
 
+	[Test]
+	public async Task TestAsyncActions() {
+		var plugin = new TestPlugin();
+		
+		var methods = PluginReflector.GetMethods(plugin);
+		using var actions = PluginReflector.AnalyzeAsyncActions(methods, plugin).GetEnumerator();
+		
+		{ // Test Action
+			var action = AnalyzeAsyncActionInfo(actions, "Test Async Action");
+
+			using var parameters = action.Parameters.AsEnumerable().GetEnumerator();
+			AnalyzeDataInfo<int>(parameters, "Value");
+			
+			await action.Invoke(new object[]{ 6 });
+			Assert.That(plugin.ActionWasCalled, Is.True, "Action was not properly called");
+
+			Assert.CatchAsync<ArgumentException>(async () => await action.Invoke(new object[] { 6.0 }),
+				"Action doesn't throw exception when arguments are invalid");
+		}
+	}
+	
+	[Test]
+	public async Task TestAsyncFunctions() {
+		var plugin = new TestPlugin();
+		
+		var methods = PluginReflector.GetMethods(plugin);
+		using var functions = PluginReflector.AnalyzeAsyncFunctions(methods, plugin).GetEnumerator();
+		
+		{ // Test Action
+			var function = AnalyzeAsyncFunctionInfo(functions, "Test Async Function");
+
+			using var parameters = function.Parameters.AsEnumerable().GetEnumerator();
+			AnalyzeDataInfo<int>(parameters, "Value");
+			
+			using var returns = function.Returns.AsEnumerable().GetEnumerator();
+			AnalyzeDataInfo<int>(returns, "Out");
+			
+			var output = await function.Invoke(new object[]{ 6 });
+			Assert.That(output, Is.Not.Empty, "Square function didn't return anything");
+			
+			var value = output[0];
+			Assert.That(value, Is.InstanceOf<int>(), "Square function returned something else than integer");
+			
+			Assert.That((int) value, Is.EqualTo(36), "Square function calculation was incorrect");
+		}
+	}
+
 	private static PluginAction AnalyzeActionInfo(IEnumerator<PluginAction> enumerator, string name, string? description = null) {
 		Console.WriteLine($"Testing action '{name}'");
-		
+
 		Assert.That(enumerator.MoveNext(), Is.True, $"Action '{name}' wasn't returned by reflector");
 		var action = enumerator.Current;
-
-		Assert.That(action.Name, Is.EqualTo(name), $"Action '{name}' had invalid title");
 		
-		if (description != null) 
-			Assert.That(action.Description, Is.EqualTo(description), $"Action '{name}' had invalid description");
+		AssertInfo(action.Name, action.Description, name, description, "Action");
 
 		return action;
 	}
-	
+
 	private static PluginFunction AnalyzeFunctionInfo(IEnumerator<PluginFunction> enumerator, string name, string? description = null) {
 		Console.WriteLine($"Testing function '{name}'");
 		
 		Assert.That(enumerator.MoveNext(), Is.True, $"Function '{name}' wasn't returned by reflector");
 		var function = enumerator.Current;
 
-		Assert.That(function.Name, Is.EqualTo(name), $"Function '{name}' had invalid title");
-		
-		if (description != null) 
-			Assert.That(function.Description, Is.EqualTo(description), $"Function '{name}' had invalid description");
+		AssertInfo(function.Name, function.Description, name, description, "Function");
 
 		return function;
+	}
+	
+	private static AsyncPluginAction AnalyzeAsyncActionInfo(IEnumerator<AsyncPluginAction> enumerator, string name, string? description = null) {
+		Console.WriteLine($"Testing async action '{name}'");
+
+		Assert.That(enumerator.MoveNext(), Is.True, $"Async action '{name}' wasn't returned by reflector");
+		var action = enumerator.Current;
+		
+		AssertInfo(action.Name, action.Description, name, description, "Async action");
+
+		return action;
+	}
+
+	private static AsyncPluginFunction AnalyzeAsyncFunctionInfo(IEnumerator<AsyncPluginFunction> enumerator, string name, string? description = null) {
+		Console.WriteLine($"Testing async function '{name}'");
+		
+		Assert.That(enumerator.MoveNext(), Is.True, $"Async function '{name}' wasn't returned by reflector");
+		var function = enumerator.Current;
+
+		AssertInfo(function.Name, function.Description, name, description, "Async function");
+
+		return function;
+	}
+	
+	private static void AssertInfo(string actualName, string? actualDescription, string name, string? description, string logPrefix) {
+		Assert.That(actualName, Is.EqualTo(name), $"{logPrefix} '{name}' had invalid title");
+
+		if (description != null)
+			Assert.That(actualDescription, Is.EqualTo(description), $"{logPrefix} '{name}' had invalid description");
 	}
 
 	private static void AnalyzeDataInfo<T>(IEnumerator<DataInfo> enumerator, string name, string? description = null) {
@@ -118,7 +203,7 @@ public class PluginReflectorTest {
 		
 		Assert.That(enumerator.MoveNext(), Is.True, $"Parameter '{name}' wasn't returned by reflector");
 		var info = enumerator.Current;
-
+		
 		Assert.That(info.Type, Is.EqualTo(typeof(T)), $"Parameter '{name}' had invalid type");
 		Assert.That(info.Name, Is.EqualTo(name), $"Parameter '{name}' had invalid title");
 		

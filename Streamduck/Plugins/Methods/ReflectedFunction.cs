@@ -1,7 +1,7 @@
 using System;
 using Streamduck.Scripting;
 
-namespace Streamduck.Plugins; 
+namespace Streamduck.Plugins.Methods; 
 
 public class ReflectedFunction : PluginFunction {
 	private readonly Func<object[], object[]> _functionToCall;

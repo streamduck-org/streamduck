@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using DynamicData;
 using NLog;
 using Streamduck.Api;
 using Streamduck.Configuration;
@@ -28,8 +29,15 @@ public class App {
 	private ConcurrentDictionary<string, WeakReference<WrappedPlugin>> _pluginMap = new();
 	private PluginAssembly[] _plugins = Array.Empty<PluginAssembly>();
 	private bool _running;
+	
+	public IReadOnlyList<NamespacedDeviceIdentifier> DiscoveredDevices {
+		get {
+			lock (_discoveredDevices) {
+				return _discoveredDevices.AsEnumerable().ToList();
+			}
+		}
+	}
 
-	public IReadOnlyList<NamespacedDeviceIdentifier> DiscoveredDevices => _discoveredDevices;
 	public ConcurrentDictionary<NamespacedDeviceIdentifier, Core> ConnectedDevices { get; } = new();
 	public event Action? DeviceListRefreshed;
 

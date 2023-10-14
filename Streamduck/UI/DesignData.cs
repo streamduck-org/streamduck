@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Streamduck.Devices;
+using Streamduck.Plugins;
 using Streamduck.UI.ViewModels.DeviceEditor;
 using Streamduck.UI.ViewModels.DeviceList;
 

@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Streamduck.Plugins;
 
 namespace Streamduck.Devices;
 

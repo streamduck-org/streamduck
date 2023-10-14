@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Streamduck.Devices;
+namespace Streamduck.Plugins;
 
 public readonly struct NamespacedName {
 	[JsonConstructor]
