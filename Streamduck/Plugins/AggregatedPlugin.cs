@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Streamduck.Scripting;
 
 namespace Streamduck.Plugins; 
 
@@ -12,6 +13,7 @@ public class AggregatedPlugin : Plugin {
 		Instance = instance;
 		Name = Instance.Name;
 		Drivers = Instance.Drivers.ToArray();
+		ScriptingSystems = Instance.ScriptingSystems.ToArray();
 
 		var methods = PluginReflector.GetMethods(instance).ToArray();
 
@@ -35,6 +37,7 @@ public class AggregatedPlugin : Plugin {
 	public override IEnumerable<PluginFunction> Functions { get; }
 	public override IEnumerable<AsyncPluginAction> AsyncActions { get; }
 	public override IEnumerable<AsyncPluginFunction> AsyncFunctions { get; }
+	public override IEnumerable<ScriptingSystem> ScriptingSystems { get; }
 
 	public override Task OnPluginsLoaded(IPluginQuery pluginQuery) => Instance.OnPluginsLoaded(pluginQuery);
 }

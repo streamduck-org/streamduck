@@ -5,6 +5,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Streamduck.Data;
 using Streamduck.Plugins.Extensions;
+using Streamduck.Plugins.Loaders;
+using Streamduck.Scripting;
 using Streamduck.Utils;
 
 namespace Streamduck.Plugins; 
@@ -18,6 +20,7 @@ public class PluginCollection : IPluginQuery {
 	private readonly ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<PluginFunction>>> _functionMap;
 	private readonly ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<AsyncPluginAction>>> _asyncActionMap;
 	private readonly ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<AsyncPluginFunction>>> _asyncFunctionMap;
+	private readonly ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<ScriptingSystem>>> _scriptingSystemMap;
 
 	public PluginCollection(IEnumerable<PluginAssembly> plugins) {
 		Plugins = plugins.ToList();
@@ -31,7 +34,16 @@ public class PluginCollection : IPluginQuery {
 		_functionMap = BuildMap(p => p.Functions);
 		_asyncActionMap = BuildMap(p => p.AsyncActions);
 		_asyncFunctionMap = BuildMap(p => p.AsyncFunctions);
+		_scriptingSystemMap = BuildMap(p => p.ScriptingSystems);
 	}
+
+	private static IEnumerable<PluginAssembly> PluginsToAssembly(IEnumerable<Plugin> plugins) {
+		var context = new PluginLoadContext("");
+		var pluginAssembly = new PluginAssembly(context, plugins.Select(p => new WrappedPlugin(p, context)).ToArray());
+		return new[] { pluginAssembly };
+	}
+	
+	public PluginCollection(IEnumerable<Plugin> plugins) : this(PluginsToAssembly(plugins)) {}
 
 	private ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<T>>> BuildMap<T>(
 		Func<WrappedPlugin, IEnumerable<Namespaced<T>>> accessor) where T : class =>
@@ -93,6 +105,14 @@ public class PluginCollection : IPluginQuery {
 	public Plugin? SpecificPlugin(string name) =>
 		_pluginMap.GetValueOrDefault(name)?.WeakToNullable()?.Instance;
 
+	public IEnumerable<T> PluginsAssignableTo<T>() where T : class =>
+		from weakPlugin in _pluginMap
+		let plugin = weakPlugin.Value.WeakToNullable()
+		where plugin != null
+		let castedPlugin = plugin.Instance.Instance as T
+		where castedPlugin != null
+		select castedPlugin;
+
 	public IEnumerable<Namespaced<Driver>> AllDrivers() => GetAll(_driverMap);
 	public IEnumerable<Namespaced<Driver>> DriversByPlugin(string pluginName) => GetByPlugin(_driverMap, pluginName);
 	public Namespaced<Driver>? SpecificDriver(NamespacedName name) => GetSpecific(_driverMap, name);
@@ -119,4 +139,10 @@ public class PluginCollection : IPluginQuery {
 		GetByPlugin(_asyncFunctionMap, pluginName);
 	public Namespaced<AsyncPluginFunction>? SpecificAsyncPluginFunction(NamespacedName name) => 
 		GetSpecific(_asyncFunctionMap, name);
+
+	public IEnumerable<Namespaced<ScriptingSystem>> AllScriptingSystems() => GetAll(_scriptingSystemMap);
+	public IEnumerable<Namespaced<ScriptingSystem>> ScriptingSystemsByPlugin(string pluginName) =>
+		GetByPlugin(_scriptingSystemMap, pluginName);
+	public Namespaced<ScriptingSystem>? SpecificScriptingSystem(NamespacedName name) => 
+		GetSpecific(_scriptingSystemMap, name);
 }

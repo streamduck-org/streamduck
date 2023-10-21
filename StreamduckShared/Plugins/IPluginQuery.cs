@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Streamduck.Data;
+using Streamduck.Scripting;
 
 namespace Streamduck.Plugins; 
 
@@ -9,6 +10,7 @@ namespace Streamduck.Plugins;
 public interface IPluginQuery {
 	IEnumerable<Plugin> AllPlugins();
 	Plugin? SpecificPlugin(string name);
+	IEnumerable<T> PluginsAssignableTo<T>() where T : class;
 	
 	IEnumerable<Namespaced<Driver>> AllDrivers();
 	IEnumerable<Namespaced<Driver>> DriversByPlugin(string pluginName);
@@ -29,4 +31,8 @@ public interface IPluginQuery {
 	IEnumerable<Namespaced<AsyncPluginFunction>> AllAsyncPluginFunctions();
 	IEnumerable<Namespaced<AsyncPluginFunction>> AsyncPluginFunctionsByPlugin(string pluginName);
 	Namespaced<AsyncPluginFunction>? SpecificAsyncPluginFunction(NamespacedName name);
+	
+	IEnumerable<Namespaced<ScriptingSystem>> AllScriptingSystems();
+	IEnumerable<Namespaced<ScriptingSystem>> ScriptingSystemsByPlugin(string pluginName);
+	Namespaced<ScriptingSystem>? SpecificScriptingSystem(NamespacedName name);
 }

@@ -1,3 +1,4 @@
+using System;
 using Streamduck.Inputs;
 
 namespace Streamduck.Scripting;
@@ -6,10 +7,10 @@ namespace Streamduck.Scripting;
  * Instance of a script that gets put onto an input
  */
 public abstract class ScriptInstance {
-	protected readonly Script _script;
+	protected readonly WeakReference<Script> _script;
 
 	protected ScriptInstance(Script script) {
-		_script = script;
+		_script = new WeakReference<Script>(script);
 	}
 
 	/**
