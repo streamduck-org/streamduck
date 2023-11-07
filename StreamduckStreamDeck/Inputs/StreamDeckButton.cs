@@ -24,15 +24,15 @@ public class StreamDeckButton : Input, IInputButton, IInputDisplay {
 	public event Action? ButtonReleased;
 
 	public UInt2 DisplayResolution { get; }
-	public int AppendHashKey(int key) => $"{key}button".GetHashCode();
+	public long AppendHashKey(long key) => $"{key}button".GetHashCode();
 
-	public async Task UploadImage(int key, Image image) {
+	public async Task UploadImage(long key, Image image) {
 		_device.ThrowDisconnectedIfDead();
 		var data = await ImageUtils.EncodeImageForButtonAsync(image, _device._device.Kind());
 		_device.SetCache(key, data);
 	}
 
-	public ValueTask<bool> ApplyImage(int key) {
+	public ValueTask<bool> ApplyImage(long key) {
 		_device.ThrowDisconnectedIfDead();
 		if (!_device._imageCache.TryGetValue(key, out byte[]? data))
 			return ValueTask.FromResult(false);

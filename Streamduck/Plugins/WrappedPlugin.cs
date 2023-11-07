@@ -3,6 +3,7 @@ using System.Linq;
 using Streamduck.Api;
 using Streamduck.Data;
 using Streamduck.Plugins.Loaders;
+using Streamduck.Rendering;
 using Streamduck.Scripting;
 
 namespace Streamduck.Plugins;
@@ -38,6 +39,9 @@ public sealed class WrappedPlugin {
 		ScriptingSystems = Instance.ScriptingSystems
 			.Select(Namespace)
 			.ToArray();
+		Renderers = Instance.Renderers
+			.Select(Namespace)
+			.ToArray();
 	}
 
 	public string Name { get; }
@@ -48,6 +52,7 @@ public sealed class WrappedPlugin {
 	public IEnumerable<Namespaced<AsyncPluginAction>> AsyncActions { get; }
 	public IEnumerable<Namespaced<AsyncPluginFunction>> AsyncFunctions { get; }
 	public IEnumerable<Namespaced<ScriptingSystem>> ScriptingSystems { get; }
+	public IEnumerable<Namespaced<Renderer>> Renderers { get; }
 
 	public Namespaced<T> Namespace<T>(T instance) where T : class, INamed =>
 		new(new NamespacedName(Name, instance.Name), instance);

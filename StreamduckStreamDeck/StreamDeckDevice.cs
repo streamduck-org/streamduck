@@ -166,7 +166,7 @@ public class StreamDeckDevice : Device, IDisposable, IConfigurable<StreamDeckDev
 		}
 	}
 
-	internal void SetCache(int key, byte[] data) {
+	internal void SetCache(long key, byte[] data) {
 		_imageCache.Set(key, data, _imageCacheEntryOptions);
 	}
 }

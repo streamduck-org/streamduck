@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Streamduck.Api;
+using Streamduck.Rendering;
 using Streamduck.Scripting;
 
 namespace Streamduck.Plugins;
@@ -15,6 +16,7 @@ public abstract class Plugin : INamed {
 	public virtual IEnumerable<AsyncPluginAction> AsyncActions { get; } = Array.Empty<AsyncPluginAction>();
 	public virtual IEnumerable<AsyncPluginFunction> AsyncFunctions { get; } = Array.Empty<AsyncPluginFunction>();
 	public virtual IEnumerable<ScriptingSystem> ScriptingSystems { get; } = Array.Empty<ScriptingSystem>();
+	public virtual IEnumerable<Renderer> Renderers { get; } = Array.Empty<Renderer>();
 
 	public virtual Task OnPluginsLoaded(IPluginQuery pluginQuery) => Task.CompletedTask;
 

@@ -22,15 +22,15 @@ public class StreamDeckLCDSegment : Input, IInputTouchScreen, IInputTouchScreen.
 	public event Action<Int2>? TouchScreenDragEnd;
 
 	public UInt2 DisplayResolution { get; }
-	public int AppendHashKey(int key) => $"{key}lcd".GetHashCode();
+	public long AppendHashKey(long key) => $"{key}lcd".GetHashCode();
 
-	public async Task UploadImage(int key, Image image) {
+	public async Task UploadImage(long key, Image image) {
 		_device.ThrowDisconnectedIfDead();
 		var data = await ImageUtils.EncodeImageForLcdAsync(image, image.Width, image.Height);
 		_device.SetCache(key, data);
 	}
 
-	public ValueTask<bool> ApplyImage(int key) {
+	public ValueTask<bool> ApplyImage(long key) {
 		_device.ThrowDisconnectedIfDead();
 		_device._imageCache.TryGetValue(key, out byte[]? data);
 
