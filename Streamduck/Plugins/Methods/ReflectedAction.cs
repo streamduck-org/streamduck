@@ -1,24 +1,13 @@
 using System;
-using Streamduck.Scripting;
+using System.Threading.Tasks;
 
 namespace Streamduck.Plugins.Methods; 
 
-public class ReflectedAction : PluginAction {
-	private readonly Action<object[]> _actionToCall;
-	
-	public override string Name { get; }
-	public override string? Description { get; }
-	public override DataInfo[] Parameters { get; }
-	
-	public override void Invoke(object[] arguments) {
-		_actionToCall.Invoke(arguments);
-	}
+public class ReflectedAction(string name, Func<Task> actionToCall,
+		string? description = null)
+	: PluginAction {
+	public override string Name { get; } = name;
+	public override string? Description { get; } = description;
 
-	public ReflectedAction(string name, DataInfo[] parameters, Action<object[]> actionToCall,
-		string? description = null) {
-		Name = name;
-		Parameters = parameters;
-		_actionToCall = actionToCall;
-		Description = description;
-	}
+	public override Task Invoke() => actionToCall.Invoke();
 }

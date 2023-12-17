@@ -6,16 +6,10 @@ namespace Streamduck.Plugins;
 /**
  * Collection of all types inside of a plugin
  */
-public class PluginAssembly {
-	private readonly WrappedPlugin[] _plugins;
-	internal readonly PluginLoadContext Context;
+public class PluginAssembly(PluginLoadContext context, WrappedPlugin[] plugins) {
+	internal readonly PluginLoadContext Context = context;
 
-	public PluginAssembly(PluginLoadContext context, WrappedPlugin[] plugins) {
-		Context = context;
-		_plugins = plugins;
-	}
-
-	public IEnumerable<WrappedPlugin> Plugins => _plugins;
+	public IEnumerable<WrappedPlugin> Plugins => plugins;
 
 	public void Unload() {
 		Context.Unload();

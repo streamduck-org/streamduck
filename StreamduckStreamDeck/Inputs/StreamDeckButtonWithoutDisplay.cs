@@ -3,9 +3,7 @@ using Streamduck.Inputs;
 
 namespace StreamduckStreamDeck.Inputs;
 
-public class StreamDeckButtonWithoutDisplay : Input, IInputButton {
-	public StreamDeckButtonWithoutDisplay(int x, int y) : base(x, y, 1, 1, InputIcon.Button) { }
-
+public class StreamDeckButtonWithoutDisplay(int x, int y) : Input(x, y, 1, 1, InputIcon.Button), IInputButton {
 	public event Action? ButtonPressed;
 	public event Action? ButtonReleased;
 

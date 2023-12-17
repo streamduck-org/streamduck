@@ -2,16 +2,11 @@ using System.Text.Json.Serialization;
 
 namespace Streamduck.Devices;
 
-public readonly struct DeviceIdentifier {
-	[JsonConstructor]
-	public DeviceIdentifier(string Identifier, string Description) {
-		this.Identifier = Identifier;
-		this.Description = Description;
-	}
+[method: JsonConstructor]
+public readonly struct DeviceIdentifier(string Identifier, string Description) {
+	public string Identifier { get; } = Identifier;
 
-	public string Identifier { get; }
-
-	public string Description { get; }
+	public string Description { get; } = Description;
 
 	public override string ToString() => $"{Identifier} ({Description})";
 

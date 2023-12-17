@@ -3,9 +3,7 @@ using Streamduck.Inputs;
 
 namespace StreamduckStreamDeck.Inputs;
 
-public class StreamDeckEncoder : Input, IInputButton, IInputEncoder {
-	public StreamDeckEncoder(int x, int y) : base(x, y, 1, 1, InputIcon.Encoder) { }
-
+public class StreamDeckEncoder(int x, int y) : Input(x, y, 1, 1, InputIcon.Encoder), IInputButton, IInputEncoder {
 	public event Action? ButtonPressed;
 	public event Action? ButtonReleased;
 	public event Action<int>? EncoderTwisted;

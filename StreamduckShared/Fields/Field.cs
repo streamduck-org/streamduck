@@ -4,39 +4,25 @@ using System.Numerics;
 
 namespace Streamduck.Fields;
 
-public abstract class Field {
-	protected Field(string title) {
-		Title = title;
-	}
-	
-	public string Title { get; }
+public abstract class Field(string title) {
+	public string Title { get; } = title;
 	public string? Description { get; init; }
 	
 	/**
 	 * Displays title text in a large text
 	 */
-	public class Header : Field {
-		public Header(string title) : base(title) { }
-	}
+	public class Header(string title) : Field(title);
 
 	/**
 	 * Displays description text in a normal text font with optional title
 	 */
-	public class StaticText : Field {
-		public StaticText(string title) : base(title) { }
-	}
+	public class StaticText(string title) : Field(title);
 
 	/**
 	 * Displays text from text accessor
 	 */
-	public class Label : Field {
-		private readonly Func<string> _getter;
-		
-		public Label(string title, Func<string> textGetter) : base(title) {
-			_getter = textGetter;
-		}
-
-		public string Text => _getter.Invoke();
+	public class Label(string title, Func<string> textGetter) : Field(title) {
+		public string Text => textGetter.Invoke();
 	}
 
 	/**
@@ -172,8 +158,8 @@ public abstract class Field {
 		}
 	}
 
-	public class Array : Field {
-		public Field[][] Values { get; init; }
+	public class Array(string title, Field[][] values) : Field(title) {
+		public Field[][] Values { get; init; } = values;
 
 		/**
 		 * Serializable object that will be created when UI is trying to add an element to the array.
@@ -184,12 +170,9 @@ public abstract class Field {
 		public bool AllowRemoving { get; init; }
 
 		public bool AllowReorder { get; init; }
-		public Array(string title) : base(title) { }
 	}
 
-	public class NestedFields : Field {
+	public class NestedFields(string title) : Field(title) {
 		public Field[] Schema { get; init; } = System.Array.Empty<Field>();
-
-		public NestedFields(string title) : base(title) { }
 	}
 }

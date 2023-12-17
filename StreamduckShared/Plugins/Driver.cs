@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Streamduck.Api;
 using Streamduck.Devices;
+using Streamduck.Interfaces;
 
 namespace Streamduck.Plugins;
 

@@ -9,7 +9,7 @@ using ElgatoDevice = ElgatoStreamDeck.Device;
 
 namespace StreamduckStreamDeck;
 
-public class StreamDeckDriver : Driver {
+public class StreamDeckDriver(DeviceManager manager) : Driver {
 	private const string StreamDeckOriginalDesc = "Stream Deck Original";
 	private const string StreamDeckOriginalV2Desc = "Stream Deck Original V2";
 	private const string StreamDeckMiniDesc = "Stream Deck Mini";
@@ -21,21 +21,15 @@ public class StreamDeckDriver : Driver {
 	private const string StreamDeckPlusDesc = "Stream Deck Plus";
 	private const string StreamDeckUnknownDesc = "Unknown";
 
-	private readonly DeviceManager _manager;
-
-	public StreamDeckDriver(DeviceManager manager) {
-		_manager = manager;
-	}
-
 	public override string Name => "StreamDeckDriver";
 
-	public override Task<IEnumerable<DeviceIdentifier>> ListDevices() => Task.FromResult(_manager.ListDevices()
+	public override Task<IEnumerable<DeviceIdentifier>> ListDevices() => Task.FromResult(manager.ListDevices()
 		.Where(t => IsValid(t.Item1))
 		.Select(t => new DeviceIdentifier(t.Item2, KindToDescription(t.Item1)))
 	);
 
 	public override Task<Device> ConnectDevice(DeviceIdentifier identifier) {
-		var device = _manager.ConnectDeviceConcurrent(DescriptionToKind(identifier.Description), identifier.Identifier);
+		var device = manager.ConnectDeviceConcurrent(DescriptionToKind(identifier.Description), identifier.Identifier);
 		return Task.FromResult(new StreamDeckDevice(device, identifier) as Device);
 	}
 

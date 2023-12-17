@@ -1,6 +1,4 @@
-using System.Collections.Generic;
 using Streamduck.Plugins;
-using Streamduck.Scripting;
 
 namespace Streamduck.Cores; 
 
@@ -25,7 +23,5 @@ public abstract class ScreenItem {
 
 		new T? RendererSettings { get; set; }
 	}
-	
-	public abstract List<ScriptInstance> Scripts { get; }
 }
 

@@ -1,5 +1,5 @@
-using Streamduck.Api;
-using Streamduck.Scripting;
+using System.Threading.Tasks;
+using Streamduck.Interfaces;
 
 namespace Streamduck.Plugins; 
 
@@ -11,10 +11,8 @@ public abstract class PluginAction : INamed {
 	
 	public abstract string? Description { get; }
 
-	public abstract DataInfo[] Parameters { get; }
-
 	/**
 	 * <exception cref="System.ArgumentException">If arguments were of invalid type</exception>
 	 */
-	public abstract void Invoke(object[] arguments);
+	public abstract Task Invoke();
 }

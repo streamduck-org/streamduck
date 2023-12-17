@@ -9,35 +9,28 @@ using Input = Streamduck.Inputs.Input;
 
 namespace StreamduckStreamDeck.Inputs;
 
-public class StreamDeckLCDSegment : Input, IInputTouchScreen, IInputTouchScreen.Drag, IInputDisplay {
-	private readonly StreamDeckDevice _device;
-
-	public StreamDeckLCDSegment(StreamDeckDevice device, int x, int y, uint w, UInt2 displayResolution)
-		: base(x, y, w, 1, InputIcon.TouchScreen) {
-		_device = device;
-		DisplayResolution = displayResolution;
-	}
-
+public class StreamDeckLCDSegment(StreamDeckDevice device, int x, int y, uint w, UInt2 displayResolution)
+	: Input(x, y, w, 1, InputIcon.TouchScreen), IInputTouchScreen, IInputTouchScreen.Drag, IInputDisplay {
 	public event Action<Int2>? TouchScreenDragStart;
 	public event Action<Int2>? TouchScreenDragEnd;
 
-	public UInt2 DisplayResolution { get; }
+	public UInt2 DisplayResolution { get; } = displayResolution;
 	public long AppendHashKey(long key) => $"{key}lcd".GetHashCode();
 
 	public async Task UploadImage(long key, Image image) {
-		_device.ThrowDisconnectedIfDead();
+		device.ThrowDisconnectedIfDead();
 		var data = await ImageUtils.EncodeImageForLcdAsync(image, image.Width, image.Height);
-		_device.SetCache(key, data);
+		device.SetCache(key, data);
 	}
 
 	public ValueTask<bool> ApplyImage(long key) {
-		_device.ThrowDisconnectedIfDead();
-		_device._imageCache.TryGetValue(key, out byte[]? data);
+		device.ThrowDisconnectedIfDead();
+		device._imageCache.TryGetValue(key, out byte[]? data);
 
 		if (data == null) return ValueTask.FromResult(false);
 
-		var resolution = _device._device.Kind().KeyImageMode().Resolution;
-		_device._device.WriteLcd(0, 0, (ushort)resolution.Item1, (ushort)resolution.Item2, data);
+		var resolution = device._device.Kind().KeyImageMode().Resolution;
+		device._device.WriteLcd(0, 0, (ushort)resolution.Item1, (ushort)resolution.Item2, data);
 
 		return ValueTask.FromResult(true);
 	}

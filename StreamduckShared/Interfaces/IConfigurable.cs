@@ -1,9 +1,8 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Streamduck.Fields;
 
-namespace Streamduck.Api;
+namespace Streamduck.Interfaces;
 
 /* TODO: Put this information somewhere in Field documentation
  * Options objects will be queried using reflection for public properties and/or attributed properties.
@@ -34,8 +33,7 @@ public interface IConfigurable {
  * along with having properties that can be represented as Field objects.
  * </p>
  */
-public interface IConfigurable<T> : IConfigurable {
-	new T? Options { get; set; }
-	IEnumerable<Field> IConfigurable.Options => 
-		Options != null ? FieldReflector.AnalyzeObject(Options) : Enumerable.Empty<Field>();
+public interface IConfigurable<T> : IConfigurable where T : class, new() {
+	new T Options { get; set; } 
+	IEnumerable<Field> IConfigurable.Options => FieldReflector.AnalyzeObject(Options);
 }

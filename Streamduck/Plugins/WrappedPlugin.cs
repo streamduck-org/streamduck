@@ -1,10 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
-using Streamduck.Api;
 using Streamduck.Data;
+using Streamduck.Interfaces;
 using Streamduck.Plugins.Loaders;
 using Streamduck.Rendering;
-using Streamduck.Scripting;
 
 namespace Streamduck.Plugins;
 
@@ -27,16 +26,7 @@ public sealed class WrappedPlugin {
 		Actions = Instance.Actions
 			.Select(Namespace)
 			.ToArray();
-		Functions = Instance.Functions
-			.Select(Namespace)
-			.ToArray();
-		AsyncActions = Instance.AsyncActions
-			.Select(Namespace)
-			.ToArray();
-		AsyncFunctions = Instance.AsyncFunctions
-			.Select(Namespace)
-			.ToArray();
-		ScriptingSystems = Instance.ScriptingSystems
+		AsyncActions = Instance.Actions
 			.Select(Namespace)
 			.ToArray();
 		Renderers = Instance.Renderers
@@ -48,10 +38,7 @@ public sealed class WrappedPlugin {
 
 	public IEnumerable<Namespaced<Driver>> Drivers { get; }
 	public IEnumerable<Namespaced<PluginAction>> Actions { get; }
-	public IEnumerable<Namespaced<PluginFunction>> Functions { get; }
-	public IEnumerable<Namespaced<AsyncPluginAction>> AsyncActions { get; }
-	public IEnumerable<Namespaced<AsyncPluginFunction>> AsyncFunctions { get; }
-	public IEnumerable<Namespaced<ScriptingSystem>> ScriptingSystems { get; }
+	public IEnumerable<Namespaced<PluginAction>> AsyncActions { get; }
 	public IEnumerable<Namespaced<Renderer>> Renderers { get; }
 
 	public Namespaced<T> Namespace<T>(T instance) where T : class, INamed =>

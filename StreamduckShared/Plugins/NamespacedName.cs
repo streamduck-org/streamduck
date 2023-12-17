@@ -2,16 +2,11 @@ using System.Text.Json.Serialization;
 
 namespace Streamduck.Plugins;
 
-public readonly struct NamespacedName {
-	[JsonConstructor]
-	public NamespacedName(string PluginName, string Name) {
-		this.PluginName = PluginName;
-		this.Name = Name;
-	}
+[method: JsonConstructor]
+public readonly struct NamespacedName(string PluginName, string Name) {
+	[JsonInclude] public string PluginName { get; } = PluginName;
 
-	[JsonInclude] public string PluginName { get; }
-
-	[JsonInclude] public string Name { get; }
+	[JsonInclude] public string Name { get; } = Name;
 
 	public override string ToString() => $"{Name} ({PluginName})";
 

@@ -4,12 +4,8 @@ using System.Runtime.Loader;
 
 namespace Streamduck.Plugins.Loaders;
 
-public class PluginLoadContext : AssemblyLoadContext {
-	private readonly AssemblyDependencyResolver _resolver;
-
-	public PluginLoadContext(string pluginPath) : base(true) {
-		_resolver = new AssemblyDependencyResolver(pluginPath);
-	}
+public class PluginLoadContext(string pluginPath) : AssemblyLoadContext(true) {
+	private readonly AssemblyDependencyResolver _resolver = new(pluginPath);
 
 	protected override Assembly? Load(AssemblyName assemblyName) {
 		var assemblyPath = _resolver.ResolveAssemblyToPath(assemblyName);

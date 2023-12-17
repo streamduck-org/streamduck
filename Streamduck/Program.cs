@@ -11,7 +11,9 @@ using NLog.Config;
 using NLog.Layouts;
 using NLog.Targets;
 using Streamduck.Configuration;
+using Streamduck.Devices;
 using Streamduck.Fields;
+using Streamduck.Plugins;
 using Streamduck.UI;
 using Streamduck.UI.ViewModels;
 

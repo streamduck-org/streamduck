@@ -1,7 +1,7 @@
 using System;
 using SixLabors.ImageSharp;
-using Streamduck.Api;
 using Streamduck.Cores;
+using Streamduck.Interfaces;
 
 namespace Streamduck.Rendering; 
 

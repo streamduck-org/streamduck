@@ -1,16 +1,14 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using DynamicData;
 using NLog;
-using Streamduck.Api;
 using Streamduck.Configuration;
 using Streamduck.Cores;
-using Streamduck.Data;
 using Streamduck.Devices;
 using Streamduck.Plugins;
 using Streamduck.Plugins.Extensions;
@@ -23,7 +21,7 @@ public class App {
 
 	private readonly List<NamespacedDeviceIdentifier> _discoveredDevices = new();
 
-	private Config? _config;
+	private Config _config = null!;
 	
 	private bool _initialized;
 	private bool _running;
@@ -44,7 +42,7 @@ public class App {
 	/**
 	 * Device is connected to Streamduck
 	 */
-	public event Action<NamespacedDeviceIdentifier>? DeviceConnected;
+	public event Action<NamespacedDeviceIdentifier, Core>? DeviceConnected;
 
 	/**
 	 * Device is disconnected from Streamduck
@@ -65,11 +63,16 @@ public class App {
 	 * Initializes Streamduck (eg. load plugins, load auto-connects)
 	 */
 	public async Task Init() {
+		if (_initialized) throw new ApplicationException("App was already initialized");
+		
 		Directory.CreateDirectory("plugins");
 		Plugins = new PluginCollection(PluginLoader.LoadFromFolder("plugins"));
 		await Plugins.InvokePluginsLoaded();
 		
 		_config = await Config.Get();
+
+		DeviceConnected += (identifier, core) => Plugins.InvokeDeviceConnected(identifier, core);
+		DeviceDisconnected += identifier => Plugins.InvokeDeviceDisconnected(identifier);
 
 		_initialized = true;
 	}
@@ -78,13 +81,13 @@ public class App {
 	/**
 	 * Runs the Streamduck software
 	 */
-	public async Task Run(CancellationTokenSource cts) {
+	public Task Run(CancellationTokenSource cts) {
 		if (!_initialized) throw new ApplicationException("Init method was not called");
 
 		_running = true;
 		cts.Token.Register(() => _running = false);
 
-		await DeviceDiscoverTask(cts);
+		return Task.WhenAll(DeviceDiscoverTask(cts), TickTask(cts));
 	}
 
 	public async Task ConnectDevice(NamespacedDeviceIdentifier deviceIdentifier) {
@@ -107,10 +110,10 @@ public class App {
 				_discoveredDevices.Remove(deviceIdentifier);
 			}
 
-			DeviceConnected?.Invoke(deviceIdentifier);
-
 			if (!ConnectedDevices.TryAdd(deviceIdentifier, core))
 				throw new ApplicationException("Couldn't add device, another connection was already made?");
+			
+			DeviceConnected?.Invoke(deviceIdentifier, core);
 		} catch (Exception e) {
 			L.Error(e, "Failed to connect to device");
 		}
@@ -154,7 +157,7 @@ public class App {
 			foreach (var device in removedDevices) {
 				DeviceDisappeared?.Invoke(device);
 			}
-
+			
 			_discoveredDevices.Clear();
 			_discoveredDevices.AddRange(_newDeviceList);
 			DeviceListRefreshed?.Invoke();
@@ -166,6 +169,29 @@ public class App {
 			         .Where(discoveredDevice => _config!.AutoconnectDevices.Contains(discoveredDevice))) {
 			L.Info("Autoconnecting to {}", discoveredDevice);
 			await ConnectDevice(discoveredDevice);
+		}
+	}
+
+	private async Task TickTask(CancellationTokenSource cts) {
+		var stopwatch = Stopwatch.StartNew();
+		
+		var lastTime = stopwatch.Elapsed.TotalSeconds;
+		var interval = 1.0 / _config.TickRate;
+		
+		while (_running) {
+			foreach (var core in ConnectedDevices.Values) {
+				if (core is CoreImpl castedCore) {
+					castedCore.CallTick();
+				}
+			}
+			
+			var toWait = interval - (stopwatch.Elapsed.TotalSeconds - lastTime);
+
+			if (toWait > 0.0) {
+				await Task.Delay(TimeSpan.FromSeconds(toWait));
+			}
+
+			lastTime = stopwatch.Elapsed.TotalSeconds;
 		}
 	}
 }

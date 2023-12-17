@@ -3,13 +3,8 @@ using Streamduck.Plugins;
 
 namespace Streamduck.Devices;
 
-public readonly struct NamespacedDeviceIdentifier {
-	[JsonConstructor]
-	public NamespacedDeviceIdentifier(NamespacedName NamespacedName, DeviceIdentifier DeviceIdentifier) {
-		this.NamespacedName = NamespacedName;
-		this.DeviceIdentifier = DeviceIdentifier;
-	}
-
+[method: JsonConstructor]
+public readonly struct NamespacedDeviceIdentifier(NamespacedName NamespacedName, DeviceIdentifier DeviceIdentifier) {
 	[JsonIgnore] public string PluginName => NamespacedName.PluginName;
 
 	[JsonIgnore] public string DriverName => NamespacedName.Name;
@@ -18,9 +13,9 @@ public readonly struct NamespacedDeviceIdentifier {
 
 	[JsonIgnore] public string Description => DeviceIdentifier.Description;
 
-	public NamespacedName NamespacedName { get; }
+	public NamespacedName NamespacedName { get; } = NamespacedName;
 
-	public DeviceIdentifier DeviceIdentifier { get; }
+	public DeviceIdentifier DeviceIdentifier { get; } = DeviceIdentifier;
 
 	public override string ToString() => $"{DeviceIdentifier} from {NamespacedName}";
 

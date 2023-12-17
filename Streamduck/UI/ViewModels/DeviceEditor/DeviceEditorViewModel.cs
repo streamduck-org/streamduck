@@ -4,18 +4,12 @@ using Streamduck.Devices;
 
 namespace Streamduck.UI.ViewModels.DeviceEditor;
 
-public class DeviceEditorViewModel : ViewModelBase, IRoutableViewModel {
-	private readonly NamespacedDeviceIdentifier _deviceName;
-
-	public DeviceEditorViewModel(IScreen hostScreen, NamespacedDeviceIdentifier deviceName) {
-		HostScreen = hostScreen;
-		_deviceName = deviceName;
-	}
-
+public class DeviceEditorViewModel(IScreen hostScreen, NamespacedDeviceIdentifier deviceName) : ViewModelBase,
+	IRoutableViewModel {
 	public ReactiveCommand<Unit, IRoutableViewModel?> GoBack => HostScreen.Router.NavigateBack;
-	public string Identifier => _deviceName.Identifier;
-	public string Description => _deviceName.Description;
+	public string Identifier => deviceName.Identifier;
+	public string Description => deviceName.Description;
 
 	public string UrlPathSegment => "editor";
-	public IScreen HostScreen { get; }
+	public IScreen HostScreen { get; } = hostScreen;
 }

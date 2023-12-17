@@ -1,13 +1,8 @@
 namespace Streamduck.Data;
 
-public struct Int2 {
-	public Int2(int x, int y) {
-		X = x;
-		Y = y;
-	}
-
-	public int X { get; set; }
-	public int Y { get; set; }
+public struct Int2(int x, int y) {
+	public int X { get; set; } = x;
+	public int Y { get; set; } = y;
 
 	public override string ToString() => $"{{ X: {X}, Y: {Y} }}";
 	

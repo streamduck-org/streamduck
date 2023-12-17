@@ -11,10 +11,6 @@ namespace Streamduck.Attributes;
  * </remarks>
  */
 [AttributeUsage(AttributeTargets.Property)]
-public class CustomAttribute : Attribute {
-	public CustomAttribute(Type userControlType) {
-		UserControlType = userControlType;
-	}
-
-	public Type UserControlType { get; }
+public class CustomAttribute(Type userControlType) : Attribute {
+	public Type UserControlType { get; } = userControlType;
 }

@@ -1,11 +1,9 @@
-using System.Collections.Generic;
+using Streamduck.Cores;
 using Streamduck.Plugins;
-using Streamduck.Scripting;
 
-namespace Streamduck.Cores.Default; 
+namespace Streamduck.Default; 
 
 public class DefaultScreenItem : ScreenItem, ScreenItem.IRenderable {
-	public override List<ScriptInstance> Scripts { get; } = new();
 	public NamespacedName? RendererName { get; set; }
 	public object? RendererSettings { get; set; }
 }

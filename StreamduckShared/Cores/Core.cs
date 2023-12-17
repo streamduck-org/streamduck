@@ -4,12 +4,8 @@ using Streamduck.Inputs;
 
 namespace Streamduck.Cores;
 
-public abstract class Core : IDisposable {
-	protected readonly Device _associatedDevice;
-
-	protected Core(Device associatedDevice) {
-		_associatedDevice = associatedDevice;
-	}
+public abstract class Core(Device associatedDevice) : IDisposable {
+	protected readonly Device _associatedDevice = associatedDevice;
 
 	public void Dispose() {
 		if (_associatedDevice is IDisposable disposable) disposable.Dispose();
@@ -43,6 +39,13 @@ public abstract class Core : IDisposable {
 	 */
 	public abstract Screen? ReplaceScreen(Func<Input[], Screen> pushFunction);
 	
-	
+	/**
+	 * Top screen of the stack
+	 */
 	public abstract Screen? CurrentScreen { get; }
+	
+	/**
+	 * Called on every tick
+	 */
+	public abstract event Action? Tick;
 }

@@ -30,7 +30,7 @@ public class DeviceListViewModel : ViewModelBase, IRoutableViewModel {
 			}
 		};
 
-		streamduck.DeviceConnected += device => {
+		streamduck.DeviceConnected += (device, _) => {
 			lock (Devices) {
 				if (DevicesContains(device))
 					foreach (var entry in DevicesList(device)) {
@@ -50,7 +50,7 @@ public class DeviceListViewModel : ViewModelBase, IRoutableViewModel {
 		streamduck.RefreshDevices().Wait();
 	}
 
-	public ObservableCollection<DeviceEntryViewModel> Devices { get; set; } = new();
+	public ObservableCollection<DeviceEntryViewModel> Devices { get; set; } = [];
 	public bool IsEmpty => Devices.Count <= 0;
 	public string UrlPathSegment => "devices";
 	public IScreen HostScreen { get; }

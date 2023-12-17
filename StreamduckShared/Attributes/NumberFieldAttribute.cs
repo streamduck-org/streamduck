@@ -10,17 +10,13 @@ namespace Streamduck.Attributes;
  * Default bounds are 0 to 1.
  */
 [AttributeUsage(AttributeTargets.Property)]
-public class NumberFieldAttribute<T> : Attribute where T : INumber<T> {
+public class NumberFieldAttribute<T>(T? min, T? max, bool slider = true, bool enforceLimit = false)
+	: Attribute
+	where T : INumber<T> {
 	public NumberFieldAttribute(bool slider = true, bool enforceLimit = false) : this(T.Zero, T.One, slider, enforceLimit) {}
-	public NumberFieldAttribute(T? min, T? max, bool slider = true, bool enforceLimit = false) {
-		Min = min ?? T.Zero;
-		Max = max ?? T.One;
-		Slider = slider;
-		EnforceLimit = enforceLimit;
-	}
 
-	public T Min { get; }
-	public T Max { get; }
-	public bool Slider { get; }
-	public bool EnforceLimit { get; }
+	public T Min { get; } = min ?? T.Zero;
+	public T Max { get; } = max ?? T.One;
+	public bool Slider { get; } = slider;
+	public bool EnforceLimit { get; } = enforceLimit;
 }

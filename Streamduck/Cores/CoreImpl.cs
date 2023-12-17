@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
 using NLog;
-using Streamduck.Api;
 using Streamduck.Devices;
 using Streamduck.Inputs;
-using Streamduck.Utils;
 
 namespace Streamduck.Cores;
 
@@ -19,17 +17,10 @@ public class CoreImpl : Core {
 		device.Died += () => _l.Warn("Device {} died", _deviceIdentifier);
 	}
 
-	private void SwapHooks(Screen? oldScreen, Screen? newScreen) {
-		oldScreen?.RemoveHooks(_associatedDevice.Inputs);
-		newScreen?.AddHooks(_associatedDevice.Inputs);
-	}
-
 	public override void PushScreen(Screen screen) {
 		lock (_screenStack) {
 			_screenStack.TryPeek(out var oldScreen);
 			_screenStack.Push(screen);
-			
-			SwapHooks(oldScreen, screen);
 		}
 	}
 
@@ -38,18 +29,12 @@ public class CoreImpl : Core {
 			_screenStack.TryPeek(out var oldScreen);
 			var newScreen = pushFunction.Invoke(_associatedDevice.Inputs);
 			_screenStack.Push(newScreen);
-			
-			SwapHooks(oldScreen, newScreen);
 		}
 	}
 
 	public override Screen? PopScreen() {
 		lock (_screenStack) {
-			if (!_screenStack.TryPop(out var screen)) return null;
-			
-			_screenStack.TryPeek(out var newScreen);
-			SwapHooks(screen, newScreen);
-			return screen;
+			return !_screenStack.TryPop(out var screen) ? null : screen;
 		}
 	}
 
@@ -57,7 +42,6 @@ public class CoreImpl : Core {
 		lock (_screenStack) {
 			_screenStack.TryPop(out var screen);
 			_screenStack.Push(newScreen);
-			SwapHooks(screen, newScreen);
 			return screen;
 		}
 	}
@@ -67,7 +51,6 @@ public class CoreImpl : Core {
 			_screenStack.TryPop(out var screen);
 			var newScreen = pushFunction.Invoke(_associatedDevice.Inputs);
 			_screenStack.Push(newScreen);
-			SwapHooks(screen, newScreen);
 			return screen;
 		}
 	}
@@ -82,5 +65,11 @@ public class CoreImpl : Core {
 
 			return null;
 		}
+	}
+
+	public override event Action? Tick;
+
+	internal void CallTick() {
+		Tick?.Invoke();
 	}
 }

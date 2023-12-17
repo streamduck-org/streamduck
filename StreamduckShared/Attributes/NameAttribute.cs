@@ -7,10 +7,6 @@ namespace Streamduck.Attributes;
  */
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Method 
                 | AttributeTargets.Parameter | AttributeTargets.ReturnValue)]
-public class NameAttribute : Attribute {
-	public NameAttribute(string name) {
-		Name = name;
-	}
-	
-	public string Name { get; }
+public class NameAttribute(string name) : Attribute {
+	public string Name { get; } = name;
 }
