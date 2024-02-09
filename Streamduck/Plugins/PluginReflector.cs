@@ -24,23 +24,47 @@ public static class PluginReflector {
 		where method.GetCustomAttribute<PluginMethodAttribute>() != null 
 		where method.ReturnType == typeof(Task) 
 		let parameters = method.GetParameters()
-		let paramType = parameters.Length == 1 ? parameters[0]?.ParameterType : null
-		let isConfigurable = paramType is not null && paramType.IsClass && !paramType.IsAbstract && paramType.GetConstructor(Type.EmptyTypes) is not null
+		let paramType = parameters.Length is 1 or 2 ? parameters[0]?.ParameterType : null
+		let configType = parameters.Length == 2 ? parameters[1]?.ParameterType : null
+		let isParameterful = paramType is not null && paramType.IsClass && !paramType.IsAbstract && paramType.GetConstructor(Type.EmptyTypes) is not null
+		let isConfigurable = configType is not null && configType.IsClass && !configType.IsAbstract && configType.GetConstructor(Type.EmptyTypes) is not null
 		let isParameterless = parameters.Length <= 0
-		where isConfigurable || isParameterless
-		select isConfigurable ?
-			GetGenericConfigurableAction(parameters[0].ParameterType, method, obj) :
-			new ReflectedAction(
-				method.GetCustomAttribute<NameAttribute>()?.Name ?? method.Name.FormatAsWords(), 
-				() => {
-					var task = (Task?)method.Invoke(obj, Flags, null, null, null);
-					return task ?? Task.CompletedTask;
-				},
-				method.GetCustomAttribute<DescriptionAttribute>()?.Description
-			);
+		where isConfigurable || isParameterless || isParameterful
+		select isConfigurable && isParameterful ?
+			GetGenericConfigurableAction(paramType, configType, method, obj) :
+			isParameterful ?
+				GetGenericAction(paramType, method, obj) :
+				new ReflectedAction<object>(
+					method.GetCustomAttribute<NameAttribute>()?.Name ?? method.Name.FormatAsWords(), 
+					_ => {
+						var task = (Task?)method.Invoke(obj, Flags, null, null, null);
+						return task ?? Task.CompletedTask;
+					},
+					method.GetCustomAttribute<DescriptionAttribute>()?.Description
+				);
 	
-	private static PluginAction GetGenericConfigurableAction(Type configType, MethodInfo method, object obj) {
-		return (PluginAction)ConfigurableActionMethod.MakeGenericMethod(configType).Invoke(null, ConfigurableActionFlags, null, new[] { method, obj },
+	private static PluginAction GetGenericAction(Type paramType, MethodInfo method, object obj) {
+		return (PluginAction)ActionMethod.MakeGenericMethod(paramType)
+			.Invoke(null, ActionFlags, null, new[] { method, obj },
+				null)!;
+	}
+
+	private const BindingFlags ActionFlags = BindingFlags.Static | BindingFlags.NonPublic;
+	private static readonly MethodInfo ActionMethod =
+		typeof(PluginReflector).GetMethod(nameof(GetAction), ActionFlags)!;
+
+	private static ReflectedAction<T> GetAction<T>(MethodBase method, object obj) where T : class, new() => new(
+		method.GetCustomAttribute<NameAttribute>()?.Name ?? method.Name.FormatAsWords(),
+		options => {
+			var task = (Task?)method.Invoke(obj, Flags, null, new object?[] { options }, null);
+			return task ?? Task.CompletedTask;
+		},
+		method.GetCustomAttribute<DescriptionAttribute>()?.Description
+	);
+	
+	private static PluginAction GetGenericConfigurableAction(Type paramType, Type configType, MethodInfo method, object obj) {
+		return (PluginAction)ConfigurableActionMethod.MakeGenericMethod(paramType, configType)
+			.Invoke(null, ConfigurableActionFlags, null, new[] { method, obj },
 			null)!;
 	}
 
@@ -48,10 +72,10 @@ public static class PluginReflector {
 	private static readonly MethodInfo ConfigurableActionMethod =
 		typeof(PluginReflector).GetMethod(nameof(GetConfigurableAction), ConfigurableActionFlags)!;
 
-	private static ConfigurableReflectedAction<T> GetConfigurableAction<T>(MethodBase method, object obj) where T : class, new() => new(
+	private static ConfigurableReflectedAction<T, C> GetConfigurableAction<T, C>(MethodBase method, object obj) where T : class, new() where C : class, new() => new(
 			method.GetCustomAttribute<NameAttribute>()?.Name ?? method.Name.FormatAsWords(),
-			options => {
-				var task = (Task?)method.Invoke(obj, Flags, null, new object?[] { options }, null);
+			(options, config) => {
+				var task = (Task?)method.Invoke(obj, Flags, null, new object?[] { options, config }, null);
 				return task ?? Task.CompletedTask;
 			},
 			method.GetCustomAttribute<DescriptionAttribute>()?.Description

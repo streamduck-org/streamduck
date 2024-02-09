@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using Streamduck.Fields;
 
 namespace Streamduck.Interfaces;
@@ -19,7 +18,7 @@ namespace Streamduck.Interfaces;
  * along with having fields that can be represented as Field objects
  */
 public interface IConfigurable {
-	IEnumerable<Field> Options { get; }
+	IEnumerable<Field> Config { get; }
 }
 
 /**
@@ -34,6 +33,6 @@ public interface IConfigurable {
  * </p>
  */
 public interface IConfigurable<T> : IConfigurable where T : class, new() {
-	new T Options { get; set; } 
-	IEnumerable<Field> IConfigurable.Options => FieldReflector.AnalyzeObject(Options);
+	new T Config { get; set; } 
+	IEnumerable<Field> IConfigurable.Config => FieldReflector.AnalyzeObject(Config);
 }

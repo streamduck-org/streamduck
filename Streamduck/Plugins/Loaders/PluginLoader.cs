@@ -11,14 +11,14 @@ namespace Streamduck.Plugins.Loaders;
 public static class PluginLoader {
 	private static readonly Logger L = LogManager.GetCurrentClassLogger();
 
-	public static PluginAssembly? Load(string path) {
+	public static PluginAssembly? Load(string path, ISet<string>? nameSet = null) {
 		var curDir = Directory.GetCurrentDirectory();
 		var fullPath = Path.Combine(curDir, path);
 
 		var context = new PluginLoadContext(fullPath);
 
 		try {
-			var plugins = CreatePlugins(context, LoadPlugin(context, fullPath));
+			var plugins = CreatePlugins(context, LoadPlugin(context, fullPath), nameSet);
 			return new PluginAssembly(context, plugins.ToArray());
 		} catch (Exception e) {
 			L.Error("Failed to load plugin at {0}\nReason: {1}", path, e);
@@ -31,11 +31,12 @@ public static class PluginLoader {
 
 		var curDir = Directory.GetCurrentDirectory();
 		var fullPath = Path.Combine(curDir, pathToFolder);
+		var nameSet = new HashSet<string>();
 
 		foreach (var filePath in Directory.GetFiles(pathToFolder)) {
 			if (!filePath.EndsWith("dll")) continue;
 
-			var assembly = Load(filePath);
+			var assembly = Load(filePath, nameSet);
 
 			if (assembly == null) continue;
 
@@ -47,7 +48,7 @@ public static class PluginLoader {
 
 			var dllPath = Path.Combine(directory, $"{directoryName}.dll");
 
-			var assembly = Load(dllPath);
+			var assembly = Load(dllPath, nameSet);
 
 			if (assembly == null) continue;
 
@@ -58,7 +59,7 @@ public static class PluginLoader {
 	private static Assembly LoadPlugin(AssemblyLoadContext context, string assemblyPath) =>
 		context.LoadFromAssemblyName(new AssemblyName(Path.GetFileNameWithoutExtension(assemblyPath)));
 
-	private static IEnumerable<WrappedPlugin> CreatePlugins(PluginLoadContext context, Assembly assembly) {
+	private static IEnumerable<WrappedPlugin> CreatePlugins(PluginLoadContext context, Assembly assembly, ISet<string>? nameSet = null) {
 		var loadedPlugins = 0;
 
 		foreach (var type in assembly.GetTypes()) {
@@ -67,6 +68,12 @@ public static class PluginLoader {
 			if (Activator.CreateInstance(type) is not Plugin plugin) continue;
 
 			L.Info("Loading plugin \"{0}\"...", plugin.Name);
+
+			if (nameSet != null) {
+				if (!nameSet.Add(plugin.Name))
+					throw new ApplicationException(
+						$"Name conflict! {assembly} ({assembly.Location}) has '{plugin.Name}' plugin name that is already used by another plugin");
+			} 
 
 			loadedPlugins++;
 			var wrapped = new WrappedPlugin(plugin, context);

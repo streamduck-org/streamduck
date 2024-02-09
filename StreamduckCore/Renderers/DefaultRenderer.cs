@@ -2,7 +2,7 @@ using SixLabors.ImageSharp;
 using Streamduck.Cores;
 using Streamduck.Rendering;
 
-namespace Streamduck.Default; 
+namespace StreamduckCore.Renderers; 
 
 public class DefaultRenderer : Renderer<DefaultRenderer.Settings> {
 	public class Settings {

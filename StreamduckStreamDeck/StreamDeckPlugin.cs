@@ -10,10 +10,16 @@ namespace StreamduckStreamDeck;
 public class StreamDeckPlugin : Plugin, IDisposable {
 	private readonly DeviceManager _manager = DeviceManager.Get();
 
-	public override string Name => "StreamDeckPlugin";
+	public override string Name => "Stream Deck Plugin";
+
+	private readonly StreamDeckDriver driver;
+	
+	public StreamDeckPlugin() {
+		driver = new StreamDeckDriver(_manager);
+	}
 
 	public override IEnumerable<Driver> Drivers => new Driver[] {
-		new StreamDeckDriver(_manager)
+		driver
 	};
 
 	public void Dispose() {
@@ -27,9 +33,7 @@ public class StreamDeckPlugin : Plugin, IDisposable {
 	}
 
 	public override Task OnPluginsLoaded(IPluginQuery pluginQuery) {
-		foreach (var action in pluginQuery.AllPluginActions()) {
-			Console.WriteLine($"Action '{action.Name}' by '{action.PluginName}' was loaded");
-		}
+		Console.WriteLine($"Driver has {driver.Config.ScreenBrightness} for brightness");
 
 		return Task.CompletedTask;
 	}

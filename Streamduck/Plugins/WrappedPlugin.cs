@@ -4,6 +4,7 @@ using Streamduck.Data;
 using Streamduck.Interfaces;
 using Streamduck.Plugins.Loaders;
 using Streamduck.Rendering;
+using Streamduck.Triggers;
 
 namespace Streamduck.Plugins;
 
@@ -13,23 +14,25 @@ namespace Streamduck.Plugins;
 public sealed class WrappedPlugin {
 	private readonly PluginLoadContext _originatedFrom;
 
-	public AggregatedPlugin Instance { get; }
+	public Plugin Instance { get; }
 	
 	public WrappedPlugin(Plugin instance, PluginLoadContext originatedFrom) {
-		Instance = new AggregatedPlugin(instance);
+		Instance = instance;
 		_originatedFrom = originatedFrom;
 		
 		Name = Instance.Name;
 		Drivers = Instance.Drivers
 			.Select(Namespace)
 			.ToArray();
+		var methods = PluginReflector.GetMethods(instance).ToArray();
 		Actions = Instance.Actions
-			.Select(Namespace)
-			.ToArray();
-		AsyncActions = Instance.Actions
+			.Concat(PluginReflector.AnalyzeActions(methods, instance))
 			.Select(Namespace)
 			.ToArray();
 		Renderers = Instance.Renderers
+			.Select(Namespace)
+			.ToArray();
+		Triggers = Instance.Triggers
 			.Select(Namespace)
 			.ToArray();
 	}
@@ -38,8 +41,8 @@ public sealed class WrappedPlugin {
 
 	public IEnumerable<Namespaced<Driver>> Drivers { get; }
 	public IEnumerable<Namespaced<PluginAction>> Actions { get; }
-	public IEnumerable<Namespaced<PluginAction>> AsyncActions { get; }
 	public IEnumerable<Namespaced<Renderer>> Renderers { get; }
+	public IEnumerable<Namespaced<Trigger>> Triggers { get; }
 
 	public Namespaced<T> Namespace<T>(T instance) where T : class, INamed =>
 		new(new NamespacedName(Name, instance.Name), instance);

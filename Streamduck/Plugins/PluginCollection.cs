@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using Streamduck.Data;
 using Streamduck.Plugins.Extensions;
 using Streamduck.Plugins.Loaders;
+using Streamduck.Rendering;
+using Streamduck.Triggers;
 using Streamduck.Utils;
 
 namespace Streamduck.Plugins; 
@@ -16,6 +18,8 @@ public class PluginCollection : IPluginQuery {
 	private readonly ConcurrentDictionary<string, WeakReference<WrappedPlugin>> _pluginMap;
 	private readonly ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<Driver>>> _driverMap;
 	private readonly ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<PluginAction>>> _actionMap;
+	private readonly ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<Renderer>>> _rendererMap;
+	private readonly ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<Trigger>>> _triggerMap;
 
 	public PluginCollection(IEnumerable<PluginAssembly> plugins) {
 		Plugins = plugins.ToList();
@@ -26,6 +30,8 @@ public class PluginCollection : IPluginQuery {
 		);
 		_driverMap = BuildMap(p => p.Drivers);
 		_actionMap = BuildMap(p => p.Actions);
+		_rendererMap = BuildMap(p => p.Renderers);
+		_triggerMap = BuildMap(p => p.Triggers);
 	}
 
 	private static PluginAssembly[] PluginsToAssembly(IEnumerable<Plugin> plugins) {
@@ -52,7 +58,7 @@ public class PluginCollection : IPluginQuery {
 		}
 	}
 
-	public async Task AddPlugin(PluginAssembly assembly) {
+	public Task AddPlugin(PluginAssembly assembly) {
 		Plugins.Add(assembly);
 		
 		foreach (var plugin in assembly.Plugins) {
@@ -60,7 +66,7 @@ public class PluginCollection : IPluginQuery {
 			AddNamespacedToDict(_actionMap, plugin.Actions);
 		}
 
-		await this.InvokeNewPluginsLoaded(assembly.Plugins.Select(w => (Plugin)w.Instance).ToArray());
+		return this.InvokeNewPluginsLoaded(assembly.Plugins.Select(w => (Plugin)w.Instance).ToArray());
 	}
 	
 	private static IEnumerable<T> GetAll<T>(
@@ -84,6 +90,12 @@ public class PluginCollection : IPluginQuery {
 		NamespacedName name) where T : class =>
 		dict.GetValueOrDefault(name)?.WeakToNullable();
 
+	public IEnumerable<WrappedPlugin> AllWrappedPlugins() =>
+		from weakPlugin in _pluginMap
+		let plugin = weakPlugin.Value.WeakToNullable()
+		where plugin != null
+		select plugin;
+	
 	public IEnumerable<Plugin> AllPlugins() =>
 		from weakPlugin in _pluginMap
 		let plugin = weakPlugin.Value.WeakToNullable()
@@ -97,7 +109,7 @@ public class PluginCollection : IPluginQuery {
 		from weakPlugin in _pluginMap
 		let plugin = weakPlugin.Value.WeakToNullable()
 		where plugin != null
-		let castedPlugin = plugin.Instance.Instance as T
+		let castedPlugin = plugin.Instance as T
 		where castedPlugin != null
 		select castedPlugin;
 
@@ -105,8 +117,18 @@ public class PluginCollection : IPluginQuery {
 	public IEnumerable<Namespaced<Driver>> DriversByPlugin(string pluginName) => GetByPlugin(_driverMap, pluginName);
 	public Namespaced<Driver>? SpecificDriver(NamespacedName name) => GetSpecific(_driverMap, name);
 	
-	public IEnumerable<Namespaced<PluginAction>> AllPluginActions() => GetAll(_actionMap);
-	public IEnumerable<Namespaced<PluginAction>> PluginActionsByPlugin(string pluginName) => 
+	public IEnumerable<Namespaced<PluginAction>> AllActions() => GetAll(_actionMap);
+	public IEnumerable<Namespaced<PluginAction>> ActionsByPlugin(string pluginName) => 
 		GetByPlugin(_actionMap, pluginName);
-	public Namespaced<PluginAction>? SpecificPluginAction(NamespacedName name) => GetSpecific(_actionMap, name);
+	public Namespaced<PluginAction>? SpecificAction(NamespacedName name) => GetSpecific(_actionMap, name);
+	
+	public IEnumerable<Namespaced<Renderer>> AllRenderers() => GetAll(_rendererMap);
+	public IEnumerable<Namespaced<Renderer>> RenderersByPlugin(string pluginName) => 
+		GetByPlugin(_rendererMap, pluginName);
+	public Namespaced<Renderer>? SpecificRenderer(NamespacedName name) => GetSpecific(_rendererMap, name);
+
+	public IEnumerable<Namespaced<Trigger>> AllTriggers() => GetAll(_triggerMap);
+	public IEnumerable<Namespaced<Trigger>> TriggersByPlugin(string pluginName) => 
+		GetByPlugin(_triggerMap, pluginName);
+	public Namespaced<Trigger>? SpecificTrigger(NamespacedName name) => GetSpecific(_triggerMap, name);
 }

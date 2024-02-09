@@ -10,6 +10,7 @@ using NLog;
 using Streamduck.Configuration;
 using Streamduck.Cores;
 using Streamduck.Devices;
+using Streamduck.Interfaces;
 using Streamduck.Plugins;
 using Streamduck.Plugins.Extensions;
 using Streamduck.Plugins.Loaders;
@@ -67,12 +68,14 @@ public class App {
 		
 		Directory.CreateDirectory("plugins");
 		Plugins = new PluginCollection(PluginLoader.LoadFromFolder("plugins"));
+		await Plugins.LoadAllPluginConfigs();
+		
 		await Plugins.InvokePluginsLoaded();
 		
 		_config = await Config.Get();
 
-		DeviceConnected += (identifier, core) => Plugins.InvokeDeviceConnected(identifier, core);
-		DeviceDisconnected += identifier => Plugins.InvokeDeviceDisconnected(identifier);
+		DeviceConnected += async (identifier, core) => await Plugins.InvokeDeviceConnected(identifier, core);
+		DeviceDisconnected += async identifier => await Plugins.InvokeDeviceDisconnected(identifier);
 
 		_initialized = true;
 	}
@@ -104,7 +107,7 @@ public class App {
 
 			var device = await driver.ConnectDevice(deviceIdentifier);
 			device.Died += () => DeviceDisconnected?.Invoke(deviceIdentifier);
-			var core = new CoreImpl(device, deviceIdentifier);
+			var core = new CoreImpl(device, deviceIdentifier, Plugins!);
 
 			lock (_discoveredDevices) {
 				_discoveredDevices.Remove(deviceIdentifier);

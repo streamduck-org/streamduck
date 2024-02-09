@@ -27,11 +27,23 @@ public class PluginReflectorTest {
 		public class TestOptions {
 			public int Count { get; set; }
 		}
-
+		
 		[PluginMethod]
-		public async Task TestConfigurableAction(TestOptions options) {
+		public async Task TestOptionAction(TestOptions options) {
 			await Task.Delay(1);
 			options.Count++;
+			Counter = options.Count;
+		}
+		
+		public class TestConfig {
+			public int IncrementsPerformed { get; set; }
+		}
+
+		[PluginMethod]
+		public async Task TestConfigurableAction(TestOptions options, TestConfig config) {
+			await Task.Delay(1);
+			options.Count++;
+			config.IncrementsPerformed++;
 			Counter = options.Count;
 		}
 	}
@@ -46,23 +58,45 @@ public class PluginReflectorTest {
 		{ // Test Action
 			var action = AnalyzeActionInfo(actions, "Test Action");
 			
-			await action.Invoke();
+			await action.Invoke(await action.DefaultData());
 			Assert.That(plugin.ActionWasCalled, Is.True, "Action was not properly called");
+		}
+		
+		{ // Test Action with option parameter
+			var action = AnalyzeActionInfo(actions, "Test Option Action");
+
+			var data = await action.DefaultData();
+			Assert.That(action, Is.InstanceOf<ReflectedAction<TestPlugin.TestOptions>>(), "Action wasn't recognized as correct type");
+			Assert.That(data, Is.InstanceOf<TestPlugin.TestOptions>(), "Default data wasn't the correct type");
+			
+			await action.Invoke(data);
+			Assert.That(plugin.Counter, Is.EqualTo(1), "Action was not properly called or options didn't increment");
+			
+			await action.Invoke(data);
+			Assert.That(plugin.Counter, Is.EqualTo(2), "Action was not properly called or options didn't increment");
+
+			var castedData = (TestPlugin.TestOptions) data;
+			Assert.That(castedData, Has.Count.EqualTo(2), "Action options weren't updated properly");
 		}
 		
 		{ // Test Configurable Action
 			var action = AnalyzeActionInfo(actions, "Test Configurable Action");
+
+			var data = await action.DefaultData();
+			Assert.That(action, Is.InstanceOf<ConfigurableReflectedAction<TestPlugin.TestOptions, TestPlugin.TestConfig>>(), "Action wasn't recognized as correct type");
+			Assert.That(data, Is.InstanceOf<TestPlugin.TestOptions>(), "Default data wasn't the correct type");
 			
-			Assert.That(action, Is.InstanceOf<ConfigurableReflectedAction<TestPlugin.TestOptions>>(), "Action wasn't recognized as configurable");
-			
-			await action.Invoke();
+			await action.Invoke(data);
 			Assert.That(plugin.Counter, Is.EqualTo(1), "Action was not properly called or options didn't increment");
 			
-			await action.Invoke();
+			await action.Invoke(data);
 			Assert.That(plugin.Counter, Is.EqualTo(2), "Action was not properly called or options didn't increment");
 
-			var configurable = (ConfigurableReflectedAction<TestPlugin.TestOptions>) action;
-			Assert.That(configurable.Options, Has.Count.EqualTo(2), "Action options weren't maintained properly");
+			var castedData = (TestPlugin.TestOptions) data;
+			Assert.That(castedData, Has.Count.EqualTo(2), "Action options weren't updated properly");
+			
+			var configurable = (ConfigurableReflectedAction<TestPlugin.TestOptions, TestPlugin.TestConfig>) action;
+			Assert.That(configurable.Config.IncrementsPerformed, Is.EqualTo(2), "Action config weren't maintained properly");
 		}
 	}
 	private static PluginAction AnalyzeActionInfo(IEnumerator<PluginAction> enumerator, string name, string? description = null) {

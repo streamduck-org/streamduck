@@ -76,7 +76,7 @@ public class StreamDeckDevice : Device, IDisposable, IConfigurable<StreamDeckDev
 	}
 
 	public override Input[] Inputs { get; }
-	public StreamDeckDeviceOptions? Options { get; set; }
+	public StreamDeckDeviceOptions Config { get; set; } = new();
 
 	public void Dispose() {
 		Die();

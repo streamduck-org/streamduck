@@ -5,6 +5,7 @@ using Streamduck.Cores;
 using Streamduck.Devices;
 using Streamduck.Interfaces;
 using Streamduck.Rendering;
+using Streamduck.Triggers;
 
 namespace Streamduck.Plugins;
 
@@ -14,6 +15,7 @@ public abstract class Plugin : INamed {
 	public virtual IEnumerable<Driver> Drivers { get; } = Array.Empty<Driver>();
 	public virtual IEnumerable<PluginAction> Actions { get; } = Array.Empty<PluginAction>();
 	public virtual IEnumerable<Renderer> Renderers { get; } = Array.Empty<Renderer>();
+	public virtual IEnumerable<Trigger> Triggers { get; } = Array.Empty<Trigger>();
 
 	public virtual Task OnPluginsLoaded(IPluginQuery pluginQuery) => Task.CompletedTask;
 

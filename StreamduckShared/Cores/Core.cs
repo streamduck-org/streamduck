@@ -15,6 +15,11 @@ public abstract class Core(Device associatedDevice) : IDisposable {
 	public bool IsAlive() => _associatedDevice.Alive;
 
 	/**
+	 * Create new screen that can later be pushed into the stack
+	 */
+	public abstract Screen NewScreen(bool canWrite = true);
+	
+	/**
 	 * Push screen into the stack
 	 */
 	public abstract void PushScreen(Screen screen);

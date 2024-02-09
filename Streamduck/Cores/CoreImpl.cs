@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using NLog;
 using Streamduck.Devices;
 using Streamduck.Inputs;
+using Streamduck.Plugins;
 
 namespace Streamduck.Cores;
 
@@ -12,10 +13,18 @@ public class CoreImpl : Core {
 
 	private readonly Stack<Screen> _screenStack = new();
 
-	public CoreImpl(Device device, NamespacedDeviceIdentifier deviceIdentifier) : base(device) {
+	protected readonly IPluginQuery _pluginQuery;
+
+	public CoreImpl(Device device, NamespacedDeviceIdentifier deviceIdentifier, IPluginQuery pluginQuery) : base(device) {
 		_deviceIdentifier = deviceIdentifier;
+		_pluginQuery = pluginQuery;
 		device.Died += () => _l.Warn("Device {} died", _deviceIdentifier);
 	}
+
+	public override Screen NewScreen(bool canWrite = true) =>
+		new ScreenImpl(_associatedDevice.Inputs, _pluginQuery) {
+			CanWrite = canWrite
+		};
 
 	public override void PushScreen(Screen screen) {
 		lock (_screenStack) {

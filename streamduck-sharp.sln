@@ -12,6 +12,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StreamduckTest", "Streamduc
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StreamduckGS", "StreamduckGS\StreamduckGS.csproj", "{FE4EAE30-5D1E-42E7-84F5-0EA2E2837041}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StreamduckCore", "StreamduckCore\StreamduckCore.csproj", "{51244AAB-2AE3-486B-8544-5AB202E1F99E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -42,5 +44,9 @@ Global
 		{FE4EAE30-5D1E-42E7-84F5-0EA2E2837041}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FE4EAE30-5D1E-42E7-84F5-0EA2E2837041}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FE4EAE30-5D1E-42E7-84F5-0EA2E2837041}.Release|Any CPU.Build.0 = Release|Any CPU
+		{51244AAB-2AE3-486B-8544-5AB202E1F99E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{51244AAB-2AE3-486B-8544-5AB202E1F99E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{51244AAB-2AE3-486B-8544-5AB202E1F99E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{51244AAB-2AE3-486B-8544-5AB202E1F99E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

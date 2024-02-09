@@ -13,8 +13,13 @@ namespace Streamduck.Configuration;
  * Configuration for Streamduck
  */
 public class Config {
-	private const string StreamduckFolderName = "streamduck";
-	private const string ConfigFileName = "config.json";
+	public const string StreamduckFolderName = "streamduck";
+	public const string ConfigFileName = "config.json";
+
+	public static readonly string StreamduckFolder = Path.Join(
+		Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+		StreamduckFolderName
+	);
 
 	private static readonly Logger L = LogManager.GetCurrentClassLogger();
 
@@ -39,7 +44,7 @@ public class Config {
 	 * Devices that should be automatically connected to
 	 */
 	[JsonInclude]
-	public HashSet<NamespacedDeviceIdentifier> AutoconnectDevices { get; private set; } = new();
+	public HashSet<NamespacedDeviceIdentifier> AutoconnectDevices { get; private set; } = [];
 
 	public async Task AddDeviceToAutoconnect(NamespacedDeviceIdentifier deviceIdentifier) {
 		lock (AutoconnectDevices) {
@@ -63,8 +68,7 @@ public class Config {
 
 	private static async Task<Config> _loadConfig() {
 		var path = Path.Join(
-			Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-			StreamduckFolderName,
+			StreamduckFolder,
 			ConfigFileName
 		);
 
@@ -101,20 +105,15 @@ public class Config {
 	 * Saves config to json file in app data
 	 */
 	public async Task SaveConfig() {
-		var folderPath = Path.Join(
-			Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-			StreamduckFolderName
-		);
-
 		try {
-			Directory.CreateDirectory(folderPath);
+			Directory.CreateDirectory(StreamduckFolderName);
 		} catch (Exception e) {
 			L.Error("Error happened while trying to create folders for config {0}", e);
 			return;
 		}
 
 		var path = Path.Join(
-			folderPath,
+			StreamduckFolderName,
 			ConfigFileName
 		);
 

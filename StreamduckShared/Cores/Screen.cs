@@ -1,10 +1,14 @@
+using System.Collections.Generic;
+
 namespace Streamduck.Cores; 
 
 /**
  * Screen that can contain screen items
  */
 public abstract class Screen {
-	public abstract bool CanWrite { get; }
-	public abstract ScreenItem?[] Items { get; }
-	
+	public bool CanWrite { get; init; } = true;
+	public abstract IReadOnlyCollection<ScreenItem?> Items { get; }
+
+	public abstract ScreenItem CreateItem(int index);
+	public abstract ScreenItem DeleteItem(int index);
 }

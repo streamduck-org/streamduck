@@ -3,13 +3,14 @@ using System.Linq;
 using System.Threading.Tasks;
 using ElgatoStreamDeck;
 using Streamduck.Devices;
+using Streamduck.Interfaces;
 using Streamduck.Plugins;
 using Device = Streamduck.Devices.Device;
 using ElgatoDevice = ElgatoStreamDeck.Device;
 
 namespace StreamduckStreamDeck;
 
-public class StreamDeckDriver(DeviceManager manager) : Driver {
+public class StreamDeckDriver(DeviceManager manager) : Driver, IConfigurable<StreamDeckDeviceOptions> {
 	private const string StreamDeckOriginalDesc = "Stream Deck Original";
 	private const string StreamDeckOriginalV2Desc = "Stream Deck Original V2";
 	private const string StreamDeckMiniDesc = "Stream Deck Mini";
@@ -21,7 +22,7 @@ public class StreamDeckDriver(DeviceManager manager) : Driver {
 	private const string StreamDeckPlusDesc = "Stream Deck Plus";
 	private const string StreamDeckUnknownDesc = "Unknown";
 
-	public override string Name => "StreamDeckDriver";
+	public override string Name => "Stream Deck Driver";
 
 	public override Task<IEnumerable<DeviceIdentifier>> ListDevices() => Task.FromResult(manager.ListDevices()
 		.Where(t => IsValid(t.Item1))
@@ -60,4 +61,6 @@ public class StreamDeckDriver(DeviceManager manager) : Driver {
 		StreamDeckPlusDesc => Kind.Plus,
 		_ => Kind.Unknown
 	};
+
+	public StreamDeckDeviceOptions Config { get; set; } = new();
 }

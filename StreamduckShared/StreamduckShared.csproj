@@ -9,11 +9,6 @@
 
 
     <ItemGroup>
-        <Folder Include="Configuration\"/>
-    </ItemGroup>
-
-
-    <ItemGroup>
         <Reference Include="MessagePack.Annotations">
             <HintPath>..\..\..\.nuget\packages\messagepack.annotations\2.5.124\lib\netstandard2.0\MessagePack.Annotations.dll</HintPath>
         </Reference>
