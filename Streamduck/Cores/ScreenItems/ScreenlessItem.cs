@@ -40,9 +40,11 @@ public class ScreenlessItem : ScreenItem {
 		}
 	}
 
-	public override void Detach(Input input) {
+	public override void Detach() {
+		if (AssociatedInput is null) return;
+		
 		foreach (var trigger in _triggers) {
-			trigger.Detach(input);
+			trigger.Detach(AssociatedInput);
 		}
 		
 		AssociatedInput = null;

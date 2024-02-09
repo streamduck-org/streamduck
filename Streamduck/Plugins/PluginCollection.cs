@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Streamduck.Configuration;
 using Streamduck.Data;
 using Streamduck.Plugins.Extensions;
 using Streamduck.Plugins.Loaders;
@@ -13,6 +14,7 @@ using Streamduck.Utils;
 namespace Streamduck.Plugins; 
 
 public class PluginCollection : IPluginQuery {
+	private readonly Config _config;
 	public readonly List<PluginAssembly> Plugins;
 	
 	private readonly ConcurrentDictionary<string, WeakReference<WrappedPlugin>> _pluginMap;
@@ -21,7 +23,8 @@ public class PluginCollection : IPluginQuery {
 	private readonly ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<Renderer>>> _rendererMap;
 	private readonly ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<Trigger>>> _triggerMap;
 
-	public PluginCollection(IEnumerable<PluginAssembly> plugins) {
+	public PluginCollection(IEnumerable<PluginAssembly> plugins, Config config) {
+		_config = config;
 		Plugins = plugins.ToList();
 		_pluginMap = new ConcurrentDictionary<string, WeakReference<WrappedPlugin>>(
 			Plugins
@@ -40,7 +43,7 @@ public class PluginCollection : IPluginQuery {
 		return new[] { pluginAssembly };
 	}
 	
-	public PluginCollection(IEnumerable<Plugin> plugins) : this(PluginsToAssembly(plugins)) {}
+	public PluginCollection(IEnumerable<Plugin> plugins, Config config) : this(PluginsToAssembly(plugins), config) {}
 
 	private ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<T>>> BuildMap<T>(
 		Func<WrappedPlugin, IEnumerable<Namespaced<T>>> accessor) where T : class =>
@@ -126,6 +129,8 @@ public class PluginCollection : IPluginQuery {
 	public IEnumerable<Namespaced<Renderer>> RenderersByPlugin(string pluginName) => 
 		GetByPlugin(_rendererMap, pluginName);
 	public Namespaced<Renderer>? SpecificRenderer(NamespacedName name) => GetSpecific(_rendererMap, name);
+	public Namespaced<Renderer>? DefaultRenderer() => GetSpecific(_rendererMap, _config.DefaultRenderer)
+		?? GetSpecific(_rendererMap, Config.DefaultRendererName);
 
 	public IEnumerable<Namespaced<Trigger>> AllTriggers() => GetAll(_triggerMap);
 	public IEnumerable<Namespaced<Trigger>> TriggersByPlugin(string pluginName) => 

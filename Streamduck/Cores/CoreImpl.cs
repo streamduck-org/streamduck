@@ -22,44 +22,36 @@ public class CoreImpl : Core {
 	}
 
 	public override Screen NewScreen(bool canWrite = true) =>
-		new ScreenImpl(_associatedDevice.Inputs, _pluginQuery) {
+		new ScreenImpl(this, _associatedDevice.Inputs, _pluginQuery) {
 			CanWrite = canWrite
 		};
 
 	public override void PushScreen(Screen screen) {
 		lock (_screenStack) {
 			_screenStack.TryPeek(out var oldScreen);
+			oldScreen?.DetachFromInputs();
 			_screenStack.Push(screen);
-		}
-	}
-
-	public override void PushScreen(Func<Input[], Screen> pushFunction) {
-		lock (_screenStack) {
-			_screenStack.TryPeek(out var oldScreen);
-			var newScreen = pushFunction.Invoke(_associatedDevice.Inputs);
-			_screenStack.Push(newScreen);
+			screen.AttachToInputs();
 		}
 	}
 
 	public override Screen? PopScreen() {
 		lock (_screenStack) {
-			return !_screenStack.TryPop(out var screen) ? null : screen;
+			_screenStack.TryPop(out var screen);
+			screen?.DetachFromInputs();
+			if (_screenStack.TryPeek(out var newScreen)) {
+				newScreen.AttachToInputs();
+			}
+			return screen;
 		}
 	}
 
 	public override Screen? ReplaceScreen(Screen newScreen) {
 		lock (_screenStack) {
 			_screenStack.TryPop(out var screen);
+			screen?.DetachFromInputs();
 			_screenStack.Push(newScreen);
-			return screen;
-		}
-	}
-
-	public override Screen? ReplaceScreen(Func<Input[], Screen> pushFunction) {
-		lock (_screenStack) {
-			_screenStack.TryPop(out var screen);
-			var newScreen = pushFunction.Invoke(_associatedDevice.Inputs);
-			_screenStack.Push(newScreen);
+			newScreen.AttachToInputs();
 			return screen;
 		}
 	}

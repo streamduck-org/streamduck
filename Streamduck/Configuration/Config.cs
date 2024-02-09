@@ -6,6 +6,7 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using NLog;
 using Streamduck.Devices;
+using Streamduck.Plugins;
 
 namespace Streamduck.Configuration;
 
@@ -35,7 +36,7 @@ public class Config {
 	 */
 	public double FrameRate { get; set; } = 60.0;
 
-	/*
+	/**
 	 * How long to wait between checking for new devices from all loaded drivers
 	 */
 	public double DeviceCheckDelay { get; set; } = 30.0;
@@ -65,6 +66,14 @@ public class Config {
 
 		await SaveConfig();
 	}
+
+	public static NamespacedName DefaultRendererName { get; } 
+		= new("Streamduck Core Plugin", "Default Renderer");
+	
+	/**
+	 * Default renderer to be used for new screen items
+	 */
+	public NamespacedName DefaultRenderer { get; set; } = DefaultRendererName;
 
 	private static async Task<Config> _loadConfig() {
 		var path = Path.Join(

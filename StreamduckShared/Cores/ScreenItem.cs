@@ -35,6 +35,6 @@ public abstract class ScreenItem {
 
 	public abstract void Attach(Input input);
 	
-	public abstract void Detach(Input input);
+	public abstract void Detach();
 }
 

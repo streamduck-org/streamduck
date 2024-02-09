@@ -21,14 +21,20 @@ public class DeviceEntryViewModel : ViewModelBase {
 		_connected = connected;
 		_hostScreen = hostScreen;
 
-		OpenDevice = ReactiveCommand.CreateFromObservable(
-			() => _hostScreen.Router.Navigate.Execute(
-				new DeviceEditorViewModel(_hostScreen, originalIdentifier)
-			)
-		);
+		OpenDevice = ReactiveCommand.CreateFromTask(
+			async () => {
+				if (Application.Current is not UIApp app) return;
+				if (app.StreamduckApp is not { } streamduck) return;
+
+				if (!streamduck.ConnectedDevices.ContainsKey(originalIdentifier))
+					await streamduck.ConnectDevice(originalIdentifier);
+
+				_hostScreen.Router.Navigate.Execute(
+					new DeviceEditorViewModel(_hostScreen, originalIdentifier));
+			});
 	}
 
-	public ReactiveCommand<Unit, IRoutableViewModel> OpenDevice { get; }
+	public ReactiveCommand<Unit, Unit> OpenDevice { get; }
 
 	public NamespacedDeviceIdentifier? OriginalIdentifier { get; }
 

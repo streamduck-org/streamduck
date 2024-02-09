@@ -25,11 +25,6 @@ public abstract class Core(Device associatedDevice) : IDisposable {
 	public abstract void PushScreen(Screen screen);
 
 	/**
-	 * Initialize a new screen with inputs and then push it into the stack
-	 */
-	public abstract void PushScreen(Func<Input[], Screen> pushFunction);
-
-	/**
 	 * Pops screen from the stack
 	 */
 	public abstract Screen? PopScreen();
@@ -38,11 +33,6 @@ public abstract class Core(Device associatedDevice) : IDisposable {
 	 * Replaces current screen with another
 	 */
 	public abstract Screen? ReplaceScreen(Screen newScreen);
-
-	/**
-	 * Initializes a new screen with inputs, then replaces current screen
-	 */
-	public abstract Screen? ReplaceScreen(Func<Input[], Screen> pushFunction);
 	
 	/**
 	 * Top screen of the stack

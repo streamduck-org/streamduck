@@ -66,13 +66,13 @@ public class App {
 	public async Task Init() {
 		if (_initialized) throw new ApplicationException("App was already initialized");
 		
+		_config = await Config.Get();
+		
 		Directory.CreateDirectory("plugins");
-		Plugins = new PluginCollection(PluginLoader.LoadFromFolder("plugins"));
+		Plugins = new PluginCollection(PluginLoader.LoadFromFolder("plugins"), _config);
 		await Plugins.LoadAllPluginConfigs();
 		
 		await Plugins.InvokePluginsLoaded();
-		
-		_config = await Config.Get();
 
 		DeviceConnected += async (identifier, core) => await Plugins.InvokeDeviceConnected(identifier, core);
 		DeviceDisconnected += async identifier => await Plugins.InvokeDeviceDisconnected(identifier);

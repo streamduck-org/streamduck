@@ -30,6 +30,8 @@ public interface IPluginQuery {
 	Namespaced<Renderer>? SpecificRenderer(NamespacedName name);
 	Namespaced<Renderer>? SpecificRenderer(string pluginName, string name) =>
 		SpecificRenderer(new NamespacedName(pluginName, name));
+
+	Namespaced<Renderer>? DefaultRenderer();
 	
 	IEnumerable<Namespaced<Trigger>> AllTriggers();
 	IEnumerable<Namespaced<Trigger>> TriggersByPlugin(string pluginName);
