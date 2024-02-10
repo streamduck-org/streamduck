@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,12 +23,12 @@ public static class FieldReflector {
 			yield return new Field.StaticText("Object was null");
 			yield break;
 		}
-		
+
 		foreach (var property in obj.GetType().GetProperties(Flags)) {
 			// Handle Header first
-			if (property.GetCustomAttribute<HeaderAttribute>() is { } headerAttribute) 
+			if (property.GetCustomAttribute<HeaderAttribute>() is { } headerAttribute)
 				yield return new Field.Header(headerAttribute.Text);
-			
+
 			// Handle static text
 			foreach (var attribute in property.GetCustomAttributes<StaticTextAttribute>()) {
 				yield return new Field.StaticText(attribute.Text);
@@ -35,12 +39,12 @@ public static class FieldReflector {
 			if (getMethod is null) continue;
 
 			// Continue if not public and doesn't have Include attribute
-			if ((!getMethod.IsPublic && property.GetCustomAttribute<IncludeAttribute>() == null) 
+			if ((!getMethod.IsPublic && property.GetCustomAttribute<IncludeAttribute>() == null)
 			    || property.GetCustomAttribute<IgnoreAttribute>() != null) continue;
 
 			var title = GetMemberName(property);
 			var description = GetMemberDescription(property);
-			
+
 			var type = property.PropertyType;
 
 			if (type == typeof(string)) {
@@ -63,9 +67,9 @@ public static class FieldReflector {
 				}
 			} else if (type.IsAssignableTo(typeof(INumber<>))) {
 				yield return (Field)typeof(FieldReflector).GetMethod(
-						nameof(MakeGenericNumberField), 
+						nameof(MakeGenericNumberField),
 						BindingFlags.NonPublic | BindingFlags.Static
-						)!.MakeGenericMethod(type)
+					)!.MakeGenericMethod(type)
 					.Invoke(null, new[] { property, obj, title, description! })!;
 			} else if (type == typeof(bool)) {
 				bool Getter() => (bool)property.GetValue(obj)!;
@@ -82,7 +86,7 @@ public static class FieldReflector {
 				var underlyingType = type.GetEnumUnderlyingType();
 				if (property.GetCustomAttribute<BitmaskAttribute>() != null) {
 					yield return (Field)typeof(FieldReflector).GetMethod(
-							nameof(MakeGenericBitmask), 
+							nameof(MakeGenericBitmask),
 							BindingFlags.NonPublic | BindingFlags.Static
 						)!.MakeGenericMethod(underlyingType)
 						.Invoke(null, new[] { property, obj, variants, title, description! })!;
@@ -91,9 +95,7 @@ public static class FieldReflector {
 						var value = property.GetValue(obj)!;
 
 						foreach (var variant in variants) {
-							if (value.Equals(variant.GetValue(null))) {
-								return GetMemberName(variant);
-							}
+							if (value.Equals(variant.GetValue(null))) return GetMemberName(variant);
 						}
 
 						return "Unknown";
@@ -102,13 +104,11 @@ public static class FieldReflector {
 					void SetVariant(string variant) {
 						foreach (var variantInfo in variants) {
 							var name = GetMemberName(variantInfo);
-							
-							if (name.Equals(variant)) {
-								property.SetValue(obj, variantInfo.GetValue(null));
-							}
+
+							if (name.Equals(variant)) property.SetValue(obj, variantInfo.GetValue(null));
 						}
 					}
-					
+
 					string Getter() => FindVariant();
 					Action<string>? setter = IsReadWrite(property)
 						? SetVariant
@@ -118,18 +118,19 @@ public static class FieldReflector {
 						Description = description
 					};
 				}
-			} else if (type.IsClass && Nullable.GetUnderlyingType(type) == null) { // Use recursion for anything else
+			} else if (type.IsClass && Nullable.GetUnderlyingType(type) == null) {
+				// Use recursion for anything else
 				yield return new Field.NestedFields(title) {
 					Description = description,
 					Schema = AnalyzeObject(property.GetValue(obj)).ToArray()
 				};
 			}
-			
+
 			// TODO: Split all field creation into private methods and implement collection support 
 		}
 	}
 
-	private static Field MakeGenericNumberField<T>(PropertyInfo property, object obj, string title, string? description) 
+	private static Field MakeGenericNumberField<T>(PropertyInfo property, object obj, string title, string? description)
 		where T : INumber<T> {
 		var attr = property.GetCustomAttribute<NumberFieldAttribute<T>>() ?? new NumberFieldAttribute<T>();
 		Action<T>? setter = IsReadWrite(property)
@@ -145,7 +146,8 @@ public static class FieldReflector {
 		T Getter() => (T)property.GetValue(obj)!;
 	}
 
-	private static Field MakeGenericBitmask<T>(PropertyInfo property, object obj, FieldInfo[] variants, string title, string? description)
+	private static Field MakeGenericBitmask<T>(PropertyInfo property, object obj, FieldInfo[] variants, string title,
+		string? description)
 		where T : IBinaryInteger<T> {
 		return new Field.MultiChoice(
 			title,
@@ -164,7 +166,7 @@ public static class FieldReflector {
 				? currentValue | variantValue
 				: currentValue & ~variantValue;
 		}
-		
+
 		ulong SetFlagULong(FieldInfo variantInfo, bool state) {
 			var currentValue = Convert.ToUInt64(property.GetValue(obj));
 			var variantValue = Convert.ToUInt64(variantInfo.GetValue(null));
@@ -181,8 +183,8 @@ public static class FieldReflector {
 				if (!name.Equals(variant)) continue;
 
 				property.SetValue(
-					obj, 
-					typeof(T) == typeof(ulong) 
+					obj,
+					typeof(T) == typeof(ulong)
 						? Enum.ToObject(property.PropertyType, SetFlagULong(variantInfo, state))
 						: Enum.ToObject(property.PropertyType, SetFlagAny(variantInfo, state))
 				);
@@ -191,34 +193,34 @@ public static class FieldReflector {
 
 		IEnumerable<bool> GetVariantStatuses() {
 			var value = (Enum)property.GetValue(obj)!;
-			
+
 			foreach (var variant in variants) {
 				var variantValue = (Enum)variant.GetValue(null)!;
 				var hasFlag = value.HasFlag(variantValue);
-				
+
 				yield return hasFlag;
 			}
 		}
 	}
 
 	private static bool HasSetter(PropertyInfo property) => property.GetSetMethod(true) != null;
-	
+
 	private static bool HasPublicSetter(PropertyInfo property) => property.GetSetMethod() != null;
 
 	private static bool IsReadWrite(PropertyInfo property) =>
-		(HasPublicSetter(property) || (property.GetCustomAttribute<IncludeAttribute>()?.WriteAllowed ?? false)) 
+		(HasPublicSetter(property) || (property.GetCustomAttribute<IncludeAttribute>()?.WriteAllowed ?? false))
 		&& property.GetCustomAttribute<ReadOnlyAttribute>() == null;
-	
-	private static string GetMemberName(MemberInfo member) => 
-		member.GetCustomAttribute<NameAttribute>()?.Name 
+
+	private static string GetMemberName(MemberInfo member) =>
+		member.GetCustomAttribute<NameAttribute>()?.Name
 		?? member.Name.FormatAsWords();
 
 	private static string? GetMemberDescription(MemberInfo member) =>
 		member.GetCustomAttribute<DescriptionAttribute>()?.Description;
-	
+
 	private static IEnumerable<(string, string?)> HumanReadableVariants(IEnumerable<FieldInfo> variants) =>
-		from variant in variants 
-		let name = GetMemberName(variant) 
+		from variant in variants
+		let name = GetMemberName(variant)
 		let variantDescription = GetMemberDescription(variant)
 		select (name, variantDescription);
 }

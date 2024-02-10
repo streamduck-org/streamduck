@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -11,17 +15,17 @@ using Streamduck.Rendering;
 using Streamduck.Triggers;
 using Streamduck.Utils;
 
-namespace Streamduck.Plugins; 
+namespace Streamduck.Plugins;
 
 public class PluginCollection : IPluginQuery {
-	private readonly Config _config;
-	public readonly List<PluginAssembly> Plugins;
-	
-	private readonly ConcurrentDictionary<string, WeakReference<WrappedPlugin>> _pluginMap;
-	private readonly ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<Driver>>> _driverMap;
 	private readonly ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<PluginAction>>> _actionMap;
+	private readonly Config _config;
+	private readonly ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<Driver>>> _driverMap;
+
+	private readonly ConcurrentDictionary<string, WeakReference<WrappedPlugin>> _pluginMap;
 	private readonly ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<Renderer>>> _rendererMap;
 	private readonly ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<Trigger>>> _triggerMap;
+	public readonly List<PluginAssembly> Plugins;
 
 	public PluginCollection(IEnumerable<PluginAssembly> plugins, Config config) {
 		_config = config;
@@ -37,68 +41,8 @@ public class PluginCollection : IPluginQuery {
 		_triggerMap = BuildMap(p => p.Triggers);
 	}
 
-	private static PluginAssembly[] PluginsToAssembly(IEnumerable<Plugin> plugins) {
-		var context = new PluginLoadContext("");
-		var pluginAssembly = new PluginAssembly(context, plugins.Select(p => new WrappedPlugin(p, context)).ToArray());
-		return new[] { pluginAssembly };
-	}
-	
-	public PluginCollection(IEnumerable<Plugin> plugins, Config config) : this(PluginsToAssembly(plugins), config) {}
+	public PluginCollection(IEnumerable<Plugin> plugins, Config config) : this(PluginsToAssembly(plugins), config) { }
 
-	private ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<T>>> BuildMap<T>(
-		Func<WrappedPlugin, IEnumerable<Namespaced<T>>> accessor) where T : class =>
-		new(
-			Plugins
-				.SelectMany(a => a.Plugins)
-				.SelectMany(accessor)
-				.ToDictionary(x => x.NamespacedName, x => new WeakReference<Namespaced<T>>(x))
-		);
-
-	private static void AddNamespacedToDict<T>(ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<T>>> dict, 
-		IEnumerable<Namespaced<T>> enumerable) where T : class {
-		foreach (var x in enumerable) {
-			dict.TryAdd(x.NamespacedName, new WeakReference<Namespaced<T>>(x));
-		}
-	}
-
-	public Task AddPlugin(PluginAssembly assembly) {
-		Plugins.Add(assembly);
-		
-		foreach (var plugin in assembly.Plugins) {
-			AddNamespacedToDict(_driverMap, plugin.Drivers);
-			AddNamespacedToDict(_actionMap, plugin.Actions);
-		}
-
-		return this.InvokeNewPluginsLoaded(assembly.Plugins.Select(w => (Plugin)w.Instance).ToArray());
-	}
-	
-	private static IEnumerable<T> GetAll<T>(
-		ConcurrentDictionary<NamespacedName, WeakReference<T>> dict) where T : class =>
-		from weak in dict
-		let strong = weak.Value.WeakToNullable()
-		where strong != null
-		select strong;
-	
-	private static IEnumerable<T> GetByPlugin<T>(
-		ConcurrentDictionary<NamespacedName, WeakReference<T>> dict,
-		string pluginName) where T : class =>
-		from weak in dict
-		where weak.Key.PluginName == pluginName
-		let strong = weak.Value.WeakToNullable()
-		where strong != null
-		select strong;
-
-	private static T? GetSpecific<T>(
-		ConcurrentDictionary<NamespacedName, WeakReference<T>> dict,
-		NamespacedName name) where T : class =>
-		dict.GetValueOrDefault(name)?.WeakToNullable();
-
-	public IEnumerable<WrappedPlugin> AllWrappedPlugins() =>
-		from weakPlugin in _pluginMap
-		let plugin = weakPlugin.Value.WeakToNullable()
-		where plugin != null
-		select plugin;
-	
 	public IEnumerable<Plugin> AllPlugins() =>
 		from weakPlugin in _pluginMap
 		let plugin = weakPlugin.Value.WeakToNullable()
@@ -119,21 +63,88 @@ public class PluginCollection : IPluginQuery {
 	public IEnumerable<Namespaced<Driver>> AllDrivers() => GetAll(_driverMap);
 	public IEnumerable<Namespaced<Driver>> DriversByPlugin(string pluginName) => GetByPlugin(_driverMap, pluginName);
 	public Namespaced<Driver>? SpecificDriver(NamespacedName name) => GetSpecific(_driverMap, name);
-	
+
 	public IEnumerable<Namespaced<PluginAction>> AllActions() => GetAll(_actionMap);
-	public IEnumerable<Namespaced<PluginAction>> ActionsByPlugin(string pluginName) => 
+
+	public IEnumerable<Namespaced<PluginAction>> ActionsByPlugin(string pluginName) =>
 		GetByPlugin(_actionMap, pluginName);
+
 	public Namespaced<PluginAction>? SpecificAction(NamespacedName name) => GetSpecific(_actionMap, name);
-	
+
 	public IEnumerable<Namespaced<Renderer>> AllRenderers() => GetAll(_rendererMap);
-	public IEnumerable<Namespaced<Renderer>> RenderersByPlugin(string pluginName) => 
+
+	public IEnumerable<Namespaced<Renderer>> RenderersByPlugin(string pluginName) =>
 		GetByPlugin(_rendererMap, pluginName);
+
 	public Namespaced<Renderer>? SpecificRenderer(NamespacedName name) => GetSpecific(_rendererMap, name);
+
 	public Namespaced<Renderer>? DefaultRenderer() => GetSpecific(_rendererMap, _config.DefaultRenderer)
-		?? GetSpecific(_rendererMap, Config.DefaultRendererName);
+	                                                  ?? GetSpecific(_rendererMap, Config.DefaultRendererName);
 
 	public IEnumerable<Namespaced<Trigger>> AllTriggers() => GetAll(_triggerMap);
-	public IEnumerable<Namespaced<Trigger>> TriggersByPlugin(string pluginName) => 
+
+	public IEnumerable<Namespaced<Trigger>> TriggersByPlugin(string pluginName) =>
 		GetByPlugin(_triggerMap, pluginName);
+
 	public Namespaced<Trigger>? SpecificTrigger(NamespacedName name) => GetSpecific(_triggerMap, name);
+
+	private static PluginAssembly[] PluginsToAssembly(IEnumerable<Plugin> plugins) {
+		var context = new PluginLoadContext("");
+		var pluginAssembly = new PluginAssembly(context, plugins.Select(p => new WrappedPlugin(p, context)).ToArray());
+		return new[] { pluginAssembly };
+	}
+
+	private ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<T>>> BuildMap<T>(
+		Func<WrappedPlugin, IEnumerable<Namespaced<T>>> accessor) where T : class =>
+		new(
+			Plugins
+				.SelectMany(a => a.Plugins)
+				.SelectMany(accessor)
+				.ToDictionary(x => x.NamespacedName, x => new WeakReference<Namespaced<T>>(x))
+		);
+
+	private static void AddNamespacedToDict<T>(ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<T>>> dict,
+		IEnumerable<Namespaced<T>> enumerable) where T : class {
+		foreach (var x in enumerable) {
+			dict.TryAdd(x.NamespacedName, new WeakReference<Namespaced<T>>(x));
+		}
+	}
+
+	public Task AddPlugin(PluginAssembly assembly) {
+		Plugins.Add(assembly);
+
+		foreach (var plugin in assembly.Plugins) {
+			AddNamespacedToDict(_driverMap, plugin.Drivers);
+			AddNamespacedToDict(_actionMap, plugin.Actions);
+		}
+
+		return this.InvokeNewPluginsLoaded(assembly.Plugins.Select(w => w.Instance).ToArray());
+	}
+
+	private static IEnumerable<T> GetAll<T>(
+		ConcurrentDictionary<NamespacedName, WeakReference<T>> dict) where T : class =>
+		from weak in dict
+		let strong = weak.Value.WeakToNullable()
+		where strong != null
+		select strong;
+
+	private static IEnumerable<T> GetByPlugin<T>(
+		ConcurrentDictionary<NamespacedName, WeakReference<T>> dict,
+		string pluginName) where T : class =>
+		from weak in dict
+		where weak.Key.PluginName == pluginName
+		let strong = weak.Value.WeakToNullable()
+		where strong != null
+		select strong;
+
+	private static T? GetSpecific<T>(
+		ConcurrentDictionary<NamespacedName, WeakReference<T>> dict,
+		NamespacedName name) where T : class =>
+		dict.GetValueOrDefault(name)?.WeakToNullable();
+
+	public IEnumerable<WrappedPlugin> AllWrappedPlugins() =>
+		from weakPlugin in _pluginMap
+		let plugin = weakPlugin.Value.WeakToNullable()
+		where plugin != null
+		select plugin;
 }

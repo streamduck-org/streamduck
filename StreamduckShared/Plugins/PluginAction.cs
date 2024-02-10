@@ -1,16 +1,19 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 using System;
 using System.Threading.Tasks;
 using Streamduck.Interfaces;
 
-namespace Streamduck.Plugins; 
+namespace Streamduck.Plugins;
 
 /**
  * Action that can be triggered by Triggers
  */
 public abstract class PluginAction : INamed {
-	public abstract string Name { get; }
-	
 	public abstract string? Description { get; }
+	public abstract string Name { get; }
 
 	/**
 	 * <exception cref="System.ArgumentException">If argument was of invalid type</exception>
@@ -33,8 +36,8 @@ public abstract class PluginAction<T> : PluginAction where T : class, new() {
 
 		return Invoke(casted);
 	}
-	
+
 	public abstract Task Invoke(T data);
 
-	public override Task<object> DefaultData() => Task.FromResult((object) new T());
+	public override Task<object> DefaultData() => Task.FromResult((object)new T());
 }

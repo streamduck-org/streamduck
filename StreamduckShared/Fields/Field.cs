@@ -1,5 +1,8 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 using System;
-using System.Linq;
 using System.Numerics;
 
 namespace Streamduck.Fields;
@@ -7,7 +10,7 @@ namespace Streamduck.Fields;
 public abstract class Field(string title) {
 	public string Title { get; } = title;
 	public string? Description { get; init; }
-	
+
 	/**
 	 * Displays title text in a large text
 	 */
@@ -31,15 +34,15 @@ public abstract class Field(string title) {
 	public class Checkbox : Field {
 		private readonly Func<bool> _getter;
 		private readonly Action<bool>? _setter;
-		
-		public bool Disabled { get; }
-		public bool SwitchStyle { get; init; }
-		
+
 		public Checkbox(string title, Func<bool> getter, Action<bool>? setter) : base(title) {
 			_getter = getter;
 			_setter = setter;
 			Disabled = _setter == null;
 		}
+
+		public bool Disabled { get; }
+		public bool SwitchStyle { get; init; }
 
 		public bool Value {
 			get => _getter.Invoke();
@@ -54,13 +57,13 @@ public abstract class Field(string title) {
 		private readonly Func<string> _getter;
 		private readonly Action<string>? _setter;
 
-		public bool Disabled { get; }
-		
 		public StringInput(string title, Func<string> getter, Action<string>? setter = null) : base(title) {
 			_getter = getter;
 			_setter = setter;
 			Disabled = _setter == null;
 		}
+
+		public bool Disabled { get; }
 
 		public string Value {
 			get => _getter.Invoke();
@@ -74,30 +77,38 @@ public abstract class Field(string title) {
 	public class NumberInput<T> : Field where T : INumber<T> {
 		private readonly Func<T> _getter;
 		private readonly Action<T>? _setter;
-		
-		public bool Disabled { get; }
-		public bool Slider { get; init; }
-		public bool EnforceLimit { get; init; }
-		
-		public T? Min { get; init; }
-		public T? Max { get; init; }
-		
+
 		public NumberInput(string title, Func<T> getter, Action<T>? setter = null) : base(title) {
 			_getter = getter;
 			_setter = setter;
 			Disabled = _setter == null;
 		}
 
+		public bool Disabled { get; }
+		public bool Slider { get; init; }
+		public bool EnforceLimit { get; init; }
+
+		public T? Min { get; init; }
+		public T? Max { get; init; }
+
 		public T Value {
 			get => _getter.Invoke();
 			set => _setter?.Invoke(value);
 		}
 	}
-	
+
 	public class Choice : Field {
 		private readonly Func<string> _getter;
 		private readonly Action<string>? _setter;
-		
+
+		public Choice(string title, Func<string> getter, Action<string>? setter, (string, string?)[] variants) :
+			base(title) {
+			_getter = getter;
+			_setter = setter;
+			Variants = variants;
+			Disabled = _setter == null;
+		}
+
 		public bool Disabled { get; }
 		public (string, string?)[] Variants { get; }
 
@@ -105,32 +116,23 @@ public abstract class Field(string title) {
 			get => _getter.Invoke();
 			set => _setter?.Invoke(value);
 		}
-		
-		public Choice(string title, Func<string> getter, Action<string>? setter, (string, string?)[] variants) : base(title) {
+	}
+
+	public class MultiChoice : Field {
+		private readonly Func<bool[]> _getter;
+		private readonly Action<string, bool>? _setter;
+
+		public MultiChoice(string title, Func<bool[]> getter, Action<string, bool>? setter,
+			(string, string?)[] variants) : base(title) {
 			_getter = getter;
 			_setter = setter;
 			Variants = variants;
 			Disabled = _setter == null;
 		}
-	}
-	
-	public class MultiChoice : Field {
-		private readonly Func<bool[]> _getter;
-		private readonly Action<string, bool>? _setter;
-		
+
 		public bool Disabled { get; }
 		public (string, string?)[] Variants { get; }
 
-		private int FindVariantIndex(string name) {
-			for (var i = 0; i < Variants.Length; i++) {
-				if (Variants[i].Item1.Equals(name)) {
-					return i;
-				}
-			}
-			
-			return -1;
-		}
-		
 		public bool? this[string name] {
 			get {
 				var index = FindVariantIndex(name);
@@ -141,7 +143,7 @@ public abstract class Field(string title) {
 			set {
 				if (_setter == null) return;
 				if (value == null) return;
-				
+
 				var index = FindVariantIndex(name);
 				if (index == -1) return;
 				_setter.Invoke(name, value.Value);
@@ -150,11 +152,12 @@ public abstract class Field(string title) {
 
 		public bool[] Values => _getter.Invoke();
 
-		public MultiChoice(string title, Func<bool[]> getter, Action<string, bool>? setter, (string, string?)[] variants) : base(title) {
-			_getter = getter;
-			_setter = setter;
-			Variants = variants;
-			Disabled = _setter == null;
+		private int FindVariantIndex(string name) {
+			for (var i = 0; i < Variants.Length; i++) {
+				if (Variants[i].Item1.Equals(name)) return i;
+			}
+
+			return -1;
 		}
 	}
 

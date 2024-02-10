@@ -1,4 +1,8 @@
-﻿using System;
+﻿// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -11,9 +15,7 @@ using NLog.Config;
 using NLog.Layouts;
 using NLog.Targets;
 using Streamduck.Configuration;
-using Streamduck.Devices;
 using Streamduck.Fields;
-using Streamduck.Plugins;
 using Streamduck.UI;
 using Streamduck.UI.ViewModels;
 
@@ -29,10 +31,6 @@ internal class Program {
 			.WithInterFont()
 			.LogToTrace()
 			.UseReactiveUI();
-	
-	private class TestOptions {
-		public string Label => "test";
-	}
 
 	public static async Task Main(string[] args) {
 		var fields = FieldReflector.AnalyzeObject(new TestOptions()).ToArray();
@@ -41,7 +39,7 @@ internal class Program {
 		foreach (var field in fields) {
 			Console.WriteLine(field.Title);
 		}
-		
+
 		var cts = new CancellationTokenSource();
 
 		var logConfig = new LoggingConfiguration();
@@ -95,5 +93,9 @@ internal class Program {
 			}, Array.Empty<string>());
 
 		Environment.Exit(0);
+	}
+
+	private class TestOptions {
+		public string Label => "test";
 	}
 }

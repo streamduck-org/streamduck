@@ -1,8 +1,11 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 using System;
 using System.Collections.Generic;
 using NLog;
 using Streamduck.Devices;
-using Streamduck.Inputs;
 using Streamduck.Plugins;
 
 namespace Streamduck.Cores;
@@ -11,14 +14,25 @@ public class CoreImpl : Core {
 	private static readonly Logger _l = LogManager.GetCurrentClassLogger();
 	protected readonly NamespacedDeviceIdentifier _deviceIdentifier;
 
-	private readonly Stack<Screen> _screenStack = new();
-
 	protected readonly IPluginQuery _pluginQuery;
 
-	public CoreImpl(Device device, NamespacedDeviceIdentifier deviceIdentifier, IPluginQuery pluginQuery) : base(device) {
+	private readonly Stack<Screen> _screenStack = new();
+
+	public CoreImpl(Device device, NamespacedDeviceIdentifier deviceIdentifier, IPluginQuery pluginQuery) :
+		base(device) {
 		_deviceIdentifier = deviceIdentifier;
 		_pluginQuery = pluginQuery;
 		device.Died += () => _l.Warn("Device {} died", _deviceIdentifier);
+	}
+
+	public override Screen? CurrentScreen {
+		get {
+			lock (_screenStack) {
+				if (_screenStack.TryPeek(out var screen)) return screen;
+			}
+
+			return null;
+		}
 	}
 
 	public override Screen NewScreen(bool canWrite = true) =>
@@ -39,9 +53,7 @@ public class CoreImpl : Core {
 		lock (_screenStack) {
 			_screenStack.TryPop(out var screen);
 			screen?.DetachFromInputs();
-			if (_screenStack.TryPeek(out var newScreen)) {
-				newScreen.AttachToInputs();
-			}
+			if (_screenStack.TryPeek(out var newScreen)) newScreen.AttachToInputs();
 			return screen;
 		}
 	}
@@ -53,18 +65,6 @@ public class CoreImpl : Core {
 			_screenStack.Push(newScreen);
 			newScreen.AttachToInputs();
 			return screen;
-		}
-	}
-
-	public override Screen? CurrentScreen {
-		get {
-			lock (_screenStack) {
-				if (_screenStack.TryPeek(out var screen)) {
-					return screen;
-				}
-			}
-
-			return null;
 		}
 	}
 

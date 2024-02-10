@@ -16,8 +16,8 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\StreamduckShared\StreamduckShared.csproj" />
-      <ProjectReference Include="..\Streamduck\Streamduck.csproj" />
+        <ProjectReference Include="..\StreamduckShared\StreamduckShared.csproj"/>
+        <ProjectReference Include="..\Streamduck\Streamduck.csproj"/>
     </ItemGroup>
 
 </Project>

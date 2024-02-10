@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -47,6 +51,14 @@ public class Config {
 	[JsonInclude]
 	public HashSet<NamespacedDeviceIdentifier> AutoconnectDevices { get; private set; } = [];
 
+	public static NamespacedName DefaultRendererName { get; }
+		= new("Streamduck Core Plugin", "Default Renderer");
+
+	/**
+	 * Default renderer to be used for new screen items
+	 */
+	public NamespacedName DefaultRenderer { get; set; } = DefaultRendererName;
+
 	public async Task AddDeviceToAutoconnect(NamespacedDeviceIdentifier deviceIdentifier) {
 		lock (AutoconnectDevices) {
 			AutoconnectDevices.Add(deviceIdentifier);
@@ -66,14 +78,6 @@ public class Config {
 
 		await SaveConfig();
 	}
-
-	public static NamespacedName DefaultRendererName { get; } 
-		= new("Streamduck Core Plugin", "Default Renderer");
-	
-	/**
-	 * Default renderer to be used for new screen items
-	 */
-	public NamespacedName DefaultRenderer { get; set; } = DefaultRendererName;
 
 	private static async Task<Config> _loadConfig() {
 		var path = Path.Join(

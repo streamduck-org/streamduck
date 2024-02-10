@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -6,7 +10,6 @@ using Streamduck.Devices;
 using Streamduck.Interfaces;
 using Streamduck.Plugins;
 using Device = Streamduck.Devices.Device;
-using ElgatoDevice = ElgatoStreamDeck.Device;
 
 namespace StreamduckStreamDeck;
 
@@ -23,6 +26,8 @@ public class StreamDeckDriver(DeviceManager manager) : Driver, IConfigurable<Str
 	private const string StreamDeckUnknownDesc = "Unknown";
 
 	public override string Name => "Stream Deck Driver";
+
+	public StreamDeckDeviceOptions Config { get; set; } = new();
 
 	public override Task<IEnumerable<DeviceIdentifier>> ListDevices() => Task.FromResult(manager.ListDevices()
 		.Where(t => IsValid(t.Item1))
@@ -61,6 +66,4 @@ public class StreamDeckDriver(DeviceManager manager) : Driver, IConfigurable<Str
 		StreamDeckPlusDesc => Kind.Plus,
 		_ => Kind.Unknown
 	};
-
-	public StreamDeckDeviceOptions Config { get; set; } = new();
 }

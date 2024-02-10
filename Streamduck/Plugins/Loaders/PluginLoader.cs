@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -59,7 +63,8 @@ public static class PluginLoader {
 	private static Assembly LoadPlugin(AssemblyLoadContext context, string assemblyPath) =>
 		context.LoadFromAssemblyName(new AssemblyName(Path.GetFileNameWithoutExtension(assemblyPath)));
 
-	private static IEnumerable<WrappedPlugin> CreatePlugins(PluginLoadContext context, Assembly assembly, ISet<string>? nameSet = null) {
+	private static IEnumerable<WrappedPlugin> CreatePlugins(PluginLoadContext context, Assembly assembly,
+		ISet<string>? nameSet = null) {
 		var loadedPlugins = 0;
 
 		foreach (var type in assembly.GetTypes()) {
@@ -69,11 +74,10 @@ public static class PluginLoader {
 
 			L.Info("Loading plugin \"{0}\"...", plugin.Name);
 
-			if (nameSet != null) {
+			if (nameSet != null)
 				if (!nameSet.Add(plugin.Name))
 					throw new ApplicationException(
 						$"Name conflict! {assembly} ({assembly.Location}) has '{plugin.Name}' plugin name that is already used by another plugin");
-			} 
 
 			loadedPlugins++;
 			var wrapped = new WrappedPlugin(plugin, context);

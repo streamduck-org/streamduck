@@ -7,7 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Antlr4.Runtime.Standard" Version="4.13.1" />
+        <PackageReference Include="Antlr4.Runtime.Standard" Version="4.13.1"/>
         <PackageReference Include="SixLabors.ImageSharp" Version="3.0.1">
             <Private>false</Private>
             <ExcludeAssets>runtime</ExcludeAssets>

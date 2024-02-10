@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 using System.Collections.Generic;
 using Streamduck.Fields;
 
@@ -23,16 +27,15 @@ public interface IConfigurable {
 
 /**
  * <p>
- * Allows types to contain options that can be configured from UI,
- * saving and loading will be done automatically.
+ *     Allows types to contain options that can be configured from UI,
+ *     saving and loading will be done automatically.
  * </p>
- *
  * <p>
- * Type provided as Options needs to support serialization and deserialization,
- * along with having properties that can be represented as Field objects.
+ *     Type provided as Options needs to support serialization and deserialization,
+ *     along with having properties that can be represented as Field objects.
  * </p>
  */
 public interface IConfigurable<T> : IConfigurable where T : class, new() {
-	new T Config { get; set; } 
+	new T Config { get; set; }
 	IEnumerable<Field> IConfigurable.Config => FieldReflector.AnalyzeObject(Config);
 }

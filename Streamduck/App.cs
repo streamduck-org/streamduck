@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -10,7 +14,6 @@ using NLog;
 using Streamduck.Configuration;
 using Streamduck.Cores;
 using Streamduck.Devices;
-using Streamduck.Interfaces;
 using Streamduck.Plugins;
 using Streamduck.Plugins.Extensions;
 using Streamduck.Plugins.Loaders;
@@ -23,12 +26,12 @@ public class App {
 	private readonly List<NamespacedDeviceIdentifier> _discoveredDevices = new();
 
 	private Config _config = null!;
-	
+
 	private bool _initialized;
 	private bool _running;
 
 	public PluginCollection? Plugins { get; private set; }
-	
+
 	public IReadOnlyList<NamespacedDeviceIdentifier> DiscoveredDevices {
 		get {
 			lock (_discoveredDevices) {
@@ -65,13 +68,13 @@ public class App {
 	 */
 	public async Task Init() {
 		if (_initialized) throw new ApplicationException("App was already initialized");
-		
+
 		_config = await Config.Get();
-		
+
 		Directory.CreateDirectory("plugins");
 		Plugins = new PluginCollection(PluginLoader.LoadFromFolder("plugins"), _config);
 		await Plugins.LoadAllPluginConfigs();
-		
+
 		await Plugins.InvokePluginsLoaded();
 
 		DeviceConnected += async (identifier, core) => await Plugins.InvokeDeviceConnected(identifier, core);
@@ -115,7 +118,7 @@ public class App {
 
 			if (!ConnectedDevices.TryAdd(deviceIdentifier, core))
 				throw new ApplicationException("Couldn't add device, another connection was already made?");
-			
+
 			DeviceConnected?.Invoke(deviceIdentifier, core);
 		} catch (Exception e) {
 			L.Error(e, "Failed to connect to device");
@@ -160,7 +163,7 @@ public class App {
 			foreach (var device in removedDevices) {
 				DeviceDisappeared?.Invoke(device);
 			}
-			
+
 			_discoveredDevices.Clear();
 			_discoveredDevices.AddRange(_newDeviceList);
 			DeviceListRefreshed?.Invoke();
@@ -177,22 +180,18 @@ public class App {
 
 	private async Task TickTask(CancellationTokenSource cts) {
 		var stopwatch = Stopwatch.StartNew();
-		
+
 		var lastTime = stopwatch.Elapsed.TotalSeconds;
 		var interval = 1.0 / _config.TickRate;
-		
+
 		while (_running) {
 			foreach (var core in ConnectedDevices.Values) {
-				if (core is CoreImpl castedCore) {
-					castedCore.CallTick();
-				}
+				if (core is CoreImpl castedCore) castedCore.CallTick();
 			}
-			
+
 			var toWait = interval - (stopwatch.Elapsed.TotalSeconds - lastTime);
 
-			if (toWait > 0.0) {
-				await Task.Delay(TimeSpan.FromSeconds(toWait));
-			}
+			if (toWait > 0.0) await Task.Delay(TimeSpan.FromSeconds(toWait));
 
 			lastTime = stopwatch.Elapsed.TotalSeconds;
 		}

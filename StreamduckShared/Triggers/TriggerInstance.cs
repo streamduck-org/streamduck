@@ -1,5 +1,8 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 using System;
-using System.Threading.Tasks;
 using Streamduck.Inputs;
 
 namespace Streamduck.Triggers;
@@ -10,7 +13,7 @@ namespace Streamduck.Triggers;
 public abstract class TriggerInstance(Trigger original) {
 	public Trigger Original { get; } = original;
 	public abstract event Action? Triggered;
-	
+
 	public abstract void Attach(Input input);
 	public abstract void Detach(Input input);
 }
