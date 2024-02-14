@@ -5,6 +5,7 @@
              xmlns:deviceEditor="clr-namespace:Streamduck.UI.ViewModels.DeviceEditor"
              xmlns:ui="clr-namespace:Streamduck.UI"
              xmlns:components="clr-namespace:Streamduck.UI.Components"
+             xmlns:deviceEditorViews="clr-namespace:Streamduck.UI.Views.DeviceEditor"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="Streamduck.UI.Views.DeviceEditor.DeviceEditorView"
              x:DataType="deviceEditor:DeviceEditorViewModel"
@@ -20,11 +21,8 @@
         </Style>
     </UserControl.Styles>
     <Border Background="{DynamicResource SystemRegionColor}"
-            CornerRadius="15"
-            BoxShadow="2 2 5 #77222222"
-            Padding="20"
-            Margin="20">
-        <StackPanel>
+            Padding="10">
+        <Grid ColumnDefinitions="*" RowDefinitions="50,*">
             <Border Background="{DynamicResource SystemChromeLowColor}"
                     Padding="10"
                     CornerRadius="10">
@@ -57,6 +55,12 @@
                     </StackPanel>
                 </DockPanel>
             </Border>
-        </StackPanel>
+            <Grid ColumnDefinitions="*, 4, 200" RowDefinitions="*" Grid.Row="1">
+                <deviceEditorViews:InputGrid DataContext="{Binding InputGrid}"
+                                             Grid.Column="0"
+                                             Margin="10"/>
+                <GridSplitter CornerRadius="5" Background="{DynamicResource SystemChromeLowColor}" Margin="0, 20, 0, 20" Grid.Column="1"/>
+            </Grid>
+        </Grid>
     </Border>
 </UserControl>

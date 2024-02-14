@@ -35,6 +35,14 @@ public class CoreImpl : Core {
 		}
 	}
 
+	public override IEnumerable<Screen> ScreenStack {
+		get {
+			lock (_screenStack) {
+				return _screenStack;
+			}
+		}
+	}
+
 	public override Screen NewScreen(bool canWrite = true) =>
 		new ScreenImpl(this, _associatedDevice.Inputs, _pluginQuery) {
 			CanWrite = canWrite

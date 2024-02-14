@@ -9,7 +9,9 @@
         x:Class="Streamduck.UI.MainWindow"
         x:DataType="viewModels:MainWindowViewModel"
         Title="Streamduck"
-        Icon="/UI/Assets/streamducklogo.ico">
+        Icon="/UI/Assets/streamducklogo.ico"
+        MinWidth="800"
+        MinHeight="600">
     <Design.DataContext>
         <!-- This only sets the DataContext for the previewer in an IDE,
              to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->

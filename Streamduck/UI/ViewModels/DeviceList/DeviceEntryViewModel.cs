@@ -33,8 +33,10 @@ public class DeviceEntryViewModel : ViewModelBase {
 				if (!streamduck.ConnectedDevices.ContainsKey(originalIdentifier))
 					await streamduck.ConnectDevice(originalIdentifier);
 
+				streamduck.ConnectedDevices.TryGetValue(originalIdentifier, out var deviceCore);
+
 				_hostScreen.Router.Navigate.Execute(
-					new DeviceEditorViewModel(_hostScreen, originalIdentifier));
+					new DeviceEditorViewModel(_hostScreen, deviceCore));
 			});
 	}
 

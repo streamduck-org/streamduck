@@ -4,16 +4,15 @@
 
 using System.Reactive;
 using ReactiveUI;
-using Streamduck.Devices;
+using Streamduck.Cores;
 
 namespace Streamduck.UI.ViewModels.DeviceEditor;
 
-public class DeviceEditorViewModel(IScreen hostScreen, NamespacedDeviceIdentifier deviceName) : ViewModelBase,
-	IRoutableViewModel {
+public class DeviceEditorViewModel(IScreen hostScreen, Core deviceCore) : ViewModelBase, IRoutableViewModel {
 	public ReactiveCommand<Unit, IRoutableViewModel?> GoBack => HostScreen.Router.NavigateBack;
-	public string Identifier => deviceName.Identifier;
-	public string Description => deviceName.Description;
-
+	public string Identifier => deviceCore.DeviceIdentifier.Identifier;
+	public string Description => deviceCore.DeviceIdentifier.Description;
 	public string UrlPathSegment => "editor";
 	public IScreen HostScreen { get; } = hostScreen;
+	public InputGridViewModel InputGrid { get; } = new(deviceCore.Inputs);
 }

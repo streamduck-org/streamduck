@@ -4,6 +4,7 @@
 
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Notifications;
 using Avalonia.ReactiveUI;
 using Streamduck.UI.ViewModels;
 
@@ -13,6 +14,14 @@ public partial class MainWindow : ReactiveWindow<MainWindowViewModel> {
 	public MainWindow() {
 		InitializeComponent();
 		this.AttachDevTools();
+	}
+
+	public static WindowNotificationManager? NotificationManager { get; private set; }
+	
+	protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e) {
+		base.OnAttachedToVisualTree(e);
+
+		NotificationManager = new WindowNotificationManager(GetTopLevel(this));
 	}
 
 	protected override void OnClosing(WindowClosingEventArgs e) {

@@ -3,17 +3,27 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Collections.Generic;
 using Streamduck.Devices;
+using Streamduck.Inputs;
 
 namespace Streamduck.Cores;
 
 public abstract class Core(Device associatedDevice) : IDisposable {
 	protected readonly Device _associatedDevice = associatedDevice;
+	
+	public DeviceIdentifier DeviceIdentifier { get; } = associatedDevice.Identifier;
+	public IReadOnlyCollection<Input> Inputs { get; } = associatedDevice.Inputs;
 
 	/**
 	 * Top screen of the stack
 	 */
 	public abstract Screen? CurrentScreen { get; }
+	
+	/**
+	 * Contents of the stack
+	 */
+	public abstract IEnumerable<Screen> ScreenStack { get; }
 
 	public void Dispose() {
 		if (_associatedDevice is IDisposable disposable) disposable.Dispose();
