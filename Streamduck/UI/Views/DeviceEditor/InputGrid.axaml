@@ -4,6 +4,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:deviceEditor="clr-namespace:Streamduck.UI.ViewModels.DeviceEditor"
              xmlns:ui="clr-namespace:Streamduck.UI"
+             xmlns:deviceEditor1="clr-namespace:Streamduck.UI.Views.DeviceEditor"
+             xmlns:utils="clr-namespace:Streamduck.UI.Utils"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:DataType="deviceEditor:InputGridViewModel"
              x:Class="Streamduck.UI.Views.DeviceEditor.InputGrid"
@@ -11,21 +13,8 @@
 
     <ItemsControl ItemsSource="{Binding Items}">
         <ItemsControl.ItemTemplate>
-            <DataTemplate DataType="deviceEditor:InputGridItemViewModel">
-                <Border Margin="5">
-                    <Button HorizontalAlignment="Stretch"
-                            VerticalAlignment="Stretch"
-                            CornerRadius="{Binding CornerRadius}">
-                        <Image Source="{Binding Icon}" 
-                               Stretch="Uniform" 
-                               Margin="3" 
-                               Width="40"
-                               Opacity=".7"
-                               HorizontalAlignment="{Binding Horizontal}"
-                               VerticalAlignment="Top"/>
-                    </Button>
-                </Border>
-            </DataTemplate>
+            <utils:ControlAsDataTemplate DataType="deviceEditor:InputGridItemViewModel"
+                                         ControlType="deviceEditor1:InputGridItem"/>
         </ItemsControl.ItemTemplate>
         <ItemsControl.Styles>
             <Style x:DataType="deviceEditor:InputGridItemViewModel" Selector="ItemsControl > ContentPresenter">

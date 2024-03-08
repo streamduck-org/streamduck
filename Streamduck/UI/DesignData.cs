@@ -54,5 +54,7 @@ public class DesignData {
 		new ShellInput(0, -5, 10, 5, InputIcon.Button),
 		new ShellInput(10, -5, 10, 5, InputIcon.Button),
 		new ShellInput(20, -5, 10, 5, InputIcon.Button)
-	]);
+	]) {
+		SelectedInput = 0
+	};
 }

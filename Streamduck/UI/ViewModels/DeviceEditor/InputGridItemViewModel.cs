@@ -3,17 +3,20 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
-using System.Diagnostics;
 using Avalonia;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using ReactiveUI;
 using Streamduck.Inputs;
 
 namespace Streamduck.UI.ViewModels.DeviceEditor;
 
-public class InputGridItemViewModel(Input input, uint x, uint y, uint w, uint h) : ViewModelBase {
+public class InputGridItemViewModel(InputGridViewModel parentModel, Input input, int inputIndex, uint x, uint y, uint w, uint h) : ViewModelBase {
+
+	public readonly InputGridViewModel Parent = parentModel;
+	public readonly int InputIndex = inputIndex;
 	public uint X => x;
 	public uint Y => y;
 	public uint W => w;
@@ -42,4 +45,12 @@ public class InputGridItemViewModel(Input input, uint x, uint y, uint w, uint h)
 		InputIcon.Knob or InputIcon.Encoder or InputIcon.Joystick or InputIcon.Sensor => HorizontalAlignment.Center,
 		_ => HorizontalAlignment.Right
 	};
+
+	public bool IsSelected => Parent.SelectedInput == InputIndex;
+	public IBrush? BorderBrush => IsSelected ? Brushes.CadetBlue : null;
+
+	public void RaiseSelectionChanged() {
+		this.RaisePropertyChanged(nameof(IsSelected));
+		this.RaisePropertyChanged(nameof(BorderBrush));
+	}
 }

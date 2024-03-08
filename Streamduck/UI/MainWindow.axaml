@@ -5,12 +5,12 @@
         xmlns:viewModels="clr-namespace:Streamduck.UI.ViewModels"
         xmlns:reactiveUi="clr-namespace:Avalonia.ReactiveUI;assembly=Avalonia.ReactiveUI"
         xmlns:ui="clr-namespace:Streamduck.UI"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="600"
         x:Class="Streamduck.UI.MainWindow"
         x:DataType="viewModels:MainWindowViewModel"
         Title="Streamduck"
         Icon="/UI/Assets/streamducklogo.ico"
-        MinWidth="800"
+        MinWidth="900"
         MinHeight="600">
     <Design.DataContext>
         <!-- This only sets the DataContext for the previewer in an IDE,

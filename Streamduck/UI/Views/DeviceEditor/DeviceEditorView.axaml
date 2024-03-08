@@ -6,7 +6,7 @@
              xmlns:ui="clr-namespace:Streamduck.UI"
              xmlns:components="clr-namespace:Streamduck.UI.Components"
              xmlns:deviceEditorViews="clr-namespace:Streamduck.UI.Views.DeviceEditor"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="600"
              x:Class="Streamduck.UI.Views.DeviceEditor.DeviceEditorView"
              x:DataType="deviceEditor:DeviceEditorViewModel"
              d:DataContext="{x:Static ui:DesignData.DeviceEditor}">
@@ -55,11 +55,29 @@
                     </StackPanel>
                 </DockPanel>
             </Border>
-            <Grid ColumnDefinitions="*, 4, 200" RowDefinitions="*" Grid.Row="1">
+            <Grid RowDefinitions="*" Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="500"/>
+                    <ColumnDefinition Width="4"/>
+                    <ColumnDefinition Width="350" MinWidth="350"/>
+                </Grid.ColumnDefinitions>
                 <deviceEditorViews:InputGrid DataContext="{Binding InputGrid}"
                                              Grid.Column="0"
                                              Margin="10"/>
                 <GridSplitter CornerRadius="5" Background="{DynamicResource SystemChromeLowColor}" Margin="0, 20, 0, 20" Grid.Column="1"/>
+                <Border Grid.Column="2"
+                        Background="{DynamicResource SystemChromeLowColor}"
+                        Margin="10, 5, 0, 0"
+                        CornerRadius="10">
+                    <TabControl >
+                        <TabItem Header="Properties">
+                            
+                        </TabItem>
+                        <TabItem Header="Templates">
+                            
+                        </TabItem>
+                    </TabControl>
+                </Border>
             </Grid>
         </Grid>
     </Border>

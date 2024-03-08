@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using Avalonia.Media;
 using ReactiveUI;
 using Streamduck.Inputs;
@@ -18,7 +19,7 @@ public class InputGridViewModel : ViewModelBase {
 		Rows = rows;
 	}
 
-	private static IEnumerable<InputGridItemViewModel> ProcessInputs(IReadOnlyCollection<Input> inputs, out int columns, out int rows) {
+	private IEnumerable<InputGridItemViewModel> ProcessInputs(IReadOnlyCollection<Input> inputs, out int columns, out int rows) {
 		int minX = int.MaxValue, minY = int.MaxValue, 
 			maxX = int.MinValue, maxY = int.MinValue;
 		
@@ -35,9 +36,11 @@ public class InputGridViewModel : ViewModelBase {
 		return Iterator();
 
 		IEnumerable<InputGridItemViewModel> Iterator() {
-			foreach (var input in inputs) {
+			foreach (var (input, index) in inputs.Select((value, i) => (value, i))) {
 				yield return new InputGridItemViewModel(
+					this,
 					input,
+					index,
 					(uint)(input.X - minX),
 					(uint)(input.Y - minY),
 					input.W,
@@ -50,11 +53,38 @@ public class InputGridViewModel : ViewModelBase {
 	public ObservableCollection<InputGridItemViewModel> Items { get; set; }
 	public int Columns { get; }
 	public int Rows { get; }
-	public double Width { get; set; }
-	public double Height { get; set; }
 
-	public void NotifyWidthAndHeight() {
-		this.RaisePropertyChanged(nameof(Width));
-		this.RaisePropertyChanged(nameof(Height));
+	private double _width;
+	public double Width {
+		get => _width;
+		set {
+			_width = value;
+			this.RaisePropertyChanged();
+		}
+	}
+
+	private double _height;
+	public double Height {
+		get => _height;
+		set {
+			_height = value;
+			this.RaisePropertyChanged();
+		} 
+	}
+
+	private int _selectedInput = -1;
+
+	public int SelectedInput {
+		get => _selectedInput;
+		set {
+			var lastStates = Items.Select(i => i.IsSelected).ToArray();
+			
+			_selectedInput = value;
+			this.RaisePropertyChanged();
+
+			foreach (var (inputItem, lastState) in Items.Zip(lastStates)) {
+				if (inputItem.IsSelected != lastState) inputItem.RaiseSelectionChanged();
+			}
+		}
 	}
 }

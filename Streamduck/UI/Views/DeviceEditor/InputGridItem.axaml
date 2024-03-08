@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:deviceEditor="clr-namespace:Streamduck.UI.ViewModels.DeviceEditor"
+             mc:Ignorable="d" d:DesignWidth="100" d:DesignHeight="100"
+             x:DataType="deviceEditor:InputGridItemViewModel"
+             x:Class="Streamduck.UI.Views.DeviceEditor.InputGridItem">
+    <Border Margin="5">
+        <Button HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch"
+                CornerRadius="{Binding CornerRadius}"
+                BorderBrush="{Binding BorderBrush}"
+                BorderThickness="3"
+                Name="Button">
+            <Button.Styles>
+                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                    <Setter Property="BorderBrush" Value="{Binding BorderBrush}"/>
+                    <Setter Property="BorderThickness" Value="3"/>
+                </Style>
+            </Button.Styles>
+            <Image Source="{Binding Icon}" 
+                   Stretch="Uniform" 
+                   Margin="3" 
+                   Width="40"
+                   Opacity=".7"
+                   HorizontalAlignment="{Binding Horizontal}"
+                   VerticalAlignment="Top"/>
+        </Button>
+    </Border>
+</UserControl>

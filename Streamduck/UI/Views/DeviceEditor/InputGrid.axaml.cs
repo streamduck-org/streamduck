@@ -11,7 +11,6 @@ namespace Streamduck.UI.Views.DeviceEditor;
 public partial class InputGrid : UserControl {
 	public InputGrid() {
 		InitializeComponent();
-		Console.WriteLine($"w {Bounds.Width}, h {Bounds.Height}");
 	}
 
 	protected override void OnSizeChanged(SizeChangedEventArgs e) {
@@ -26,8 +25,5 @@ public partial class InputGrid : UserControl {
 
 		model.Width = idealWidth;
 		model.Height = idealHeight;
-		model.NotifyWidthAndHeight();
-		
-		Console.WriteLine($"resized w {Bounds.Width}, h {Bounds.Height}, sq {squareSize}, ideal width {idealWidth}, ideal height {idealHeight}");
 	}
 }
