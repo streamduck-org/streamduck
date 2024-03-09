@@ -12,6 +12,7 @@ using Streamduck.Data;
 using Streamduck.Plugins.Extensions;
 using Streamduck.Plugins.Loaders;
 using Streamduck.Rendering;
+using Streamduck.Socket;
 using Streamduck.Triggers;
 using Streamduck.Utils;
 
@@ -25,6 +26,7 @@ public class PluginCollection : IPluginQuery {
 	private readonly ConcurrentDictionary<string, WeakReference<WrappedPlugin>> _pluginMap;
 	private readonly ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<Renderer>>> _rendererMap;
 	private readonly ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<Trigger>>> _triggerMap;
+	private readonly ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<SocketRequest>>> _socketRequestMap;
 	public readonly List<PluginAssembly> Plugins;
 
 	public PluginCollection(IEnumerable<PluginAssembly> plugins, Config config) {
@@ -39,6 +41,7 @@ public class PluginCollection : IPluginQuery {
 		_actionMap = BuildMap(p => p.Actions);
 		_rendererMap = BuildMap(p => p.Renderers);
 		_triggerMap = BuildMap(p => p.Triggers);
+		_socketRequestMap = BuildMap(p => p.SocketRequests);
 	}
 
 	public PluginCollection(IEnumerable<Plugin> plugins, Config config) : this(PluginsToAssembly(plugins), config) { }
@@ -87,6 +90,13 @@ public class PluginCollection : IPluginQuery {
 		GetByPlugin(_triggerMap, pluginName);
 
 	public Namespaced<Trigger>? SpecificTrigger(NamespacedName name) => GetSpecific(_triggerMap, name);
+
+	public IEnumerable<Namespaced<SocketRequest>> AllSocketRequests() => GetAll(_socketRequestMap);
+
+	public IEnumerable<Namespaced<SocketRequest>> SocketRequestsByPlugin(string pluginName) => 
+		GetByPlugin(_socketRequestMap, pluginName);
+
+	public Namespaced<SocketRequest>? SpecificSocketRequest(NamespacedName name) => GetSpecific(_socketRequestMap, name);
 
 	private static PluginAssembly[] PluginsToAssembly(IEnumerable<Plugin> plugins) {
 		var context = new PluginLoadContext("");

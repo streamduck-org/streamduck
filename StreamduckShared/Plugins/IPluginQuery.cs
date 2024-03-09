@@ -5,6 +5,7 @@
 using System.Collections.Generic;
 using Streamduck.Data;
 using Streamduck.Rendering;
+using Streamduck.Socket;
 using Streamduck.Triggers;
 
 namespace Streamduck.Plugins;
@@ -46,4 +47,11 @@ public interface IPluginQuery {
 
 	Namespaced<Trigger>? SpecificTrigger(string pluginName, string name) =>
 		SpecificTrigger(new NamespacedName(pluginName, name));
+	
+	IEnumerable<Namespaced<SocketRequest>> AllSocketRequests();
+	IEnumerable<Namespaced<SocketRequest>> SocketRequestsByPlugin(string pluginName);
+	Namespaced<SocketRequest>? SpecificSocketRequest(NamespacedName name);
+
+	Namespaced<SocketRequest>? SpecificSocketRequest(string pluginName, string name) =>
+		SpecificSocketRequest(new NamespacedName(pluginName, name));
 }

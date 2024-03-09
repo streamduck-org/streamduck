@@ -46,6 +46,16 @@ public class Config {
 	public double DeviceCheckDelay { get; set; } = 30.0;
 
 	/**
+	 * Let the websocket connection listen for 0.0.0.0 (open to internet)
+	 */
+	public bool OpenToInternet { get; set; }
+
+	/**
+	 * Websocket port to use, defaults to 57234
+	 */
+	public int WebSocketPort { get; set; } = 42131;
+
+	/**
 	 * Devices that should be automatically connected to
 	 */
 	[JsonInclude]

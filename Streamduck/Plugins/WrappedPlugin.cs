@@ -8,6 +8,7 @@ using Streamduck.Data;
 using Streamduck.Interfaces;
 using Streamduck.Plugins.Loaders;
 using Streamduck.Rendering;
+using Streamduck.Socket;
 using Streamduck.Triggers;
 
 namespace Streamduck.Plugins;
@@ -37,6 +38,9 @@ public sealed class WrappedPlugin {
 		Triggers = Instance.Triggers
 			.Select(Namespace)
 			.ToArray();
+		SocketRequests = Instance.SocketRequests
+			.Select(Namespace)
+			.ToArray();
 	}
 
 	public Plugin Instance { get; }
@@ -47,6 +51,7 @@ public sealed class WrappedPlugin {
 	public IEnumerable<Namespaced<PluginAction>> Actions { get; }
 	public IEnumerable<Namespaced<Renderer>> Renderers { get; }
 	public IEnumerable<Namespaced<Trigger>> Triggers { get; }
+	public IEnumerable<Namespaced<SocketRequest>> SocketRequests { get; }
 
 	public Namespaced<T> Namespace<T>(T instance) where T : class, INamed =>
 		new(new NamespacedName(Name, instance.Name), instance);

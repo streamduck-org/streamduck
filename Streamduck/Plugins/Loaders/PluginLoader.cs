@@ -29,13 +29,25 @@ public static class PluginLoader {
 			return null;
 		}
 	}
+	
+	public static PluginAssembly? Load(Assembly assembly, ISet<string>? nameSet = null) {
+		var context = new PluginLoadContext(assembly.Location);
 
-	public static IEnumerable<PluginAssembly> LoadFromFolder(string pathToFolder) {
+		try {
+			var plugins = CreatePlugins(context, assembly, nameSet);
+			return new PluginAssembly(context, plugins.ToArray());
+		} catch (Exception e) {
+			L.Error("Failed to load plugin at {0}\nReason: {1}", assembly.Location, e);
+			return null;
+		}
+	}
+
+	public static IEnumerable<PluginAssembly> LoadFromFolder(string pathToFolder, ISet<string>? nameSet = null) {
 		L.Info("Loading plugins in {0} folder...", pathToFolder);
 
 		var curDir = Directory.GetCurrentDirectory();
 		var fullPath = Path.Combine(curDir, pathToFolder);
-		var nameSet = new HashSet<string>();
+		nameSet ??= new HashSet<string>();
 
 		foreach (var filePath in Directory.GetFiles(pathToFolder)) {
 			if (!filePath.EndsWith("dll")) continue;
@@ -77,7 +89,7 @@ public static class PluginLoader {
 			if (nameSet != null)
 				if (!nameSet.Add(plugin.Name))
 					throw new ApplicationException(
-						$"Name conflict! {assembly} ({assembly.Location}) has '{plugin.Name}' plugin name that is already used by another plugin");
+						$"Name conflict! {assembly.GetName().Name} ({assembly.Location}) has '{plugin.Name}' plugin name that is already used by another plugin");
 
 			loadedPlugins++;
 			var wrapped = new WrappedPlugin(plugin, context);

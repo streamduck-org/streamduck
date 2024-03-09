@@ -7,7 +7,7 @@ using SixLabors.ImageSharp;
 using Streamduck.Cores;
 using Streamduck.Rendering;
 
-namespace StreamduckCore.Renderers;
+namespace Streamduck.BaseFunctionality.Renderers;
 
 public class DefaultRenderer : Renderer<DefaultRenderer.Settings> {
 	public override string Name => "Default Renderer";

@@ -3,43 +3,27 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.ReactiveUI;
 using NLog;
 using NLog.Config;
 using NLog.Layouts;
 using NLog.Targets;
 using Streamduck.Configuration;
-using Streamduck.Fields;
-using Streamduck.UI;
-using Streamduck.UI.ViewModels;
+using Streamduck.Socket;
 
 // Setting up logger
 
 namespace Streamduck;
 
 internal class Program {
-	// Avalonia configuration, don't remove; also used by visual designer.
-	public static AppBuilder BuildAvaloniaApp()
-		=> AppBuilder.Configure<UIApp>()
-			.UsePlatformDetect()
-			.WithInterFont()
-			.LogToTrace()
-			.UseReactiveUI();
 
 	public static async Task Main(string[] args) {
-		var fields = FieldReflector.AnalyzeObject(new TestOptions()).ToArray();
-		Console.WriteLine("Analyzed object");
-
-		foreach (var field in fields) {
-			Console.WriteLine(field.Title);
-		}
-
 		var cts = new CancellationTokenSource();
 
 		var logConfig = new LoggingConfiguration();
@@ -72,30 +56,18 @@ internal class Program {
 			}
 		}, cts.Token);
 
-		// Starting UI
-		BuildAvaloniaApp()
-			.Start((app, strings) => {
-				L.Info("Starting UI...");
-				if (app is not UIApp uiApp) return;
+		// Starting API
+		var config = await Config.Get();
+		
+		var server = new Server(
+			config.OpenToInternet 
+				? IPAddress.Any 
+				: IPAddress.Loopback, config.WebSocketPort) {
+			AppInstance = streamduck
+		};
 
-				L.Debug("Setting Streamduck reference");
-				uiApp.StreamduckApp = streamduck;
+		server.Start();
 
-				L.Debug("Creating main window");
-				uiApp.MainWindow = new MainWindow();
-				uiApp.MainWindow.DataContext = new MainWindowViewModel();
-
-				uiApp.CancellationTokenSource = cts;
-
-				L.Debug("Running UI Loop");
-				uiApp.Run(cts.Token);
-				L.Debug("UI Loop ended");
-			}, Array.Empty<string>());
-
-		Environment.Exit(0);
-	}
-
-	private class TestOptions {
-		public string Label => "test";
+		await Task.Delay(-1, cts.Token);
 	}
 }

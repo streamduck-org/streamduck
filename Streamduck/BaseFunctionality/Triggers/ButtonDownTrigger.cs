@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using Streamduck.Inputs;
 using Streamduck.Triggers;
 
-namespace StreamduckCore.Triggers;
+namespace Streamduck.BaseFunctionality.Triggers;
 
 public class ButtonDownTrigger : Trigger {
 	public override string Name => "Button Down Trigger";

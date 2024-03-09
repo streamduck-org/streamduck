@@ -9,6 +9,7 @@ using Streamduck.Cores;
 using Streamduck.Devices;
 using Streamduck.Interfaces;
 using Streamduck.Rendering;
+using Streamduck.Socket;
 using Streamduck.Triggers;
 
 namespace Streamduck.Plugins;
@@ -18,6 +19,7 @@ public abstract class Plugin : INamed {
 	public virtual IEnumerable<PluginAction> Actions { get; } = Array.Empty<PluginAction>();
 	public virtual IEnumerable<Renderer> Renderers { get; } = Array.Empty<Renderer>();
 	public virtual IEnumerable<Trigger> Triggers { get; } = Array.Empty<Trigger>();
+	public virtual IEnumerable<SocketRequest> SocketRequests { get; } = Array.Empty<SocketRequest>();
 	public abstract string Name { get; }
 
 	public virtual Task OnPluginsLoaded(IPluginQuery pluginQuery) => Task.CompletedTask;
