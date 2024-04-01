@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
+using Streamduck.Actions;
 using Streamduck.Attributes;
 using Streamduck.Plugins;
 using Streamduck.Plugins.Methods;

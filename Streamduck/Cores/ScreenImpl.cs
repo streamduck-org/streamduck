@@ -5,21 +5,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using Streamduck.Cores.ScreenItems;
-using Streamduck.Data;
 using Streamduck.Inputs;
 using Streamduck.Plugins;
-using Streamduck.Rendering;
 
 namespace Streamduck.Cores;
 
 public class ScreenImpl(Core core, IReadOnlyCollection<Input> inputs, IPluginQuery pluginQuery) : Screen {
-	private const BindingFlags StaticNonPublic = BindingFlags.Static | BindingFlags.NonPublic;
-
-	private static readonly MethodInfo GenericRendererMethod =
-		typeof(ScreenImpl).GetMethod(nameof(GenericRenderer), StaticNonPublic)!;
-
 	private readonly Input[] _inputs = inputs.ToArray();
 	private readonly ScreenItem?[] _items = new ScreenItem?[inputs.Count];
 
@@ -47,23 +39,11 @@ public class ScreenImpl(Core core, IReadOnlyCollection<Input> inputs, IPluginQue
 
 		if (renderer is null) return new ScreenlessItem();
 
-		if (!(renderer.Instance.GetType().BaseType?.IsGenericType ?? false)
-		    || renderer.Instance.GetType().GetGenericTypeDefinition() != typeof(Renderer<>))
-			return new RenderableScreenItem {
-				RendererName = renderer.NamespacedName,
-				RendererSettings = renderer.Instance.DefaultRendererConfig
-			};
-
-		var typeArgument = renderer.Instance.GetType().BaseType!.GetGenericArguments()[0];
-		return (ScreenItem)GenericRendererMethod.MakeGenericMethod(typeArgument)
-			.Invoke(null, [renderer])!;
+		return new RenderableScreenItem {
+			RendererName = renderer.NamespacedName,
+			RendererSettings = renderer.Instance.DefaultRendererConfig
+		};
 	}
-
-	private static TypedRenderableScreenItem<T> GenericRenderer<T>(Namespaced<Renderer<T>> renderer)
-		where T : class, new() => new() {
-		RendererName = renderer.NamespacedName,
-		RendererSettings = (T)renderer.Instance.DefaultRendererConfig
-	};
 
 	public override ScreenItem DeleteItem(int index) {
 		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, _inputs.Length);

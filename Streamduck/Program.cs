@@ -3,11 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Net;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
@@ -22,7 +19,6 @@ using Streamduck.Socket;
 namespace Streamduck;
 
 internal class Program {
-
 	public static async Task Main(string[] args) {
 		var cts = new CancellationTokenSource();
 
@@ -58,10 +54,10 @@ internal class Program {
 
 		// Starting API
 		var config = await Config.Get();
-		
+
 		var server = new Server(
-			config.OpenToInternet 
-				? IPAddress.Any 
+			config.OpenToInternet
+				? IPAddress.Any
 				: IPAddress.Loopback, config.WebSocketPort) {
 			AppInstance = streamduck
 		};

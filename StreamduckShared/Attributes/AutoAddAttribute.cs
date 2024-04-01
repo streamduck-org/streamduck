@@ -7,7 +7,9 @@ using System;
 namespace Streamduck.Attributes;
 
 /**
- * Method will be automatically wrapped into a plugin action
+ * Autoinjects instance of the class into appropriate collection on the plugin
  */
-[AttributeUsage(AttributeTargets.Method)]
-public class PluginMethodAttribute : Attribute { }
+[AttributeUsage(AttributeTargets.Class, Inherited = false)]
+public class AutoAddAttribute(Type? pluginClass = null) : Attribute {
+	public Type? PluginClass { get; } = pluginClass;
+}

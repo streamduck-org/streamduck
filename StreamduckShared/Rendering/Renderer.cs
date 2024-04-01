@@ -15,20 +15,20 @@ namespace Streamduck.Rendering;
 public abstract class Renderer : INamed {
 	public abstract object DefaultRendererConfig { get; }
 	public abstract string Name { get; }
-	public abstract long Hash(ScreenItem input, object renderConfig);
-	public abstract Image Render(ScreenItem input, object renderConfig);
+	public abstract long Hash(ScreenItem input, object? renderConfig);
+	public abstract Image Render(ScreenItem input, object? renderConfig);
 }
 
 public abstract class Renderer<T> : Renderer where T : class, new() {
 	public override object DefaultRendererConfig => new T();
 
-	public override long Hash(ScreenItem input, object renderConfig) {
+	public override long Hash(ScreenItem input, object? renderConfig) {
 		if (renderConfig is not T castedConfig)
 			throw new ArgumentException("Render config was of incorrect type");
 		return Hash(input, castedConfig);
 	}
 
-	public override Image Render(ScreenItem input, object renderConfig) {
+	public override Image Render(ScreenItem input, object? renderConfig) {
 		if (renderConfig is not T castedConfig)
 			throw new ArgumentException("Render config was of incorrect type");
 		return Render(input, castedConfig);

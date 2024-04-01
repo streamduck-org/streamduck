@@ -14,15 +14,15 @@ using NLog;
 using Streamduck.Configuration;
 using Streamduck.Cores;
 using Streamduck.Devices;
+using Streamduck.Images;
 using Streamduck.Plugins;
 using Streamduck.Plugins.Extensions;
 using Streamduck.Plugins.Loaders;
+using Streamduck.Utils;
 
 namespace Streamduck;
 
-public class App {
-	public static App? CurrentInstance { get; private set; }
-	
+public class App : IStreamduck {
 	private static readonly Logger _l = LogManager.GetCurrentClassLogger();
 
 	private readonly List<NamespacedDeviceIdentifier> _discoveredDevices = new();
@@ -31,8 +31,9 @@ public class App {
 
 	private bool _initialized;
 	private bool _running;
+	public static App? CurrentInstance { get; private set; }
 
-	public PluginCollection? Plugins { get; private set; }
+	public PluginCollection? PluginCollection { get; private set; }
 
 	public IReadOnlyList<NamespacedDeviceIdentifier> DiscoveredDevices {
 		get {
@@ -43,6 +44,9 @@ public class App {
 	}
 
 	public ConcurrentDictionary<NamespacedDeviceIdentifier, Core> ConnectedDevices { get; } = new();
+
+	public IPluginQuery Plugins => PluginCollection!;
+	public IImageCollection Images { get; }
 	public event Action? DeviceListRefreshed;
 
 	/**
@@ -74,21 +78,25 @@ public class App {
 		_config = await Config.Get();
 
 		Directory.CreateDirectory("plugins");
-		
+
 		// Load built-in plugin and external plugins
 		var nameSet = new HashSet<string>();
 
 		_l.Info("Scanning for core plugin...");
 		var corePlugin = PluginLoader.Load(GetType().Assembly, nameSet)!;
+
+		PluginCollection = new PluginCollection(new[] { corePlugin }
+			.Concat(PluginLoader.LoadFromFolder("plugins", nameSet)), _config);
+		await PluginCollection.LoadAllPluginConfigs();
+
+		await this.InvokePluginsLoaded();
+
+		"HeyHo".FormatAsWords();
 		
-		Plugins = new PluginCollection(new []{ corePlugin }
-				.Concat(PluginLoader.LoadFromFolder("plugins", nameSet)), _config);
-		await Plugins.LoadAllPluginConfigs();
-
-		await Plugins.InvokePluginsLoaded();
-
-		DeviceConnected += async (identifier, core) => await Plugins.InvokeDeviceConnected(identifier, core);
-		DeviceDisconnected += async identifier => await Plugins.InvokeDeviceDisconnected(identifier);
+		DeviceConnected += async (identifier, core) => await PluginCollection.InvokeDeviceConnected(identifier, core);
+		DeviceDisconnected += async identifier => await PluginCollection.InvokeDeviceDisconnected(identifier);
+		DeviceAppeared += async identifier => await PluginCollection.InvokeDeviceAppeared(identifier);
+		DeviceDisappeared += async identifier => await PluginCollection.InvokeDeviceDisappeared(identifier);
 
 		_initialized = true;
 		CurrentInstance = this;
@@ -112,7 +120,7 @@ public class App {
 			if (ConnectedDevices.ContainsKey(deviceIdentifier))
 				throw new ApplicationException("Device is already connected");
 
-			var driver = Plugins!.SpecificDriver(deviceIdentifier.NamespacedName);
+			var driver = PluginCollection!.SpecificDriver(deviceIdentifier.NamespacedName);
 
 			if (driver == null) {
 				_l.Error("Driver '{}' wasn't found", deviceIdentifier.NamespacedName);
@@ -121,7 +129,7 @@ public class App {
 
 			var device = await driver.ConnectDevice(deviceIdentifier);
 			device.Died += () => DeviceDisconnected?.Invoke(deviceIdentifier);
-			var core = new CoreImpl(device, deviceIdentifier, Plugins!);
+			var core = new CoreImpl(device, deviceIdentifier, PluginCollection!);
 
 			lock (_discoveredDevices) {
 				_discoveredDevices.Remove(deviceIdentifier);
@@ -156,7 +164,7 @@ public class App {
 
 		var _newDeviceList = new List<NamespacedDeviceIdentifier>();
 
-		foreach (var driver in Plugins!.AllDrivers()) {
+		foreach (var driver in PluginCollection!.AllDrivers()) {
 			_newDeviceList.AddRange((await driver.ListDevices())
 				.Where(device => !ConnectedDevices.ContainsKey(device)));
 		}

@@ -13,7 +13,7 @@ namespace Streamduck.Cores;
  * Item of the screen that has optional renderer settings and can contain actions
  */
 public abstract class ScreenItem {
-	public abstract IEnumerable<TriggerInstance> Triggers { get; }
+	public abstract IReadOnlyCollection<TriggerInstance> Triggers { get; }
 
 	public abstract void AddTrigger(TriggerInstance trigger, bool attachToInput = true);
 
@@ -26,16 +26,5 @@ public abstract class ScreenItem {
 	public interface IRenderable {
 		NamespacedName? RendererName { get; set; }
 		object? RendererSettings { get; set; }
-	}
-
-	public interface IRenderable<T> : IRenderable where T : class, new() {
-		new T? RendererSettings { get; set; }
-
-		object? IRenderable.RendererSettings {
-			get => RendererSettings;
-			set {
-				if (value is T casted) RendererSettings = casted;
-			}
-		}
 	}
 }

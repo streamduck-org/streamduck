@@ -6,7 +6,7 @@ using System;
 using System.Threading.Tasks;
 using Streamduck.Interfaces;
 
-namespace Streamduck.Plugins;
+namespace Streamduck.Actions;
 
 /**
  * Action that can be triggered by Triggers

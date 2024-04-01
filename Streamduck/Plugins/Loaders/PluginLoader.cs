@@ -29,7 +29,7 @@ public static class PluginLoader {
 			return null;
 		}
 	}
-	
+
 	public static PluginAssembly? Load(Assembly assembly, ISet<string>? nameSet = null) {
 		var context = new PluginLoadContext(assembly.Location);
 
@@ -92,7 +92,7 @@ public static class PluginLoader {
 						$"Name conflict! {assembly.GetName().Name} ({assembly.Location}) has '{plugin.Name}' plugin name that is already used by another plugin");
 
 			loadedPlugins++;
-			var wrapped = new WrappedPlugin(plugin, context);
+			var wrapped = new WrappedPlugin(plugin, context, loadedPlugins == 1);
 
 			L.Info("Loaded plugin \"{0}\" ({1})", plugin.Name, assembly.Location);
 

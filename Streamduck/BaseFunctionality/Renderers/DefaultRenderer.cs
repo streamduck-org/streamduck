@@ -4,11 +4,13 @@
 
 using System;
 using SixLabors.ImageSharp;
+using Streamduck.Attributes;
 using Streamduck.Cores;
 using Streamduck.Rendering;
 
 namespace Streamduck.BaseFunctionality.Renderers;
 
+[AutoAdd]
 public class DefaultRenderer : Renderer<DefaultRenderer.Settings> {
 	public override string Name => "Default Renderer";
 	public override long Hash(ScreenItem input, Settings renderConfig) => throw new NotImplementedException();

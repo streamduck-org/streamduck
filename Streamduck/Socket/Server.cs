@@ -2,9 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
 using System.Net;
-using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -16,7 +14,7 @@ namespace Streamduck.Socket;
 
 public class Session : WsSession {
 	private static readonly Logger _l = LogManager.GetCurrentClassLogger();
-	
+
 	private readonly Server _server;
 	// private readonly StringBuilder _requestBuffer = new();
 
@@ -36,7 +34,7 @@ public class Session : WsSession {
 	public override void OnWsReceived(byte[] buffer, long offset, long size) {
 		var message = Encoding.UTF8.GetString(buffer, (int)offset, (int)size);
 		ReceivePacket(message);
-		
+
 		// while (true) {
 		// 	var nullIndex = message.IndexOf('\u0004');
 		//
@@ -56,20 +54,18 @@ public class Session : WsSession {
 		_l.Debug(packet);
 		try {
 			var message = JsonSerializer.Deserialize<SocketMessage>(packet);
-			
+
 			if (message is null) {
 				SendErrorAsync(new SocketError("Failed to parse"));
 				return;
 			}
 
-			if (_server.AppInstance.Plugins!.SpecificSocketRequest(message.Name) is not { } request) {
+			if (_server.AppInstance.PluginCollection!.SpecificSocketRequest(message.Name) is not { } request) {
 				SendErrorAsync(new SocketError($"Request with name '{message.Name}' not found"));
 				return;
 			}
 
-			Task.Run(async () => {
-				await request.Instance.Received(new SessionRequester(this, message));
-			});
+			Task.Run(async () => { await request.Instance.Received(new SessionRequester(this, message)); });
 		} catch (JsonException e) {
 			SendErrorAsync(new SocketError(e.ToString()));
 		}
@@ -90,21 +86,21 @@ internal readonly struct SocketError(string Error) {
 			return hash;
 		}
 	}
-} 
+}
 
 public class Server : WsServer {
 	private static readonly Logger _l = LogManager.GetCurrentClassLogger();
-	
+
 	public Server(IPAddress address, int port) : base(address, port) { }
 	public Server(string address, int port) : base(address, port) { }
 	public Server(DnsEndPoint endpoint) : base(endpoint) { }
 	public Server(IPEndPoint endpoint) : base(endpoint) { }
 
+	public required App AppInstance { get; init; }
+
 	protected override void OnStarted() {
 		_l.Info($"Listening for websocket connections at {Address}:{Port}");
 	}
-
-	public required App AppInstance { get; init; }
 
 	protected override TcpSession CreateSession() => new Session(this);
 

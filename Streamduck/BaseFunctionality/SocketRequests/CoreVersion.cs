@@ -9,11 +9,12 @@ using Streamduck.Socket;
 namespace Streamduck.BaseFunctionality.SocketRequests;
 
 [AutoAdd]
-public class ListDiscoveredDevices : SocketRequest {
-	public override string Name => "List Discovered Devices";
+public class CoreVersion : SocketRequest {
+	public const string VERSION = "0.1";
+	public override string Name => "Socket Version";
 
 	public override Task Received(SocketRequester request) {
-		request.SendBack(App.CurrentInstance!.DiscoveredDevices);
+		request.SendBack(VERSION);
 		return Task.CompletedTask;
 	}
 }

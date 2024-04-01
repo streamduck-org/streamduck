@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using Streamduck.Actions;
 using Streamduck.Attributes;
 using Streamduck.Plugins.Methods;
 using Streamduck.Utils;
@@ -88,4 +89,16 @@ public static class PluginReflector {
 		},
 		method.GetCustomAttribute<DescriptionAttribute>()?.Description
 	);
+
+	public static IEnumerable<T> GetPluginTypes<T>(Type pluginType, bool useEmptyOnes) where T : class {
+		foreach (var type in pluginType.Assembly.GetTypes()) {
+			if (!type.IsAssignableTo(typeof(T))) continue;
+
+			if (type.GetCustomAttribute<AutoAddAttribute>() is not { } attribute) continue;
+			if ((attribute.PluginClass is not null || !useEmptyOnes) && attribute.PluginClass != pluginType) continue;
+
+			if (type.GetConstructor(Type.EmptyTypes) is not { } constructor) continue;
+			yield return (T)constructor.Invoke([]);
+		}
+	}
 }

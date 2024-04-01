@@ -11,7 +11,7 @@ namespace Streamduck.Cores;
 
 public abstract class Core(Device associatedDevice) : IDisposable {
 	protected readonly Device _associatedDevice = associatedDevice;
-	
+
 	public DeviceIdentifier DeviceIdentifier { get; } = associatedDevice.Identifier;
 	public IReadOnlyCollection<Input> Inputs { get; } = associatedDevice.Inputs;
 
@@ -19,7 +19,7 @@ public abstract class Core(Device associatedDevice) : IDisposable {
 	 * Top screen of the stack
 	 */
 	public abstract Screen? CurrentScreen { get; }
-	
+
 	/**
 	 * Contents of the stack
 	 */

@@ -13,10 +13,10 @@ public class SessionRequester(WsSession Session, SocketMessage Message) : Socket
 
 	public override void SendBack(object data) {
 		Session.SendTextAsync(JsonSerializer.Serialize(new Response {
-				Data = data,
-				Name = Message.Name,
-				RequestID = Message.RequestID
-			}));
+			Data = data,
+			Name = Message.Name,
+			RequestID = Message.RequestID
+		}));
 	}
 
 	public override T? ParseData<T>() where T : class {
@@ -26,12 +26,12 @@ public class SessionRequester(WsSession Session, SocketMessage Message) : Socket
 			return data.Deserialize<T>();
 		} catch (JsonException) {
 			return null;
-		}	
+		}
 	}
 }
 
 internal class Response {
 	public string? RequestID { get; set; }
-	public required NamespacedName Name { get; set; } 
+	public required NamespacedName Name { get; set; }
 	public required object Data { get; set; }
 }

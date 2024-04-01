@@ -19,7 +19,7 @@ public class ScreenlessItem : ScreenItem {
 		_triggers.AddRange(triggers);
 	}
 
-	public override IEnumerable<TriggerInstance> Triggers => _triggers;
+	public override IReadOnlyCollection<TriggerInstance> Triggers => _triggers;
 
 	public override void AddTrigger(TriggerInstance trigger, bool attachToInput = true) {
 		_triggers.Add(trigger);

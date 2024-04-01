@@ -4,6 +4,7 @@
 
 using System;
 using System.Threading.Tasks;
+using Streamduck.Actions;
 
 namespace Streamduck.Plugins.Methods;
 

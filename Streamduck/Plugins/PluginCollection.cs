@@ -7,6 +7,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Streamduck.Actions;
 using Streamduck.Configuration;
 using Streamduck.Data;
 using Streamduck.Plugins.Extensions;
@@ -25,8 +26,8 @@ public class PluginCollection : IPluginQuery {
 
 	private readonly ConcurrentDictionary<string, WeakReference<WrappedPlugin>> _pluginMap;
 	private readonly ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<Renderer>>> _rendererMap;
-	private readonly ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<Trigger>>> _triggerMap;
 	private readonly ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<SocketRequest>>> _socketRequestMap;
+	private readonly ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<Trigger>>> _triggerMap;
 	public readonly List<PluginAssembly> Plugins;
 
 	public PluginCollection(IEnumerable<PluginAssembly> plugins, Config config) {
@@ -67,6 +68,8 @@ public class PluginCollection : IPluginQuery {
 	public IEnumerable<Namespaced<Driver>> DriversByPlugin(string pluginName) => GetByPlugin(_driverMap, pluginName);
 	public Namespaced<Driver>? SpecificDriver(NamespacedName name) => GetSpecific(_driverMap, name);
 
+	public NamespacedName DriverName(Driver driver) => FindNameFor(_driverMap, driver);
+
 	public IEnumerable<Namespaced<PluginAction>> AllActions() => GetAll(_actionMap);
 
 	public IEnumerable<Namespaced<PluginAction>> ActionsByPlugin(string pluginName) =>
@@ -74,12 +77,16 @@ public class PluginCollection : IPluginQuery {
 
 	public Namespaced<PluginAction>? SpecificAction(NamespacedName name) => GetSpecific(_actionMap, name);
 
+	public NamespacedName ActionName(PluginAction action) => FindNameFor(_actionMap, action);
+
 	public IEnumerable<Namespaced<Renderer>> AllRenderers() => GetAll(_rendererMap);
 
 	public IEnumerable<Namespaced<Renderer>> RenderersByPlugin(string pluginName) =>
 		GetByPlugin(_rendererMap, pluginName);
 
 	public Namespaced<Renderer>? SpecificRenderer(NamespacedName name) => GetSpecific(_rendererMap, name);
+
+	public NamespacedName RendererName(Renderer renderer) => FindNameFor(_rendererMap, renderer);
 
 	public Namespaced<Renderer>? DefaultRenderer() => GetSpecific(_rendererMap, _config.DefaultRenderer)
 	                                                  ?? GetSpecific(_rendererMap, Config.DefaultRendererName);
@@ -91,12 +98,18 @@ public class PluginCollection : IPluginQuery {
 
 	public Namespaced<Trigger>? SpecificTrigger(NamespacedName name) => GetSpecific(_triggerMap, name);
 
+	public NamespacedName TriggerName(Trigger trigger) => FindNameFor(_triggerMap, trigger);
+
 	public IEnumerable<Namespaced<SocketRequest>> AllSocketRequests() => GetAll(_socketRequestMap);
 
-	public IEnumerable<Namespaced<SocketRequest>> SocketRequestsByPlugin(string pluginName) => 
+	public IEnumerable<Namespaced<SocketRequest>> SocketRequestsByPlugin(string pluginName) =>
 		GetByPlugin(_socketRequestMap, pluginName);
 
-	public Namespaced<SocketRequest>? SpecificSocketRequest(NamespacedName name) => GetSpecific(_socketRequestMap, name);
+	public Namespaced<SocketRequest>? SpecificSocketRequest(NamespacedName name) =>
+		GetSpecific(_socketRequestMap, name);
+
+	public NamespacedName SocketRequestName(SocketRequest socketRequest) =>
+		FindNameFor(_socketRequestMap, socketRequest);
 
 	private static PluginAssembly[] PluginsToAssembly(IEnumerable<Plugin> plugins) {
 		var context = new PluginLoadContext("");
@@ -120,7 +133,7 @@ public class PluginCollection : IPluginQuery {
 		}
 	}
 
-	public Task AddPlugin(PluginAssembly assembly) {
+	public Task AddPlugin(IStreamduck streamduck, PluginAssembly assembly) {
 		Plugins.Add(assembly);
 
 		foreach (var plugin in assembly.Plugins) {
@@ -128,7 +141,7 @@ public class PluginCollection : IPluginQuery {
 			AddNamespacedToDict(_actionMap, plugin.Actions);
 		}
 
-		return this.InvokeNewPluginsLoaded(assembly.Plugins.Select(w => w.Instance).ToArray());
+		return streamduck.InvokeNewPluginsLoaded(assembly.Plugins.Select(w => w.Instance).ToArray());
 	}
 
 	private static IEnumerable<T> GetAll<T>(
@@ -157,4 +170,15 @@ public class PluginCollection : IPluginQuery {
 		let plugin = weakPlugin.Value.WeakToNullable()
 		where plugin != null
 		select plugin;
+
+	public NamespacedName FindNameFor<T>(ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<T>>> dict,
+		T instance)
+		where T : class =>
+	(
+		from weak in dict
+		let strongValue = weak.Value.WeakToNullable()
+		where strongValue != null
+		where strongValue.Instance == instance
+		select weak.Key
+	).First();
 }

@@ -13,7 +13,7 @@ namespace ElgatoStreamDeck;
  * Instantiates HID library under the hood, only one instance should exist
  */
 public class DeviceManager {
-	private static readonly ushort ElgatoVendorId = 0x0fd9;
+	private const ushort ElgatoVendorId = 0x0fd9;
 
 	private static DeviceManager? _instance;
 

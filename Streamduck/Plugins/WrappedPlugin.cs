@@ -4,6 +4,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using Streamduck.Actions;
 using Streamduck.Data;
 using Streamduck.Interfaces;
 using Streamduck.Plugins.Loaders;
@@ -19,26 +20,31 @@ namespace Streamduck.Plugins;
 public sealed class WrappedPlugin {
 	private readonly PluginLoadContext _originatedFrom;
 
-	public WrappedPlugin(Plugin instance, PluginLoadContext originatedFrom) {
+	public WrappedPlugin(Plugin instance, PluginLoadContext originatedFrom, bool isFirst = false) {
 		Instance = instance;
 		_originatedFrom = originatedFrom;
 
 		Name = Instance.Name;
 		Drivers = Instance.Drivers
+			.Concat(PluginReflector.GetPluginTypes<Driver>(instance.GetType(), isFirst))
 			.Select(Namespace)
 			.ToArray();
 		var methods = PluginReflector.GetMethods(instance).ToArray();
 		Actions = Instance.Actions
 			.Concat(PluginReflector.AnalyzeActions(methods, instance))
+			.Concat(PluginReflector.GetPluginTypes<PluginAction>(instance.GetType(), isFirst))
 			.Select(Namespace)
 			.ToArray();
 		Renderers = Instance.Renderers
+			.Concat(PluginReflector.GetPluginTypes<Renderer>(instance.GetType(), isFirst))
 			.Select(Namespace)
 			.ToArray();
 		Triggers = Instance.Triggers
+			.Concat(PluginReflector.GetPluginTypes<Trigger>(instance.GetType(), isFirst))
 			.Select(Namespace)
 			.ToArray();
 		SocketRequests = Instance.SocketRequests
+			.Concat(PluginReflector.GetPluginTypes<SocketRequest>(instance.GetType(), isFirst))
 			.Select(Namespace)
 			.ToArray();
 	}

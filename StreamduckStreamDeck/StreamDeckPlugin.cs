@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using ElgatoStreamDeck;
+using Streamduck;
 using Streamduck.Attributes;
 using Streamduck.Plugins;
 
@@ -34,7 +35,7 @@ public class StreamDeckPlugin : Plugin, IDisposable {
 	[PluginMethod]
 	public void MyAction() { }
 
-	public override Task OnPluginsLoaded(IPluginQuery pluginQuery) {
+	public override Task OnPluginsLoaded(IStreamduck pluginQuery) {
 		Console.WriteLine($"Driver has {driver.Config.ScreenBrightness} for brightness");
 
 		return Task.CompletedTask;

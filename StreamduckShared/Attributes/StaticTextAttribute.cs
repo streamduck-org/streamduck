@@ -6,6 +6,9 @@ using System;
 
 namespace Streamduck.Attributes;
 
+/**
+ * Will add static text field before the field
+ */
 [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
 public class StaticTextAttribute(string text) : Attribute {
 	public string Text { get; } = text;
