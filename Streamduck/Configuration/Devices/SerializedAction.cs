@@ -9,5 +9,5 @@ namespace Streamduck.Configuration.Devices;
 
 public class SerializedAction {
 	public NamespacedName Action { get; set; }
-	public JsonElement Data { get; set; }
+	public JsonElement? Data { get; set; }
 }

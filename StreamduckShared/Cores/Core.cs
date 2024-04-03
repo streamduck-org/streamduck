@@ -11,8 +11,8 @@ namespace Streamduck.Cores;
 
 public abstract class Core(Device associatedDevice) : IDisposable {
 	protected readonly Device _associatedDevice = associatedDevice;
-
-	public DeviceIdentifier DeviceIdentifier { get; } = associatedDevice.Identifier;
+	
+	public abstract NamespacedDeviceIdentifier DeviceIdentifier { get; }
 	public IReadOnlyCollection<Input> Inputs { get; } = associatedDevice.Inputs;
 
 	/**

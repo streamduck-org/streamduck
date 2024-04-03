@@ -11,15 +11,16 @@ using Streamduck.Plugins;
 
 namespace Streamduck.Cores;
 
-public class ScreenImpl(Core core, IReadOnlyCollection<Input> inputs, IPluginQuery pluginQuery) : Screen {
+public class ScreenImpl(Core core, IPluginQuery pluginQuery, IReadOnlyCollection<Input> inputs) : Screen {
 	private readonly Input[] _inputs = inputs.ToArray();
 	private readonly ScreenItem?[] _items = new ScreenItem?[inputs.Count];
 
 	public override Core AssociatedCore => core;
 	public override IReadOnlyCollection<ScreenItem?> Items => _items;
+	
 
 	public override ScreenItem CreateItem(int index) {
-		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, _inputs.Length);
+		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, _items.Length);
 		if (_items[index] != null) throw new ArgumentException("Item already exists on the index", nameof(index));
 
 		var input = _inputs[index];
@@ -31,6 +32,12 @@ public class ScreenImpl(Core core, IReadOnlyCollection<Input> inputs, IPluginQue
 
 		return item;
 	}
+
+	internal void AssignItem(int index, ScreenItem item) {
+		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, _items.Length);
+		_items[index] = item;
+		if (core.CurrentScreen == this) item.Attach(_inputs[index]);
+	} 
 
 	private ScreenItem CreateFromInput(Input input) {
 		if (input is not IInputDisplay display) return new ScreenlessItem();
@@ -57,13 +64,13 @@ public class ScreenImpl(Core core, IReadOnlyCollection<Input> inputs, IPluginQue
 		return item;
 	}
 
-	public override void AttachToInputs() {
+	public void AttachToInputs() {
 		foreach (var (item, input) in _items.Zip(_inputs)) {
 			item?.Attach(input);
 		}
 	}
 
-	public override void DetachFromInputs() {
+	public void DetachFromInputs() {
 		foreach (var item in _items) {
 			item?.Detach();
 		}

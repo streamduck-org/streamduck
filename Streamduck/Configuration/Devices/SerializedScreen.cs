@@ -6,4 +6,5 @@ namespace Streamduck.Configuration.Devices;
 
 public class SerializedScreen {
 	public SerializedScreenItem?[] Items { get; set; } = [];
+	public bool CanWrite { get; set; }
 }

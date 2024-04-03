@@ -9,7 +9,7 @@ using Streamduck.Interfaces;
 namespace Streamduck.Actions;
 
 /**
- * Action that can be triggered by Triggers
+ * Action that can be triggered by Triggers. Data won't be saved since the type is unknown, use typed version for data loading
  */
 public abstract class PluginAction : INamed {
 	public abstract string? Description { get; }

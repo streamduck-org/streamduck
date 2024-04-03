@@ -13,7 +13,7 @@ public class ListConnectedDevices : SocketRequest {
 	public override string Name => "List Connected Devices";
 
 	public override Task Received(SocketRequester request) {
-		request.SendBack(App.CurrentInstance!.ConnectedDevices.Keys);
+		request.SendBack(App.CurrentInstance!.ConnectedDeviceList.Keys);
 		return Task.CompletedTask;
 	}
 }

@@ -35,7 +35,7 @@ public class App : IStreamduck {
 
 	public PluginCollection? PluginCollection { get; private set; }
 
-	public IReadOnlyList<NamespacedDeviceIdentifier> DiscoveredDevices {
+	public IReadOnlyList<NamespacedDeviceIdentifier> DiscoveredDeviceList {
 		get {
 			lock (_discoveredDevices) {
 				return _discoveredDevices.AsEnumerable().ToList();
@@ -43,10 +43,14 @@ public class App : IStreamduck {
 		}
 	}
 
-	public ConcurrentDictionary<NamespacedDeviceIdentifier, Core> ConnectedDevices { get; } = new();
+	public ConcurrentDictionary<NamespacedDeviceIdentifier, Core> ConnectedDeviceList { get; } = new();
 
 	public IPluginQuery Plugins => PluginCollection!;
 	public IImageCollection Images { get; }
+	public IReadOnlyCollection<NamespacedDeviceIdentifier> DiscoveredDevices => DiscoveredDeviceList;
+	public IReadOnlyDictionary<NamespacedDeviceIdentifier, Core> ConnectedDevices => ConnectedDeviceList;
+
+
 	public event Action? DeviceListRefreshed;
 
 	/**
@@ -90,8 +94,6 @@ public class App : IStreamduck {
 		await PluginCollection.LoadAllPluginConfigs();
 
 		await this.InvokePluginsLoaded();
-
-		"HeyHo".FormatAsWords();
 		
 		DeviceConnected += async (identifier, core) => await PluginCollection.InvokeDeviceConnected(identifier, core);
 		DeviceDisconnected += async identifier => await PluginCollection.InvokeDeviceDisconnected(identifier);
@@ -117,7 +119,7 @@ public class App : IStreamduck {
 
 	public async Task ConnectDevice(NamespacedDeviceIdentifier deviceIdentifier) {
 		try {
-			if (ConnectedDevices.ContainsKey(deviceIdentifier))
+			if (ConnectedDeviceList.ContainsKey(deviceIdentifier))
 				throw new ApplicationException("Device is already connected");
 
 			var driver = PluginCollection!.SpecificDriver(deviceIdentifier.NamespacedName);
@@ -135,7 +137,7 @@ public class App : IStreamduck {
 				_discoveredDevices.Remove(deviceIdentifier);
 			}
 
-			if (!ConnectedDevices.TryAdd(deviceIdentifier, core))
+			if (!ConnectedDeviceList.TryAdd(deviceIdentifier, core))
 				throw new ApplicationException("Couldn't add device, another connection was already made?");
 
 			DeviceConnected?.Invoke(deviceIdentifier, core);
@@ -154,9 +156,9 @@ public class App : IStreamduck {
 
 	public async Task RefreshDevices() {
 		_l.Debug("Cleaning up dead devices...");
-		foreach (var (identifier, _) in ConnectedDevices
+		foreach (var (identifier, _) in ConnectedDeviceList
 			         .Where(k => !k.Value.IsAlive())) {
-			ConnectedDevices.TryRemove(identifier, out var core);
+			ConnectedDeviceList.TryRemove(identifier, out var core);
 			core?.Dispose();
 		}
 
@@ -166,7 +168,7 @@ public class App : IStreamduck {
 
 		foreach (var driver in PluginCollection!.AllDrivers()) {
 			_newDeviceList.AddRange((await driver.ListDevices())
-				.Where(device => !ConnectedDevices.ContainsKey(device)));
+				.Where(device => !ConnectedDeviceList.ContainsKey(device)));
 		}
 
 		lock (_discoveredDevices) {
@@ -191,7 +193,7 @@ public class App : IStreamduck {
 
 		// Autoconnect
 		foreach (var discoveredDevice in _newDeviceList
-			         .Where(discoveredDevice => !ConnectedDevices.ContainsKey(discoveredDevice))
+			         .Where(discoveredDevice => !ConnectedDeviceList.ContainsKey(discoveredDevice))
 			         .Where(discoveredDevice => _config.AutoconnectDevices.Contains(discoveredDevice))) {
 			_l.Info("Autoconnecting to {}", discoveredDevice);
 			await ConnectDevice(discoveredDevice);
@@ -205,7 +207,7 @@ public class App : IStreamduck {
 		var interval = 1.0 / _config.TickRate;
 
 		while (_running) {
-			foreach (var core in ConnectedDevices.Values) {
+			foreach (var core in ConnectedDeviceList.Values) {
 				if (core is CoreImpl castedCore) castedCore.CallTick();
 			}
 

@@ -27,6 +27,10 @@ public abstract class TriggerInstance(Trigger original) {
 		_actions.RemoveAt(index);
 	}
 
+	public void AddActions(IEnumerable<ActionInstance> actions) {
+		_actions.AddRange(actions);
+	}
+
 	public abstract void Attach(Input input);
 	public abstract void Detach(Input input);
 

@@ -16,7 +16,7 @@ public class CoreImpl : Core {
 
 	protected readonly IPluginQuery _pluginQuery;
 
-	private readonly Stack<Screen> _screenStack = new();
+	internal readonly Stack<Screen> _screenStack = new();
 
 	public CoreImpl(Device device, NamespacedDeviceIdentifier deviceIdentifier, IPluginQuery pluginQuery) :
 		base(device) {
@@ -24,6 +24,8 @@ public class CoreImpl : Core {
 		_pluginQuery = pluginQuery;
 		device.Died += () => _l.Warn("Device {} died", _deviceIdentifier);
 	}
+
+	public override NamespacedDeviceIdentifier DeviceIdentifier => _deviceIdentifier;
 
 	public override Screen? CurrentScreen {
 		get {
@@ -35,6 +37,8 @@ public class CoreImpl : Core {
 		}
 	}
 
+	internal ScreenImpl? CurrentScreenImpl => CurrentScreen as ScreenImpl;
+
 	public override IEnumerable<Screen> ScreenStack {
 		get {
 			lock (_screenStack) {
@@ -44,24 +48,24 @@ public class CoreImpl : Core {
 	}
 
 	public override Screen NewScreen(bool canWrite = true) =>
-		new ScreenImpl(this, _associatedDevice.Inputs, _pluginQuery) {
+		new ScreenImpl(this, _pluginQuery,  _associatedDevice.Inputs) {
 			CanWrite = canWrite
 		};
 
 	public override void PushScreen(Screen screen) {
 		lock (_screenStack) {
 			_screenStack.TryPeek(out var oldScreen);
-			oldScreen?.DetachFromInputs();
+			(oldScreen as ScreenImpl)?.DetachFromInputs();
 			_screenStack.Push(screen);
-			screen.AttachToInputs();
+			(screen as ScreenImpl)?.AttachToInputs();
 		}
 	}
 
 	public override Screen? PopScreen() {
 		lock (_screenStack) {
 			_screenStack.TryPop(out var screen);
-			screen?.DetachFromInputs();
-			if (_screenStack.TryPeek(out var newScreen)) newScreen.AttachToInputs();
+			(screen as ScreenImpl)?.DetachFromInputs();
+			if (_screenStack.TryPeek(out var newScreen)) (newScreen as ScreenImpl)?.AttachToInputs();
 			return screen;
 		}
 	}
@@ -69,9 +73,9 @@ public class CoreImpl : Core {
 	public override Screen? ReplaceScreen(Screen newScreen) {
 		lock (_screenStack) {
 			_screenStack.TryPop(out var screen);
-			screen?.DetachFromInputs();
+			(screen as ScreenImpl)?.DetachFromInputs();
 			_screenStack.Push(newScreen);
-			newScreen.AttachToInputs();
+			(newScreen as ScreenImpl)?.AttachToInputs();
 			return screen;
 		}
 	}
