@@ -129,14 +129,14 @@ public class Config {
 	 */
 	public async Task SaveConfig() {
 		try {
-			Directory.CreateDirectory(StreamduckFolderName);
+			Directory.CreateDirectory(StreamduckFolder);
 		} catch (Exception e) {
 			L.Error("Error happened while trying to create folders for config {0}", e);
 			return;
 		}
 
 		var path = Path.Join(
-			StreamduckFolderName,
+			StreamduckFolder,
 			ConfigFileName
 		);
 
@@ -147,6 +147,8 @@ public class Config {
 				buffer,
 				this
 			);
+			
+			Console.WriteLine(path);
 
 			L.Info("Saving app config...");
 			await File.WriteAllBytesAsync(path, buffer.ToArray());

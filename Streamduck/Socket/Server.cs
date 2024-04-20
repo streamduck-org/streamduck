@@ -2,6 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -9,6 +11,7 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using NetCoreServer;
 using NLog;
+using Streamduck.Plugins;
 
 namespace Streamduck.Socket;
 
@@ -18,9 +21,17 @@ public class Session : WsSession {
 	private readonly Server _server;
 	// private readonly StringBuilder _requestBuffer = new();
 
+	private readonly Dictionary<Plugin, Action<string, object>> _listeners = [];
+
 	public Session(Server server) : base(server) {
 		_server = server;
 		_l.Info($"Client {Id} connection started");
+		
+		foreach (var plugin in _server.AppInstance.Plugins.AllPlugins()) {
+			Action<string, object> action = (name, data) => SendEventAsync(plugin, name, data);
+			_listeners[plugin] = action;
+			plugin.EventEmitted += action;
+		}
 	}
 
 	public override void OnWsConnected(HttpResponse response) {
@@ -29,6 +40,9 @@ public class Session : WsSession {
 
 	public override void OnWsDisconnected() {
 		_l.Info($"Client {Id} disconnected");
+		foreach (var (plugin, action) in _listeners) {
+			plugin.EventEmitted -= action;
+		}
 	}
 
 	public override void OnWsReceived(byte[] buffer, long offset, long size) {
@@ -51,7 +65,7 @@ public class Session : WsSession {
 	}
 
 	public void ReceivePacket(string packet) {
-		_l.Debug(packet);
+		Console.WriteLine(packet);
 		try {
 			var message = JsonSerializer.Deserialize<SocketMessage>(packet);
 
@@ -65,7 +79,7 @@ public class Session : WsSession {
 				return;
 			}
 
-			Task.Run(async () => { await request.Instance.Received(new SessionRequester(this, message)); });
+			Task.Run(async () => { await request.Instance.Received(new SessionRequester(this, message)).ConfigureAwait(false); });
 		} catch (JsonException e) {
 			SendErrorAsync(new SocketError(e.ToString()));
 		}
@@ -74,6 +88,20 @@ public class Session : WsSession {
 	internal void SendErrorAsync(SocketError error) {
 		SendTextAsync(JsonSerializer.Serialize(error));
 	}
+	
+	internal void SendEventAsync(Plugin plugin, string name, object data) {
+		SendTextAsync(JsonSerializer.Serialize(new Event {
+			PluginName = plugin.Name,
+			EventName = name,
+			Data = data
+		}));
+	}
+}
+
+public class Event {
+	public string PluginName { get; set; } = "unknown";
+	public string EventName { get; set; } = "unknown";
+	public object? Data { get; set; }
 }
 
 internal readonly struct SocketError(string Error) {

@@ -20,6 +20,10 @@ public abstract class SocketRequest : INamed {
  * Socket requests that can be defined by plugins for custom socket behaviors, with automatic data parsing
  */
 public abstract class SocketRequest<T> : SocketRequest where T : class {
-	public override Task Received(SocketRequester request) => Received(request, request.ParseData<T>());
-	public abstract Task Received(SocketRequester request, T? data);
+	public override Task Received(SocketRequester request) {
+		if (request.ParseData<T>() is { } data) return Received(request, data);
+		return Task.CompletedTask;
+	}
+
+	public abstract Task Received(SocketRequester request, T data);
 }

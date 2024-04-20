@@ -9,6 +9,7 @@ namespace Streamduck.Socket;
  */
 public abstract class SocketRequester {
 	public abstract SocketMessage Message { get; }
-	public abstract void SendBack(object data);
+	public abstract void SendBack(object? data);
+	public abstract void SendBackError(string message);
 	public abstract T? ParseData<T>() where T : class;
 }

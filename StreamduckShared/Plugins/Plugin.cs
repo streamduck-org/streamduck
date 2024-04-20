@@ -39,4 +39,10 @@ public abstract class Plugin : INamed {
 
 	public virtual Task OnDeviceDisappeared(NamespacedDeviceIdentifier identifier) =>
 		Task.CompletedTask;
+
+	public event Action<string, object>? EventEmitted;
+
+	protected void SendEventToSocket(string name, object data) {
+		EventEmitted?.Invoke(name, data);
+	}
 }

@@ -11,7 +11,11 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
+using Streamduck.Actions;
+using Streamduck.BaseFunctionality.Actions;
+using Streamduck.BaseFunctionality.Triggers;
 using Streamduck.Configuration;
+using Streamduck.Configuration.Devices;
 using Streamduck.Cores;
 using Streamduck.Devices;
 using Streamduck.Images;
@@ -117,7 +121,7 @@ public class App : IStreamduck {
 		return Task.WhenAll(DeviceDiscoverTask(cts), TickTask(cts));
 	}
 
-	public async Task ConnectDevice(NamespacedDeviceIdentifier deviceIdentifier) {
+	public async Task<bool> ConnectDevice(NamespacedDeviceIdentifier deviceIdentifier) {
 		try {
 			if (ConnectedDeviceList.ContainsKey(deviceIdentifier))
 				throw new ApplicationException("Device is already connected");
@@ -126,7 +130,7 @@ public class App : IStreamduck {
 
 			if (driver == null) {
 				_l.Error("Driver '{}' wasn't found", deviceIdentifier.NamespacedName);
-				return;
+				return false;
 			}
 
 			var device = await driver.ConnectDevice(deviceIdentifier);
@@ -139,11 +143,18 @@ public class App : IStreamduck {
 
 			if (!ConnectedDeviceList.TryAdd(deviceIdentifier, core))
 				throw new ApplicationException("Couldn't add device, another connection was already made?");
-
+			
 			DeviceConnected?.Invoke(deviceIdentifier, core);
+			
+			if (await DeviceConfig.LoadConfig(core.DeviceIdentifier) is { } config)
+				await core.LoadConfigIntoCore(config, PluginCollection);
+
+			return true;
 		} catch (Exception e) {
 			_l.Error(e, "Failed to connect to device");
 		}
+
+		return false;
 	}
 
 	private async Task DeviceDiscoverTask(CancellationTokenSource cts) {
