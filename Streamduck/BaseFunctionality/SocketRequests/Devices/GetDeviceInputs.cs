@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System.Linq;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Streamduck.Attributes;
 using Streamduck.Devices;
@@ -22,6 +23,7 @@ public class GetDeviceInputs : SocketRequest<GetDeviceInputs.Request> {
 		public int Y { get; set; } = input.Y;
 		public uint W { get; set; } = input.W;
 		public uint H { get; set; } = input.H;
+		[JsonConverter(typeof(JsonStringEnumConverter<InputIcon>))]
 		public InputIcon Icon { get; set; } = input.Icon;
 	}
 	

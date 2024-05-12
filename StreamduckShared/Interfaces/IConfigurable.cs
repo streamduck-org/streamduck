@@ -22,7 +22,7 @@ namespace Streamduck.Interfaces;
  * along with having fields that can be represented as Field objects
  */
 public interface IConfigurable {
-	IEnumerable<Field> Config { get; }
+    IEnumerable<Field> Config { get; }
 }
 
 /**
@@ -36,6 +36,6 @@ public interface IConfigurable {
  * </p>
  */
 public interface IConfigurable<T> : IConfigurable where T : class, new() {
-	new T Config { get; set; }
-	IEnumerable<Field> IConfigurable.Config => FieldReflector.AnalyzeObject(Config);
+    new T Config { get; set; }
+    IEnumerable<Field> IConfigurable.Config => FieldReflector.AnalyzeObject(Config);
 }
