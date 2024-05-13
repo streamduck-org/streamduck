@@ -11,7 +11,7 @@ namespace Streamduck.Cores;
 
 public abstract class Core(Device associatedDevice) : IDisposable {
 	protected readonly Device _associatedDevice = associatedDevice;
-	
+
 	public abstract NamespacedDeviceIdentifier DeviceIdentifier { get; }
 	public IReadOnlyCollection<Input> Inputs { get; } = associatedDevice.Inputs;
 
@@ -35,7 +35,7 @@ public abstract class Core(Device associatedDevice) : IDisposable {
 	/**
 	 * Create new screen that can later be pushed into the stack
 	 */
-	public abstract Screen NewScreen(bool canWrite = true);
+	public abstract Screen NewScreen(string name = "Screen", bool canWrite = true);
 
 	/**
 	 * Push screen into the stack

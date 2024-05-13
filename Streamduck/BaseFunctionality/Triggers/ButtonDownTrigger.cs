@@ -15,6 +15,7 @@ namespace Streamduck.BaseFunctionality.Triggers;
 public class ButtonDownTrigger : Trigger {
 	public override string Name => "Button Down Trigger";
 	public override string? Description => "Triggers action when button is pressed down";
+
 	public override bool IsApplicableTo(Input input) => input is IInputButton or IInputTouchScreen or IInputToggle;
 
 	public override Task<TriggerInstance> CreateInstance() =>

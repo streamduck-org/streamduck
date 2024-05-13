@@ -30,9 +30,8 @@ public static class FieldReflector {
 				yield return new Field.Header(headerAttribute.Text);
 
 			// Handle static text
-			foreach (var attribute in property.GetCustomAttributes<StaticTextAttribute>()) {
+			foreach (var attribute in property.GetCustomAttributes<StaticTextAttribute>())
 				yield return new Field.StaticText(attribute.Text);
-			}
 
 			// Property must have a getter to be considered for UI
 			var getMethod = property.GetGetMethod(true);
@@ -52,6 +51,7 @@ public static class FieldReflector {
 				if (HasSetter(property)) {
 					// Do text field instead
 					string Getter() => (string)property.GetValue(obj)!;
+
 					Action<string>? setter = IsReadWrite(property)
 						? val => property.SetValue(obj, val)
 						: null;
@@ -73,6 +73,7 @@ public static class FieldReflector {
 					.Invoke(null, new[] { property, obj, title, description! })!;
 			} else if (type == typeof(bool)) {
 				bool Getter() => (bool)property.GetValue(obj)!;
+
 				Action<bool>? setter = IsReadWrite(property)
 					? val => property.SetValue(obj, val)
 					: null;
@@ -94,9 +95,9 @@ public static class FieldReflector {
 					string FindVariant() {
 						var value = property.GetValue(obj)!;
 
-						foreach (var variant in variants) {
-							if (value.Equals(variant.GetValue(null))) return GetMemberName(variant);
-						}
+						foreach (var variant in variants)
+							if (value.Equals(variant.GetValue(null)))
+								return GetMemberName(variant);
 
 						return "Unknown";
 					}
@@ -110,6 +111,7 @@ public static class FieldReflector {
 					}
 
 					string Getter() => FindVariant();
+
 					Action<string>? setter = IsReadWrite(property)
 						? SetVariant
 						: null;
@@ -143,11 +145,13 @@ public static class FieldReflector {
 			EnforceLimit = attr.EnforceLimit,
 			Slider = attr.Slider
 		};
+
 		T Getter() => (T)property.GetValue(obj)!;
 	}
 
 	private static Field MakeGenericBitmask<T>(PropertyInfo property, object obj, FieldInfo[] variants, string title,
-		string? description)
+		string? description
+	)
 		where T : IBinaryInteger<T> {
 		return new Field.MultiChoice(
 			title,

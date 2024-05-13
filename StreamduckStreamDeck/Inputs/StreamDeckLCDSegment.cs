@@ -19,6 +19,7 @@ public class StreamDeckLCDSegment(StreamDeckDevice device, int x, int y, uint w,
 	public event Action<Int2>? TouchScreenDragEnd;
 
 	public UInt2 DisplayResolution { get; } = displayResolution;
+
 	public long AppendHashKey(long key) => $"{key}lcd".GetHashCode();
 
 	public async Task UploadImage(long key, Image image) {

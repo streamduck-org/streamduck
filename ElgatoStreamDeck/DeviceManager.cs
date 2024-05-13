@@ -19,12 +19,12 @@ public class DeviceManager {
 
 	private readonly SafeHidHandle _hid;
 
-	private DeviceManager() {
-		_hid = new SafeHidHandle();
-	}
+	private DeviceManager() => _hid = new SafeHidHandle();
 
-	public IEnumerable<(Kind, string)> ListDevices() => Hid.Enumerate(ElgatoVendorId)
-		.Select(info => (info.ProductId.ToKind(), info.SerialNumber));
+	public IEnumerable<(Kind, string)> ListDevices() {
+		return Hid.Enumerate(ElgatoVendorId)
+			.Select(info => (info.ProductId.ToKind(), info.SerialNumber));
+	}
 
 	public Device ConnectDevice(Kind kind, string serial) {
 		if (kind == Kind.Unknown) throw new ArgumentException("Can't connect to unrecognized device kind");

@@ -19,6 +19,7 @@ public class StreamDeckButton(StreamDeckDevice device, int x, int y, UInt2 displ
 	public event Action? ButtonReleased;
 
 	public UInt2 DisplayResolution { get; } = displayResolution;
+
 	public long AppendHashKey(long key) => $"{key}button".GetHashCode();
 
 	public async Task UploadImage(long key, Image image) {

@@ -26,15 +26,12 @@ public class GetDeviceInputs : SocketRequest<GetDeviceInputs.Request> {
 		[JsonConverter(typeof(JsonStringEnumConverter<InputIcon>))]
 		public InputIcon Icon { get; set; } = input.Icon;
 	}
-	
+
 	public override string Name => "Get Device Inputs";
 
 	public override Task Received(SocketRequester request, Request data) {
-		if (!App.CurrentInstance!.ConnectedDevices.TryGetValue(data.Identifier, out var device)) {
-			request.SendBackError("Device is not connected or doesn't exist");
-			return Task.CompletedTask;
-		}
-		
+		if (!SRUtil.GetDevice(request, data.Identifier, out var device)) return Task.CompletedTask;
+
 		request.SendBack(device.Inputs.Select(i => new InputData(i)));
 		return Task.CompletedTask;
 	}

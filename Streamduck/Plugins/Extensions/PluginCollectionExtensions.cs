@@ -12,19 +12,24 @@ namespace Streamduck.Plugins.Extensions;
 
 public static class PluginCollectionExtension {
 	public static Task InvokeDeviceConnected(this PluginCollection collection, NamespacedDeviceIdentifier identifier,
-		Core deviceCore) =>
-		Task.WhenAll(collection.AllPlugins().Select(p => p.OnDeviceConnected(identifier, deviceCore)));
+		Core deviceCore
+	) {
+		return Task.WhenAll(collection.AllPlugins().Select(p => p.OnDeviceConnected(identifier, deviceCore)));
+	}
 
 	public static Task
-		InvokeDeviceDisconnected(this PluginCollection collection, NamespacedDeviceIdentifier identifier) =>
-		Task.WhenAll(collection.AllPlugins().Select(p => p.OnDeviceDisconnected(identifier)));
+		InvokeDeviceDisconnected(this PluginCollection collection, NamespacedDeviceIdentifier identifier) {
+		return Task.WhenAll(collection.AllPlugins().Select(p => p.OnDeviceDisconnected(identifier)));
+	}
 
-	public static Task InvokeDeviceAppeared(this PluginCollection collection, NamespacedDeviceIdentifier identifier) =>
-		Task.WhenAll(collection.AllPlugins().Select(p => p.OnDeviceAppeared(identifier)));
+	public static Task InvokeDeviceAppeared(this PluginCollection collection, NamespacedDeviceIdentifier identifier) {
+		return Task.WhenAll(collection.AllPlugins().Select(p => p.OnDeviceAppeared(identifier)));
+	}
 
 	public static Task
-		InvokeDeviceDisappeared(this PluginCollection collection, NamespacedDeviceIdentifier identifier) =>
-		Task.WhenAll(collection.AllPlugins().Select(p => p.OnDeviceDisappeared(identifier)));
+		InvokeDeviceDisappeared(this PluginCollection collection, NamespacedDeviceIdentifier identifier) {
+		return Task.WhenAll(collection.AllPlugins().Select(p => p.OnDeviceDisappeared(identifier)));
+	}
 
 	public static Task LoadAllPluginConfigs(this PluginCollection collection) =>
 		Task.WhenAll(collection.AllWrappedPlugins().Select(GlobalConfig.LoadPlugin));

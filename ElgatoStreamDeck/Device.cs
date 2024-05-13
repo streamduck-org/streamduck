@@ -116,9 +116,11 @@ public class Device : IDevice {
 			case ElgatoStreamDeck.Kind.Original:
 			case ElgatoStreamDeck.Kind.Mini:
 			case ElgatoStreamDeck.Kind.MiniMk2: {
-				_device.SendFeatureReport(new byte[] {
-					0x0B, 0x63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-				});
+				_device.SendFeatureReport(
+					new byte[] {
+						0x0B, 0x63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+					}
+				);
 
 				break;
 			}
@@ -129,10 +131,13 @@ public class Device : IDevice {
 			case ElgatoStreamDeck.Kind.Mk2:
 			case ElgatoStreamDeck.Kind.Pedal:
 			case ElgatoStreamDeck.Kind.Plus: {
-				_device.SendFeatureReport(new byte[] {
-					0x03, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-					0
-				});
+				_device.SendFeatureReport(
+					new byte[] {
+						0x03, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+						0,
+						0
+					}
+				);
 
 				break;
 			}
@@ -148,9 +153,11 @@ public class Device : IDevice {
 			case ElgatoStreamDeck.Kind.Original:
 			case ElgatoStreamDeck.Kind.Mini:
 			case ElgatoStreamDeck.Kind.MiniMk2: {
-				_device.SendFeatureReport(new byte[] {
-					0x05, 0x55, 0xaa, 0xd1, 0x01, percent, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-				});
+				_device.SendFeatureReport(
+					new byte[] {
+						0x05, 0x55, 0xaa, 0xd1, 0x01, percent, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+					}
+				);
 
 				break;
 			}
@@ -161,10 +168,13 @@ public class Device : IDevice {
 			case ElgatoStreamDeck.Kind.Mk2:
 			case ElgatoStreamDeck.Kind.Pedal:
 			case ElgatoStreamDeck.Kind.Plus: {
-				_device.SendFeatureReport(new byte[] {
-					0x03, 0x08, percent, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-					0, 0, 0
-				});
+				_device.SendFeatureReport(
+					new byte[] {
+						0x03, 0x08, percent, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+						0,
+						0, 0, 0
+					}
+				);
 
 				break;
 			}
@@ -207,45 +217,49 @@ public class Device : IDevice {
 			// Writing header
 			switch (_kind) {
 				case ElgatoStreamDeck.Kind.Original:
-					_buffer.Write(new byte[] {
-						0x02,
-						0x01,
-						(byte)(pageNumber + 1),
-						0,
-						(byte)(thisLength == bytesRemaining ? 1 : 0),
-						(byte)(key + 1),
-						0,
-						0,
-						0,
-						0,
-						0,
-						0,
-						0,
-						0,
-						0,
-						0
-					});
+					_buffer.Write(
+						new byte[] {
+							0x02,
+							0x01,
+							(byte)(pageNumber + 1),
+							0,
+							(byte)(thisLength == bytesRemaining ? 1 : 0),
+							(byte)(key + 1),
+							0,
+							0,
+							0,
+							0,
+							0,
+							0,
+							0,
+							0,
+							0,
+							0
+						}
+					);
 					break;
 				case ElgatoStreamDeck.Kind.Mini:
 				case ElgatoStreamDeck.Kind.MiniMk2:
-					_buffer.Write(new byte[] {
-						0x02,
-						0x01,
-						(byte)pageNumber,
-						0,
-						(byte)(thisLength == bytesRemaining ? 1 : 0),
-						(byte)(key + 1),
-						0,
-						0,
-						0,
-						0,
-						0,
-						0,
-						0,
-						0,
-						0,
-						0
-					});
+					_buffer.Write(
+						new byte[] {
+							0x02,
+							0x01,
+							(byte)pageNumber,
+							0,
+							(byte)(thisLength == bytesRemaining ? 1 : 0),
+							(byte)(key + 1),
+							0,
+							0,
+							0,
+							0,
+							0,
+							0,
+							0,
+							0,
+							0,
+							0
+						}
+					);
 					break;
 
 				case ElgatoStreamDeck.Kind.OriginalV2:
@@ -254,16 +268,18 @@ public class Device : IDevice {
 				case ElgatoStreamDeck.Kind.Mk2:
 				case ElgatoStreamDeck.Kind.Pedal:
 				case ElgatoStreamDeck.Kind.Plus:
-					_buffer.Write(new byte[] {
-						0x02,
-						0x07,
-						key,
-						(byte)(thisLength == bytesRemaining ? 1 : 0),
-						(byte)(thisLength & 0xff),
-						(byte)(thisLength >> 8),
-						(byte)(pageNumber & 0xff),
-						(byte)(pageNumber >> 8)
-					});
+					_buffer.Write(
+						new byte[] {
+							0x02,
+							0x07,
+							key,
+							(byte)(thisLength == bytesRemaining ? 1 : 0),
+							(byte)(thisLength & 0xff),
+							(byte)(thisLength >> 8),
+							(byte)(pageNumber & 0xff),
+							(byte)(pageNumber >> 8)
+						}
+					);
 					break;
 
 				case ElgatoStreamDeck.Kind.Unknown:
@@ -298,24 +314,26 @@ public class Device : IDevice {
 			_buffer.Position = 0;
 
 			// Writing header
-			_buffer.Write(new byte[] {
-				0x02,
-				0x0c,
-				(byte)(x & 0xff),
-				(byte)(x >> 8),
-				(byte)(y & 0xff),
-				(byte)(y >> 8),
-				(byte)(w & 0xff),
-				(byte)(w >> 8),
-				(byte)(h & 0xff),
-				(byte)(h >> 8),
-				(byte)(bytesRemaining <= imageReportPayloadLength ? 1 : 0),
-				(byte)(pageNumber & 0xff),
-				(byte)(pageNumber >> 8),
-				(byte)(thisLength & 0xff),
-				(byte)(thisLength >> 8),
-				0
-			});
+			_buffer.Write(
+				new byte[] {
+					0x02,
+					0x0c,
+					(byte)(x & 0xff),
+					(byte)(x >> 8),
+					(byte)(y & 0xff),
+					(byte)(y >> 8),
+					(byte)(w & 0xff),
+					(byte)(w >> 8),
+					(byte)(h & 0xff),
+					(byte)(h >> 8),
+					(byte)(bytesRemaining <= imageReportPayloadLength ? 1 : 0),
+					(byte)(pageNumber & 0xff),
+					(byte)(pageNumber >> 8),
+					(byte)(thisLength & 0xff),
+					(byte)(thisLength >> 8),
+					0
+				}
+			);
 
 			// Writing image
 			_buffer.Write(imageData[bytesSent .. (bytesSent + thisLength)]);
@@ -352,10 +370,12 @@ public class Device : IDevice {
 		GC.SuppressFinalize(this);
 	}
 
-	private int ImageReportLength() => _kind switch {
-		ElgatoStreamDeck.Kind.Original => 8191,
-		_ => 1024
-	};
+	private int ImageReportLength() {
+		return _kind switch {
+			ElgatoStreamDeck.Kind.Original => 8191,
+			_ => 1024
+		};
+	}
 
 	private byte FlipKeyIndex(byte key) {
 		var col = (byte)(key % _kind.ColumnCount());
@@ -377,9 +397,7 @@ public class Device : IDevice {
 
 			case ElgatoStreamDeck.Kind.Mini:
 			case ElgatoStreamDeck.Kind.MiniMk2: {
-				for (var i = 0; i < _kind.KeyCount(); i++) {
-					values[i] = data[1 + i] != 0;
-				}
+				for (var i = 0; i < _kind.KeyCount(); i++) values[i] = data[1 + i] != 0;
 
 				break;
 			}
@@ -390,9 +408,7 @@ public class Device : IDevice {
 			case ElgatoStreamDeck.Kind.Mk2:
 			case ElgatoStreamDeck.Kind.Pedal:
 			case ElgatoStreamDeck.Kind.Plus: {
-				for (var i = 0; i < _kind.KeyCount(); i++) {
-					values[i] = data[4 + i] != 0;
-				}
+				for (var i = 0; i < _kind.KeyCount(); i++) values[i] = data[4 + i] != 0;
 
 				break;
 			}
@@ -433,9 +449,7 @@ public class Device : IDevice {
 	private IEnumerable<bool> ReadEncoderState(ReadOnlySpan<byte> data) {
 		var values = new bool[_kind.EncoderCount()];
 
-		for (var i = 0; i < _kind.EncoderCount(); i++) {
-			values[i] = data[i + 5] != 0;
-		}
+		for (var i = 0; i < _kind.EncoderCount(); i++) values[i] = data[i + 5] != 0;
 
 		return values;
 	}
@@ -443,9 +457,7 @@ public class Device : IDevice {
 	private IEnumerable<sbyte> ReadEncoderTwist(ReadOnlySpan<byte> data) {
 		var values = new sbyte[_kind.EncoderCount()];
 
-		for (var i = 0; i < _kind.EncoderCount(); i++) {
-			values[i] = (sbyte)data[i + 5];
-		}
+		for (var i = 0; i < _kind.EncoderCount(); i++) values[i] = (sbyte)data[i + 5];
 
 		return values;
 	}

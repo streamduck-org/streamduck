@@ -30,22 +30,26 @@ public static class GlobalConfig {
 	private static readonly MethodInfo SaveGenericIConfigurableMethod =
 		typeof(GlobalConfig).GetMethod(nameof(SaveGenericIConfigurable), StaticNonPublic)!;
 
-	private static string PluginFolderPath(WrappedPlugin plugin) => Path.Join(
-		GlobalConfigFolder,
-		plugin.Name
-	);
+	private static string PluginFolderPath(WrappedPlugin plugin) =>
+		Path.Join(
+			GlobalConfigFolder,
+			plugin.Name
+		);
 
-	private static string PluginFilePath(string pluginFolderPath) => Path.Join(
-		pluginFolderPath,
-		"config.json"
-	);
+	private static string PluginFilePath(string pluginFolderPath) =>
+		Path.Join(
+			pluginFolderPath,
+			"config.json"
+		);
 
 	public static async Task LoadPlugin(WrappedPlugin plugin) {
 		var pluginFolderPath = PluginFolderPath(plugin);
 
 		// Load plugin config if exists
-		var pluginConfigurableType = plugin.Instance.GetType().GetInterfaces().FirstOrDefault(x =>
-			x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IConfigurable<>));
+		var pluginConfigurableType = plugin.Instance.GetType().GetInterfaces().FirstOrDefault(
+			x =>
+				x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IConfigurable<>)
+		);
 
 		if (pluginConfigurableType is not null) {
 			var pluginFilePath = PluginFilePath(pluginFolderPath);
@@ -86,8 +90,10 @@ public static class GlobalConfig {
 		);
 
 		foreach (var item in iter) {
-			var configurableType = item.GetType().GetInterfaces().FirstOrDefault(x =>
-				x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IConfigurable<>));
+			var configurableType = item.GetType().GetInterfaces().FirstOrDefault(
+				x =>
+					x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IConfigurable<>)
+			);
 
 			if (configurableType is null) continue; // Only allow items that have generic IConfigurable
 
@@ -122,8 +128,10 @@ public static class GlobalConfig {
 		var pluginFolderPath = PluginFolderPath(plugin);
 
 		// Save plugin config if exists
-		var pluginConfigurableType = plugin.Instance.GetType().GetInterfaces().FirstOrDefault(x =>
-			x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IConfigurable<>));
+		var pluginConfigurableType = plugin.Instance.GetType().GetInterfaces().FirstOrDefault(
+			x =>
+				x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IConfigurable<>)
+		);
 
 		if (pluginConfigurableType is not null) {
 			var pluginFilePath = PluginFilePath(pluginFolderPath);
@@ -174,8 +182,10 @@ public static class GlobalConfig {
 		var folderCreated = false;
 
 		foreach (var item in iter) {
-			var configurableType = item.GetType().GetInterfaces().FirstOrDefault(x =>
-				x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IConfigurable<>));
+			var configurableType = item.GetType().GetInterfaces().FirstOrDefault(
+				x =>
+					x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IConfigurable<>)
+			);
 
 			if (configurableType is null) continue; // Only allow items that have generic IConfigurable
 

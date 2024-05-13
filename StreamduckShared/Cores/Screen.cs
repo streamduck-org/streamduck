@@ -11,6 +11,7 @@ namespace Streamduck.Cores;
  * Screen that can contain screen items
  */
 public abstract class Screen {
+	public string Name { get; set; } = "Screen";
 	public abstract Core AssociatedCore { get; }
 	public bool CanWrite { get; init; } = true;
 	public abstract IReadOnlyCollection<ScreenItem?> Items { get; }

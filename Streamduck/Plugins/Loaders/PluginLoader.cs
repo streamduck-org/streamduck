@@ -43,13 +43,16 @@ public static class PluginLoader {
 	}
 
 	public static IEnumerable<PluginAssembly> LoadFromFolder(string pathToFolder, ISet<string>? nameSet = null) {
-		L.Info("Loading plugins in {0} folder...", pathToFolder);
+		L.Info("Loading plugins in '{0}' folder...", pathToFolder);
 
 		var curDir = Directory.GetCurrentDirectory();
-		var fullPath = Path.Combine(curDir, pathToFolder);
+		var fullPath = Path.Exists(pathToFolder) ? pathToFolder : Path.Combine(curDir, pathToFolder);
 		nameSet ??= new HashSet<string>();
 
-		foreach (var filePath in Directory.GetFiles(pathToFolder)) {
+		if (!Path.Exists(fullPath))
+			yield break;
+
+		foreach (var filePath in Directory.GetFiles(fullPath)) {
 			if (!filePath.EndsWith("dll")) continue;
 
 			var assembly = Load(filePath, nameSet);
@@ -59,7 +62,7 @@ public static class PluginLoader {
 			yield return assembly;
 		}
 
-		foreach (var directory in Directory.GetDirectories(pathToFolder)) {
+		foreach (var directory in Directory.GetDirectories(fullPath)) {
 			var directoryName = Path.GetFileName(directory);
 
 			var dllPath = Path.Combine(directory, $"{directoryName}.dll");
@@ -76,7 +79,8 @@ public static class PluginLoader {
 		context.LoadFromAssemblyName(new AssemblyName(Path.GetFileNameWithoutExtension(assemblyPath)));
 
 	private static IEnumerable<WrappedPlugin> CreatePlugins(PluginLoadContext context, Assembly assembly,
-		ISet<string>? nameSet = null) {
+		ISet<string>? nameSet = null
+	) {
 		var loadedPlugins = 0;
 
 		foreach (var type in assembly.GetTypes()) {
@@ -89,7 +93,8 @@ public static class PluginLoader {
 			if (nameSet != null)
 				if (!nameSet.Add(plugin.Name))
 					throw new ApplicationException(
-						$"Name conflict! {assembly.GetName().Name} ({assembly.Location}) has '{plugin.Name}' plugin name that is already used by another plugin");
+						$"Name conflict! {assembly.GetName().Name} ({assembly.Location}) has '{plugin.Name}' plugin name that is already used by another plugin"
+					);
 
 			loadedPlugins++;
 			var wrapped = new WrappedPlugin(plugin, context, loadedPlugins == 1);
@@ -104,6 +109,7 @@ public static class PluginLoader {
 		var types = string.Join(",", assembly.GetTypes().Select(t => t.FullName));
 		throw new ApplicationException(
 			$"{assembly} ({assembly.Location}) doesn't have any types that implement Plugin class\n" +
-			$"Available types: {types}");
+			$"Available types: {types}"
+		);
 	}
 }

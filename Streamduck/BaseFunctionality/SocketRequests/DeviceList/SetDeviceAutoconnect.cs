@@ -22,15 +22,14 @@ public class SetDeviceAutoconnect : SocketRequest<SetDeviceAutoconnect.Request> 
 	public override async Task Received(SocketRequester request, Request data) {
 		var config = await Config.Get();
 
-		if (data.Autoconnect) {
+		if (data.Autoconnect)
 			config.AutoconnectDevices.Add(data.Identifier);
-		} else {
+		else
 			config.AutoconnectDevices.Remove(data.Identifier);
-		}
 
 		await config.SaveConfig();
 		await App.CurrentInstance!.RefreshDevices();
-		
+
 		request.SendBack(null);
 	}
 }

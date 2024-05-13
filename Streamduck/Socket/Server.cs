@@ -26,7 +26,7 @@ public class Session : WsSession {
 	public Session(Server server) : base(server) {
 		_server = server;
 		_l.Info($"Client {Id} connection started");
-		
+
 		foreach (var plugin in _server.AppInstance.Plugins.AllPlugins()) {
 			Action<string, object> action = (name, data) => SendEventAsync(plugin, name, data);
 			_listeners[plugin] = action;
@@ -40,9 +40,7 @@ public class Session : WsSession {
 
 	public override void OnWsDisconnected() {
 		_l.Info($"Client {Id} disconnected");
-		foreach (var (plugin, action) in _listeners) {
-			plugin.EventEmitted -= action;
-		}
+		foreach (var (plugin, action) in _listeners) plugin.EventEmitted -= action;
 	}
 
 	public override void OnWsReceived(byte[] buffer, long offset, long size) {
@@ -79,7 +77,11 @@ public class Session : WsSession {
 				return;
 			}
 
-			Task.Run(async () => { await request.Instance.Received(new SessionRequester(this, message)).ConfigureAwait(false); });
+			Task.Run(
+				async () => {
+					await request.Instance.Received(new SessionRequester(this, message)).ConfigureAwait(false);
+				}
+			);
 		} catch (JsonException e) {
 			SendErrorAsync(new SocketError(e.ToString()));
 		}
@@ -88,13 +90,17 @@ public class Session : WsSession {
 	internal void SendErrorAsync(SocketError error) {
 		SendTextAsync(JsonSerializer.Serialize(error));
 	}
-	
+
 	internal void SendEventAsync(Plugin plugin, string name, object data) {
-		SendTextAsync(JsonSerializer.Serialize(new Event {
-			PluginName = plugin.Name,
-			EventName = name,
-			Data = data
-		}));
+		SendTextAsync(
+			JsonSerializer.Serialize(
+				new Event {
+					PluginName = plugin.Name,
+					EventName = name,
+					Data = data
+				}
+			)
+		);
 	}
 }
 

@@ -72,8 +72,10 @@ public class PluginReflectorTest {
 			var action = AnalyzeActionInfo(actions, "Test Option Action");
 
 			var data = await action.DefaultData();
-			Assert.That(action, Is.InstanceOf<ReflectedAction<TestPlugin.TestOptions>>(),
-				"Action wasn't recognized as correct type");
+			Assert.That(
+				action, Is.InstanceOf<ReflectedAction<TestPlugin.TestOptions>>(),
+				"Action wasn't recognized as correct type"
+			);
 			Assert.That(data, Is.InstanceOf<TestPlugin.TestOptions>(), "Default data wasn't the correct type");
 
 			await action.Invoke(data);
@@ -91,9 +93,11 @@ public class PluginReflectorTest {
 			var action = AnalyzeActionInfo(actions, "Test Configurable Action");
 
 			var data = await action.DefaultData();
-			Assert.That(action,
+			Assert.That(
+				action,
 				Is.InstanceOf<ConfigurableReflectedAction<TestPlugin.TestOptions, TestPlugin.TestConfig>>(),
-				"Action wasn't recognized as correct type");
+				"Action wasn't recognized as correct type"
+			);
 			Assert.That(data, Is.InstanceOf<TestPlugin.TestOptions>(), "Default data wasn't the correct type");
 
 			await action.Invoke(data);
@@ -106,13 +110,16 @@ public class PluginReflectorTest {
 			Assert.That(castedData, Has.Count.EqualTo(2), "Action options weren't updated properly");
 
 			var configurable = (ConfigurableReflectedAction<TestPlugin.TestOptions, TestPlugin.TestConfig>)action;
-			Assert.That(configurable.Config.IncrementsPerformed, Is.EqualTo(2),
-				"Action config weren't maintained properly");
+			Assert.That(
+				configurable.Config.IncrementsPerformed, Is.EqualTo(2),
+				"Action config weren't maintained properly"
+			);
 		}
 	}
 
 	private static PluginAction AnalyzeActionInfo(IEnumerator<PluginAction> enumerator, string name,
-		string? description = null) {
+		string? description = null
+	) {
 		Console.WriteLine($"Testing action '{name}'");
 
 		Assert.That(enumerator.MoveNext(), Is.True, $"Action '{name}' wasn't returned by reflector");
@@ -124,7 +131,8 @@ public class PluginReflectorTest {
 	}
 
 	private static void AssertInfo(string actualName, string? actualDescription, string name, string? description,
-		string logPrefix) {
+		string logPrefix
+	) {
 		Assert.That(actualName, Is.EqualTo(name), $"{logPrefix} '{name}' had invalid title");
 
 		if (description != null)

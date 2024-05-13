@@ -24,10 +24,13 @@ internal class Program {
 
 		var logConfig = new LoggingConfiguration();
 
-		logConfig.AddRule(LogLevel.Debug, LogLevel.Fatal, new ColoredConsoleTarget {
-			Layout = Layout.FromString(
-				"${longdate} ${level:uppercase=true} (${logger}): ${message}${onexception:inner=\\: ${exception}}")
-		});
+		logConfig.AddRule(
+			LogLevel.Debug, LogLevel.Fatal, new ColoredConsoleTarget {
+				Layout = Layout.FromString(
+					"${longdate} ${level:uppercase=true} (${logger}): ${message}${onexception:inner=\\: ${exception}}"
+				)
+			}
+		);
 		Trace.Listeners.Add(new NLogTraceListener { Name = "SysTrace" });
 
 		LogManager.Configuration = logConfig;
@@ -39,18 +42,20 @@ internal class Program {
 		await streamduck.Init();
 
 		// Starting Streamduck
-		_ = Task.Run(async () => {
-			try {
-				await streamduck.Run(cts);
-			} catch (TaskCanceledException) {
-				// Ignored
-			} catch (Exception e) {
-				L!.Error(e, "Critical Error!");
-			} finally {
-				var config = await Config.Get();
-				await config.SaveConfig();
-			}
-		}, cts.Token);
+		_ = Task.Run(
+			async () => {
+				try {
+					await streamduck.Run(cts);
+				} catch (TaskCanceledException) {
+					// Ignored
+				} catch (Exception e) {
+					L!.Error(e, "Critical Error!");
+				} finally {
+					var config = await Config.Get();
+					await config.SaveConfig();
+				}
+			}, cts.Token
+		);
 
 		// Starting API
 		var config = await Config.Get();
@@ -58,7 +63,8 @@ internal class Program {
 		var server = new Server(
 			config.OpenToInternet
 				? IPAddress.Any
-				: IPAddress.Loopback, config.WebSocketPort) {
+				: IPAddress.Loopback, config.WebSocketPort
+		) {
 			AppInstance = streamduck
 		};
 

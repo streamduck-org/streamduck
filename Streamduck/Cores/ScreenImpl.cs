@@ -17,7 +17,7 @@ public class ScreenImpl(Core core, IPluginQuery pluginQuery, IReadOnlyCollection
 
 	public override Core AssociatedCore => core;
 	public override IReadOnlyCollection<ScreenItem?> Items => _items;
-	
+
 
 	public override ScreenItem CreateItem(int index) {
 		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, _items.Length);
@@ -37,7 +37,7 @@ public class ScreenImpl(Core core, IPluginQuery pluginQuery, IReadOnlyCollection
 		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, _items.Length);
 		_items[index] = item;
 		if (core.CurrentScreen == this) item.Attach(_inputs[index]);
-	} 
+	}
 
 	private ScreenItem CreateFromInput(Input input) {
 		if (input is not IInputDisplay display) return new ScreenlessItem();
@@ -65,14 +65,10 @@ public class ScreenImpl(Core core, IPluginQuery pluginQuery, IReadOnlyCollection
 	}
 
 	public void AttachToInputs() {
-		foreach (var (item, input) in _items.Zip(_inputs)) {
-			item?.Attach(input);
-		}
+		foreach (var (item, input) in _items.Zip(_inputs)) item?.Attach(input);
 	}
 
 	public void DetachFromInputs() {
-		foreach (var item in _items) {
-			item?.Detach();
-		}
+		foreach (var item in _items) item?.Detach();
 	}
 }

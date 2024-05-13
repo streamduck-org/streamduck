@@ -14,7 +14,7 @@ namespace Streamduck.Configuration.Devices;
 
 public class DeviceConfig {
 	private static readonly Logger _l = LogManager.GetCurrentClassLogger();
-	
+
 	public NamespacedDeviceIdentifier Device { get; set; }
 	public SerializedScreen[] ScreenStack { get; set; } = [];
 
@@ -36,7 +36,7 @@ public class DeviceConfig {
 			DeviceFolderPath(deviceIdentifier),
 			$"{deviceIdentifier.Identifier}.json"
 		);
-	
+
 	private static string DeviceFilePath(NamespacedDeviceIdentifier deviceIdentifier, string folderPath) =>
 		Path.Join(
 			folderPath,
@@ -45,7 +45,7 @@ public class DeviceConfig {
 
 	public async Task SaveConfig() {
 		var folder = DeviceFolderPath(Device);
-		
+
 		try {
 			Directory.CreateDirectory(folder);
 		} catch (Exception e) {
@@ -59,7 +59,7 @@ public class DeviceConfig {
 		await File.WriteAllTextAsync(filePath, jsonData);
 	}
 
-	private static readonly JsonSerializerOptions _jsonSerializerOptions = new JsonSerializerOptions {
+	private static readonly JsonSerializerOptions _jsonSerializerOptions = new() {
 		UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
 	};
 

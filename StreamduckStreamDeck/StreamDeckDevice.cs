@@ -42,19 +42,18 @@ public class StreamDeckDevice : Device, IDisposable, IConfigurable<StreamDeckDev
 		var resolution = kind.KeyImageMode().Resolution;
 		var hasScreen = resolution.Item1 > 0;
 
-		for (var x = 0; x < kind.ColumnCount(); x++) {
-			for (var y = 0; y < kind.RowCount(); y++) {
-				var i = x + y * kind.ColumnCount();
-				inputs[i] = hasScreen
-					? new StreamDeckButton(
-						this,
-						x,
-						y,
-						new UInt2(resolution.Item1, resolution.Item2),
-						(byte)i
-					)
-					: new StreamDeckButtonWithoutDisplay(x, y);
-			}
+		for (var x = 0; x < kind.ColumnCount(); x++)
+		for (var y = 0; y < kind.RowCount(); y++) {
+			var i = x + y * kind.ColumnCount();
+			inputs[i] = hasScreen
+				? new StreamDeckButton(
+					this,
+					x,
+					y,
+					new UInt2(resolution.Item1, resolution.Item2),
+					(byte)i
+				)
+				: new StreamDeckButtonWithoutDisplay(x, y);
 		}
 
 		// Setting screen
@@ -68,9 +67,8 @@ public class StreamDeckDevice : Device, IDisposable, IConfigurable<StreamDeckDev
 			);
 
 		// Setting encoders
-		for (var i = 0; i < kind.EncoderCount(); i++) {
+		for (var i = 0; i < kind.EncoderCount(); i++)
 			inputs[kind.KeyCount() + 1 + i] = new StreamDeckEncoder(i, kind.RowCount() + 1);
-		}
 
 		Inputs = inputs;
 
@@ -93,9 +91,9 @@ public class StreamDeckDevice : Device, IDisposable, IConfigurable<StreamDeckDev
 		var lcdIndex = _device.Kind().KeyCount();
 		var encoderOffset = _device.Kind().KeyCount() + 1;
 
-		while (Alive) {
+		while (Alive)
 			try {
-				foreach (var input in _deviceReader.Read()) {
+				foreach (var input in _deviceReader.Read())
 					switch (input) {
 						case DeviceReader.Input.ButtonPressed buttonPressed: {
 							if (Inputs[buttonPressed.key] is StreamDeckButton button) button.CallPressed();
@@ -141,11 +139,13 @@ public class StreamDeckDevice : Device, IDisposable, IConfigurable<StreamDeckDev
 
 						case DeviceReader.Input.TouchScreenLongPress touchScreenPress: {
 							if (Inputs[lcdIndex] is StreamDeckLCDSegment segment)
-								Task.Run(async () => {
-									segment.CallPressed(new Int2(touchScreenPress.X, touchScreenPress.Y));
-									await Task.Delay(TimeSpan.FromSeconds(1));
-									segment.CallReleased(new Int2(touchScreenPress.X, touchScreenPress.Y));
-								});
+								Task.Run(
+									async () => {
+										segment.CallPressed(new Int2(touchScreenPress.X, touchScreenPress.Y));
+										await Task.Delay(TimeSpan.FromSeconds(1));
+										segment.CallReleased(new Int2(touchScreenPress.X, touchScreenPress.Y));
+									}
+								);
 
 							break;
 						}
@@ -160,14 +160,12 @@ public class StreamDeckDevice : Device, IDisposable, IConfigurable<StreamDeckDev
 							break;
 						}
 					}
-				}
 			} catch (HidException e) {
 				if (e.Message.Contains("Input/output error"))
 					Die();
 				else
 					throw;
 			}
-		}
 	}
 
 	internal void SetCache(long key, byte[] data) {

@@ -16,7 +16,7 @@ public abstract class Renderer : INamed {
 	public abstract object DefaultRendererConfig { get; }
 	public abstract string Name { get; }
 	public abstract long Hash(ScreenItem input, object? renderConfig);
-	public abstract Image Render(ScreenItem input, object? renderConfig);
+	public abstract Image Render(ScreenItem input, object? renderConfig, bool forPreview);
 }
 
 public abstract class Renderer<T> : Renderer where T : class, new() {
@@ -28,12 +28,12 @@ public abstract class Renderer<T> : Renderer where T : class, new() {
 		return Hash(input, castedConfig);
 	}
 
-	public override Image Render(ScreenItem input, object? renderConfig) {
+	public override Image Render(ScreenItem input, object? renderConfig, bool forPreview) {
 		if (renderConfig is not T castedConfig)
 			throw new ArgumentException("Render config was of incorrect type");
-		return Render(input, castedConfig);
+		return Render(input, castedConfig, forPreview);
 	}
 
 	public abstract long Hash(ScreenItem input, T renderConfig);
-	public abstract Image Render(ScreenItem input, T renderConfig);
+	public abstract Image Render(ScreenItem input, T renderConfig, bool forPreview);
 }

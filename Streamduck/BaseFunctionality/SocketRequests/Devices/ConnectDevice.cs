@@ -16,6 +16,7 @@ public class ConnectDevice : SocketRequest<ConnectDevice.Request> {
 	}
 
 	public override string Name => "Connect Device";
-	public override async Task Received(SocketRequester request, Request data) => 
+
+	public override async Task Received(SocketRequester request, Request data) =>
 		request.SendBack(await App.CurrentInstance!.ConnectDevice(data.Identifier));
 }

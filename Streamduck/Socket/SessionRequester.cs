@@ -13,11 +13,13 @@ public class SessionRequester(WsSession Session, SocketMessage Message) : Socket
 	public override SocketMessage Message { get; } = Message;
 
 	public override void SendBack(object? data) {
-		var response = JsonSerializer.Serialize(new Response {
-			Data = data,
-			Name = Message.Name,
-			RequestID = Message.RequestID
-		});
+		var response = JsonSerializer.Serialize(
+			new Response {
+				Data = data,
+				Name = Message.Name,
+				RequestID = Message.RequestID
+			}
+		);
 		Session.SendTextAsync(response);
 	}
 

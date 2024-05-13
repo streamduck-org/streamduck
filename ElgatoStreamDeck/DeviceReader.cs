@@ -60,10 +60,9 @@ public class DeviceReader {
 			}
 
 			case DeviceInput.EncoderTwist encoderTwist: {
-				for (var i = 0; i < encoderTwist.Encoders.Length; i++) {
+				for (var i = 0; i < encoderTwist.Encoders.Length; i++)
 					if (encoderTwist.Encoders[i] != 0)
 						yield return new Input.EncoderTwist((ushort)i, encoderTwist.Encoders[i]);
-				}
 
 				break;
 			}
@@ -81,8 +80,10 @@ public class DeviceReader {
 			}
 
 			case DeviceInput.TouchScreenSwipe touchScreenSwipe: {
-				yield return new Input.TouchScreenSwipe(touchScreenSwipe.StartX, touchScreenSwipe.StartY,
-					touchScreenSwipe.EndX, touchScreenSwipe.EndY);
+				yield return new Input.TouchScreenSwipe(
+					touchScreenSwipe.StartX, touchScreenSwipe.StartY,
+					touchScreenSwipe.EndX, touchScreenSwipe.EndY
+				);
 
 				break;
 			}

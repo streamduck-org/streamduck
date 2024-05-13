@@ -53,8 +53,7 @@ public class PluginCollection : IPluginQuery {
 		where plugin != null
 		select plugin.Instance;
 
-	public Plugin? SpecificPlugin(string name) =>
-		_pluginMap.GetValueOrDefault(name)?.WeakToNullable()?.Instance;
+	public Plugin? SpecificPlugin(string name) => _pluginMap.GetValueOrDefault(name)?.WeakToNullable()?.Instance;
 
 	public IEnumerable<T> PluginsAssignableTo<T>() where T : class =>
 		from weakPlugin in _pluginMap
@@ -65,7 +64,9 @@ public class PluginCollection : IPluginQuery {
 		select castedPlugin;
 
 	public IEnumerable<Namespaced<Driver>> AllDrivers() => GetAll(_driverMap);
+
 	public IEnumerable<Namespaced<Driver>> DriversByPlugin(string pluginName) => GetByPlugin(_driverMap, pluginName);
+
 	public Namespaced<Driver>? SpecificDriver(NamespacedName name) => GetSpecific(_driverMap, name);
 
 	public NamespacedName DriverName(Driver driver) => FindNameFor(_driverMap, driver);
@@ -88,13 +89,13 @@ public class PluginCollection : IPluginQuery {
 
 	public NamespacedName RendererName(Renderer renderer) => FindNameFor(_rendererMap, renderer);
 
-	public Namespaced<Renderer>? DefaultRenderer() => GetSpecific(_rendererMap, _config.DefaultRenderer)
-	                                                  ?? GetSpecific(_rendererMap, Config.DefaultRendererName);
+	public Namespaced<Renderer>? DefaultRenderer() =>
+		GetSpecific(_rendererMap, _config.DefaultRenderer)
+		?? GetSpecific(_rendererMap, Config.DefaultRendererName);
 
 	public IEnumerable<Namespaced<Trigger>> AllTriggers() => GetAll(_triggerMap);
 
-	public IEnumerable<Namespaced<Trigger>> TriggersByPlugin(string pluginName) =>
-		GetByPlugin(_triggerMap, pluginName);
+	public IEnumerable<Namespaced<Trigger>> TriggersByPlugin(string pluginName) => GetByPlugin(_triggerMap, pluginName);
 
 	public Namespaced<Trigger>? SpecificTrigger(NamespacedName name) => GetSpecific(_triggerMap, name);
 
@@ -118,19 +119,20 @@ public class PluginCollection : IPluginQuery {
 	}
 
 	private ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<T>>> BuildMap<T>(
-		Func<WrappedPlugin, IEnumerable<Namespaced<T>>> accessor) where T : class =>
-		new(
+		Func<WrappedPlugin, IEnumerable<Namespaced<T>>> accessor
+	) where T : class {
+		return new ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<T>>>(
 			Plugins
 				.SelectMany(a => a.Plugins)
 				.SelectMany(accessor)
 				.ToDictionary(x => x.NamespacedName, x => new WeakReference<Namespaced<T>>(x))
 		);
+	}
 
 	private static void AddNamespacedToDict<T>(ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<T>>> dict,
-		IEnumerable<Namespaced<T>> enumerable) where T : class {
-		foreach (var x in enumerable) {
-			dict.TryAdd(x.NamespacedName, new WeakReference<Namespaced<T>>(x));
-		}
+		IEnumerable<Namespaced<T>> enumerable
+	) where T : class {
+		foreach (var x in enumerable) dict.TryAdd(x.NamespacedName, new WeakReference<Namespaced<T>>(x));
 	}
 
 	public Task AddPlugin(IStreamduck streamduck, PluginAssembly assembly) {
@@ -145,7 +147,8 @@ public class PluginCollection : IPluginQuery {
 	}
 
 	private static IEnumerable<T> GetAll<T>(
-		ConcurrentDictionary<NamespacedName, WeakReference<T>> dict) where T : class =>
+		ConcurrentDictionary<NamespacedName, WeakReference<T>> dict
+	) where T : class =>
 		from weak in dict
 		let strong = weak.Value.WeakToNullable()
 		where strong != null
@@ -153,7 +156,8 @@ public class PluginCollection : IPluginQuery {
 
 	private static IEnumerable<T> GetByPlugin<T>(
 		ConcurrentDictionary<NamespacedName, WeakReference<T>> dict,
-		string pluginName) where T : class =>
+		string pluginName
+	) where T : class =>
 		from weak in dict
 		where weak.Key.PluginName == pluginName
 		let strong = weak.Value.WeakToNullable()
@@ -162,7 +166,8 @@ public class PluginCollection : IPluginQuery {
 
 	private static T? GetSpecific<T>(
 		ConcurrentDictionary<NamespacedName, WeakReference<T>> dict,
-		NamespacedName name) where T : class =>
+		NamespacedName name
+	) where T : class =>
 		dict.GetValueOrDefault(name)?.WeakToNullable();
 
 	public IEnumerable<WrappedPlugin> AllWrappedPlugins() =>
@@ -172,7 +177,8 @@ public class PluginCollection : IPluginQuery {
 		select plugin;
 
 	public NamespacedName FindNameFor<T>(ConcurrentDictionary<NamespacedName, WeakReference<Namespaced<T>>> dict,
-		T instance)
+		T instance
+	)
 		where T : class =>
 	(
 		from weak in dict

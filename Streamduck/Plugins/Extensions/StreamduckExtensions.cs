@@ -8,9 +8,11 @@ using System.Threading.Tasks;
 namespace Streamduck.Plugins.Extensions;
 
 public static class StreamduckExtensions {
-	public static Task InvokePluginsLoaded(this IStreamduck collection) =>
-		Task.WhenAll(collection.Plugins.AllPlugins().Select(p => p.OnPluginsLoaded(collection)));
+	public static Task InvokePluginsLoaded(this IStreamduck collection) {
+		return Task.WhenAll(collection.Plugins.AllPlugins().Select(p => p.OnPluginsLoaded(collection)));
+	}
 
-	public static Task InvokeNewPluginsLoaded(this IStreamduck collection, Plugin[] plugins) =>
-		Task.WhenAll(collection.Plugins.AllPlugins().Select(p => p.OnNewPluginsLoaded(plugins, collection)));
+	public static Task InvokeNewPluginsLoaded(this IStreamduck collection, Plugin[] plugins) {
+		return Task.WhenAll(collection.Plugins.AllPlugins().Select(p => p.OnNewPluginsLoaded(plugins, collection)));
+	}
 }

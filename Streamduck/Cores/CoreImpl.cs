@@ -4,28 +4,57 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using NLog;
 using Streamduck.Devices;
 using Streamduck.Plugins;
 
 namespace Streamduck.Cores;
 
-public class CoreImpl : Core {
+public sealed class CoreImpl : Core {
 	private static readonly Logger _l = LogManager.GetCurrentClassLogger();
-	protected readonly NamespacedDeviceIdentifier _deviceIdentifier;
 
-	protected readonly IPluginQuery _pluginQuery;
+	private readonly IPluginQuery _pluginQuery;
 
-	internal readonly Stack<Screen> _screenStack = new();
+	internal readonly Stack<Screen> _screenStack;
 
 	public CoreImpl(Device device, NamespacedDeviceIdentifier deviceIdentifier, IPluginQuery pluginQuery) :
 		base(device) {
-		_deviceIdentifier = deviceIdentifier;
+		DeviceIdentifier = deviceIdentifier;
 		_pluginQuery = pluginQuery;
-		device.Died += () => _l.Warn("Device {} died", _deviceIdentifier);
+		_screenStack = new Stack<Screen>();
+		
+		PushScreen(NewScreen("Root"));
+		PushScreen(NewScreen("Item1"));
+		PushScreen(NewScreen("Item2"));
+		PushScreen(NewScreen("Item3"));
+		PushScreen(NewScreen("Item1"));
+		PushScreen(NewScreen("Item2"));
+		PushScreen(NewScreen("Item3"));
+		PushScreen(NewScreen("Item1"));
+		PushScreen(NewScreen("Item2"));
+		PushScreen(NewScreen("Item3"));
+		PushScreen(NewScreen("Item1"));
+		PushScreen(NewScreen("Item2"));
+		PushScreen(NewScreen("Item3"));
+		PushScreen(NewScreen("Item1"));
+		PushScreen(NewScreen("Item2"));
+		PushScreen(NewScreen("Item3"));
+		PushScreen(NewScreen("Item1"));
+		PushScreen(NewScreen("Item2"));
+		PushScreen(NewScreen("Item3"));
+		PushScreen(NewScreen("Item1"));
+		PushScreen(NewScreen("Item2"));
+		PushScreen(NewScreen("Item3"));
+		PushScreen(NewScreen("Item1"));
+		PushScreen(NewScreen("Item2"));
+		PushScreen(NewScreen("Item3"));
+        
+		
+		device.Died += () => _l.Warn("Device {} died", DeviceIdentifier);
 	}
 
-	public override NamespacedDeviceIdentifier DeviceIdentifier => _deviceIdentifier;
+	public override NamespacedDeviceIdentifier DeviceIdentifier { get; }
 
 	public override Screen? CurrentScreen {
 		get {
@@ -47,8 +76,9 @@ public class CoreImpl : Core {
 		}
 	}
 
-	public override Screen NewScreen(bool canWrite = true) =>
-		new ScreenImpl(this, _pluginQuery,  _associatedDevice.Inputs) {
+	public override Screen NewScreen(string name = "Screen", bool canWrite = true) =>
+		new ScreenImpl(this, _pluginQuery, _associatedDevice.Inputs) {
+			Name = name,
 			CanWrite = canWrite
 		};
 
@@ -63,6 +93,7 @@ public class CoreImpl : Core {
 
 	public override Screen? PopScreen() {
 		lock (_screenStack) {
+			if (_screenStack.Count <= 1) return null;
 			_screenStack.TryPop(out var screen);
 			(screen as ScreenImpl)?.DetachFromInputs();
 			if (_screenStack.TryPeek(out var newScreen)) (newScreen as ScreenImpl)?.AttachToInputs();

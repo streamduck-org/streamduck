@@ -123,7 +123,8 @@ public abstract class Field(string title) {
 		private readonly Action<string, bool>? _setter;
 
 		public MultiChoice(string title, Func<bool[]> getter, Action<string, bool>? setter,
-			(string, string?)[] variants) : base(title) {
+			(string, string?)[] variants
+		) : base(title) {
 			_getter = getter;
 			_setter = setter;
 			Variants = variants;
@@ -153,9 +154,9 @@ public abstract class Field(string title) {
 		public bool[] Values => _getter.Invoke();
 
 		private int FindVariantIndex(string name) {
-			for (var i = 0; i < Variants.Length; i++) {
-				if (Variants[i].Item1.Equals(name)) return i;
-			}
+			for (var i = 0; i < Variants.Length; i++)
+				if (Variants[i].Item1.Equals(name))
+					return i;
 
 			return -1;
 		}

@@ -17,15 +17,14 @@ public class StreamDeckPlugin : Plugin, IDisposable {
 
 	private readonly StreamDeckDriver driver;
 
-	public StreamDeckPlugin() {
-		driver = new StreamDeckDriver(_manager);
-	}
+	public StreamDeckPlugin() => driver = new StreamDeckDriver(_manager);
 
 	public override string Name => "Stream Deck Plugin";
 
-	public override IEnumerable<Driver> Drivers => new Driver[] {
-		driver
-	};
+	public override IEnumerable<Driver> Drivers =>
+		new Driver[] {
+			driver
+		};
 
 	public void Dispose() {
 		_manager.Dispose();

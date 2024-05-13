@@ -28,17 +28,13 @@ public abstract class Plugin : INamed {
 	public virtual Task OnNewPluginsLoaded(IEnumerable<Plugin> newPlugins, IStreamduck streamduck) =>
 		Task.CompletedTask;
 
-	public virtual Task OnDeviceConnected(NamespacedDeviceIdentifier identifier, Core deviceCore) =>
-		Task.CompletedTask;
+	public virtual Task OnDeviceConnected(NamespacedDeviceIdentifier identifier, Core deviceCore) => Task.CompletedTask;
 
-	public virtual Task OnDeviceDisconnected(NamespacedDeviceIdentifier identifier) =>
-		Task.CompletedTask;
+	public virtual Task OnDeviceDisconnected(NamespacedDeviceIdentifier identifier) => Task.CompletedTask;
 
-	public virtual Task OnDeviceAppeared(NamespacedDeviceIdentifier identifier) =>
-		Task.CompletedTask;
+	public virtual Task OnDeviceAppeared(NamespacedDeviceIdentifier identifier) => Task.CompletedTask;
 
-	public virtual Task OnDeviceDisappeared(NamespacedDeviceIdentifier identifier) =>
-		Task.CompletedTask;
+	public virtual Task OnDeviceDisappeared(NamespacedDeviceIdentifier identifier) => Task.CompletedTask;
 
 	public event Action<string, object>? EventEmitted;
 

@@ -12,10 +12,12 @@ namespace Streamduck.BaseFunctionality.Actions;
 [AutoAdd]
 public class TestAction : PluginAction<TestAction.Data> {
 	public class Data {
-		public string? Text { get; set; } 
+		public string? Text { get; set; }
 	}
+
 	public override string Name => "Test Action";
 	public override string? Description => "Runs some random stuff";
+
 	public override Task Invoke(Data data) {
 		if (data.Text is { } text) Console.WriteLine($"Button is '{text}'");
 		return Task.CompletedTask;

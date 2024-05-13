@@ -17,28 +17,24 @@ public class ListDevices : SocketRequest {
 
 	public override async Task Received(SocketRequester request) {
 		var config = await Config.Get();
-		
+
 		request.SendBack(Devices());
 		return;
-		
+
 		IEnumerable<Device> Devices() {
-			foreach (var connected in App.CurrentInstance!.ConnectedDeviceList.Keys) {
+			foreach (var connected in App.CurrentInstance!.ConnectedDeviceList.Keys)
 				yield return new Device {
 					Identifier = connected,
 					Connected = true,
 					Autoconnect = config!.AutoconnectDevices.Contains(connected)
 				};
-			}
-			
-			foreach (var discovered in App.CurrentInstance.DiscoveredDevices) {
+
+			foreach (var discovered in App.CurrentInstance.DiscoveredDevices)
 				yield return new Device {
 					Identifier = discovered,
 					Connected = false,
 					Autoconnect = config!.AutoconnectDevices.Contains(discovered)
 				};
-			}
 		}
 	}
-	
-	
 }

@@ -13,8 +13,10 @@ namespace Streamduck.BaseFunctionality.Renderers;
 [AutoAdd]
 public class DefaultRenderer : Renderer<DefaultRenderer.Settings> {
 	public override string Name => "Default Renderer";
+
 	public override long Hash(ScreenItem input, Settings renderConfig) => throw new NotImplementedException();
-	public override Image Render(ScreenItem input, Settings renderConfig) => throw new NotImplementedException();
+
+	public override Image Render(ScreenItem input, Settings renderConfig, bool forPreview) => throw new NotImplementedException();
 
 	public class Settings { }
 }

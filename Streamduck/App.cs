@@ -85,20 +85,32 @@ public class App : IStreamduck {
 
 		_config = await Config.Get();
 
-		Directory.CreateDirectory("plugins");
-
 		// Load built-in plugin and external plugins
 		var nameSet = new HashSet<string>();
 
 		_l.Info("Scanning for core plugin...");
 		var corePlugin = PluginLoader.Load(GetType().Assembly, nameSet)!;
+		
+		_l.Info(string.Join(", ", _config.PluginPaths));
 
-		PluginCollection = new PluginCollection(new[] { corePlugin }
-			.Concat(PluginLoader.LoadFromFolder("plugins", nameSet)), _config);
+		var foundPlugins = new[] { corePlugin }.AsEnumerable();
+
+		foundPlugins = _config.PluginPaths.Aggregate(
+			foundPlugins,
+			(current, path) =>
+				current.Concat(
+					PluginLoader.LoadFromFolder(path, nameSet)
+				)
+		);
+
+		PluginCollection = new PluginCollection(
+			foundPlugins,
+			_config
+		);
 		await PluginCollection.LoadAllPluginConfigs();
 
 		await this.InvokePluginsLoaded();
-		
+
 		DeviceConnected += async (identifier, core) => await PluginCollection.InvokeDeviceConnected(identifier, core);
 		DeviceDisconnected += async identifier => await PluginCollection.InvokeDeviceDisconnected(identifier);
 		DeviceAppeared += async identifier => await PluginCollection.InvokeDeviceAppeared(identifier);
@@ -143,9 +155,9 @@ public class App : IStreamduck {
 
 			if (!ConnectedDeviceList.TryAdd(deviceIdentifier, core))
 				throw new ApplicationException("Couldn't add device, another connection was already made?");
-			
+
 			DeviceConnected?.Invoke(deviceIdentifier, core);
-			
+
 			if (await DeviceConfig.LoadConfig(core.DeviceIdentifier) is { } config)
 				await core.LoadConfigIntoCore(config, PluginCollection);
 
@@ -177,10 +189,11 @@ public class App : IStreamduck {
 
 		var _newDeviceList = new List<NamespacedDeviceIdentifier>();
 
-		foreach (var driver in PluginCollection!.AllDrivers()) {
-			_newDeviceList.AddRange((await driver.ListDevices())
-				.Where(device => !ConnectedDeviceList.ContainsKey(device)));
-		}
+		foreach (var driver in PluginCollection!.AllDrivers())
+			_newDeviceList.AddRange(
+				(await driver.ListDevices())
+				.Where(device => !ConnectedDeviceList.ContainsKey(device))
+			);
 
 		lock (_discoveredDevices) {
 			var newDevices = _newDeviceList
@@ -189,13 +202,9 @@ public class App : IStreamduck {
 			var removedDevices = _discoveredDevices
 				.Where(device => !_newDeviceList.Contains(device));
 
-			foreach (var device in newDevices) {
-				DeviceAppeared?.Invoke(device);
-			}
+			foreach (var device in newDevices) DeviceAppeared?.Invoke(device);
 
-			foreach (var device in removedDevices) {
-				DeviceDisappeared?.Invoke(device);
-			}
+			foreach (var device in removedDevices) DeviceDisappeared?.Invoke(device);
 
 			_discoveredDevices.Clear();
 			_discoveredDevices.AddRange(_newDeviceList);
@@ -218,9 +227,9 @@ public class App : IStreamduck {
 		var interval = 1.0 / _config.TickRate;
 
 		while (_running) {
-			foreach (var core in ConnectedDeviceList.Values) {
-				if (core is CoreImpl castedCore) castedCore.CallTick();
-			}
+			foreach (var core in ConnectedDeviceList.Values)
+				if (core is CoreImpl castedCore)
+					castedCore.CallTick();
 
 			var toWait = interval - (stopwatch.Elapsed.TotalSeconds - lastTime);
 

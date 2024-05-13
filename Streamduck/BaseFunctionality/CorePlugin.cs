@@ -16,11 +16,13 @@ public class CorePlugin : Plugin {
 	public override string Name => "Core";
 
 	public override async Task OnDeviceConnected(NamespacedDeviceIdentifier identifier, Core deviceCore) =>
-		SendEventToSocket(EventNames.DeviceConnected, new Device {
-			Identifier = identifier,
-			Connected = true,
-			Autoconnect = (await Config.Get()).AutoconnectDevices.Contains(identifier)
-		});
+		SendEventToSocket(
+			EventNames.DeviceConnected, new Device {
+				Identifier = identifier,
+				Connected = true,
+				Autoconnect = (await Config.Get()).AutoconnectDevices.Contains(identifier)
+			}
+		);
 
 	public override Task OnDeviceDisconnected(NamespacedDeviceIdentifier identifier) {
 		SendEventToSocket(EventNames.DeviceDisconnected, identifier);
@@ -28,11 +30,13 @@ public class CorePlugin : Plugin {
 	}
 
 	public override async Task OnDeviceAppeared(NamespacedDeviceIdentifier identifier) =>
-		SendEventToSocket(EventNames.DeviceAppeared, new Device {
-			Identifier = identifier,
-			Connected = false,
-			Autoconnect = (await Config.Get()).AutoconnectDevices.Contains(identifier)
-		});
+		SendEventToSocket(
+			EventNames.DeviceAppeared, new Device {
+				Identifier = identifier,
+				Connected = false,
+				Autoconnect = (await Config.Get()).AutoconnectDevices.Contains(identifier)
+			}
+		);
 
 	public override Task OnDeviceDisappeared(NamespacedDeviceIdentifier identifier) {
 		SendEventToSocket(EventNames.DeviceDisappeared, identifier);

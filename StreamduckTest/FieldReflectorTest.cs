@@ -104,8 +104,10 @@ public class FieldReflectorTest {
 			Assert.That(bitmaskField.Variants, Is.Not.Empty, $"Field '{title}' doesn't have any variants");
 			Console.WriteLine($"Field has following variants: {string.Join(", ", bitmaskField.Variants)}");
 
-			Assert.That(bitmaskField.Variants[1].Item2, Is.EqualTo("This is two"),
-				$"Field '{title}' 2nd variant had invalid description");
+			Assert.That(
+				bitmaskField.Variants[1].Item2, Is.EqualTo("This is two"),
+				$"Field '{title}' 2nd variant had invalid description"
+			);
 
 			bitmaskField["One And Two"] = true;
 			Assert.That(bitmaskField["Two"], Is.True, $"Field '{title}' incorrectly handled bitmasks");
@@ -144,7 +146,8 @@ public class FieldReflectorTest {
 	}
 
 	private static void AssertLabel(IEnumerator<Field> enumerator, string title, string text,
-		string? description = null) {
+		string? description = null
+	) {
 		var labelField = AssertFieldInfo<Field.Label>(enumerator, title, description);
 		Assert.That(labelField!.Text, Is.EqualTo(text), $"Field '{title}' returned invalid text");
 	}
@@ -158,7 +161,8 @@ public class FieldReflectorTest {
 	}
 
 	private static void AssertStringInput(IEnumerator<Field> enumerator, string title, string text, bool readOnly,
-		string? description = null) {
+		string? description = null
+	) {
 		var stringInput = AssertFieldInfo<Field.StringInput>(enumerator, title, description);
 		Assert.That(stringInput!.Value, Is.EqualTo(text), $"Field '{title}' returned invalid text");
 
@@ -166,15 +170,20 @@ public class FieldReflectorTest {
 		stringInput.Value = newText;
 
 		if (readOnly)
-			Assert.That(stringInput.Value, Is.EqualTo(text),
-				$"Field '{title}' updated its value despite being read-only");
+			Assert.That(
+				stringInput.Value, Is.EqualTo(text),
+				$"Field '{title}' updated its value despite being read-only"
+			);
 		else
-			Assert.That(stringInput.Value, Is.EqualTo(newText),
-				$"Field '{title}' didn't update its value after being set");
+			Assert.That(
+				stringInput.Value, Is.EqualTo(newText),
+				$"Field '{title}' didn't update its value after being set"
+			);
 	}
 
 	private static void AssertNumberField<T>(IEnumerator<Field> enumerator, string title, T value,
-		bool readOnly, bool slider, bool enforce, T min, T max, string? description = null) where T : INumber<T> {
+		bool readOnly, bool slider, bool enforce, T min, T max, string? description = null
+	) where T : INumber<T> {
 		var numberInput = AssertFieldInfo<Field.NumberInput<T>>(enumerator, title, description);
 		Assert.That(numberInput!.Value, Is.EqualTo(value), $"Field '{title}' didn't have a correct value");
 
@@ -182,21 +191,28 @@ public class FieldReflectorTest {
 		numberInput.Value = newValue;
 
 		if (readOnly)
-			Assert.That(numberInput.Value, Is.EqualTo(value),
-				$"Field '{title}' updated its value despite being read-only");
+			Assert.That(
+				numberInput.Value, Is.EqualTo(value),
+				$"Field '{title}' updated its value despite being read-only"
+			);
 		else
-			Assert.That(numberInput.Value, Is.EqualTo(newValue),
-				$"Field '{title}' didn't update its value after being set");
+			Assert.That(
+				numberInput.Value, Is.EqualTo(newValue),
+				$"Field '{title}' didn't update its value after being set"
+			);
 
 		Assert.That(numberInput.Slider, Is.EqualTo(slider), $"Field '{title}' had invalid slider setting");
-		Assert.That(numberInput.EnforceLimit, Is.EqualTo(enforce),
-			$"Field '{title}' had invalid enforce limit setting");
+		Assert.That(
+			numberInput.EnforceLimit, Is.EqualTo(enforce),
+			$"Field '{title}' had invalid enforce limit setting"
+		);
 		Assert.That(numberInput.Min, Is.EqualTo(min), $"Field '{title}' had invalid min setting");
 		Assert.That(numberInput.Max, Is.EqualTo(max), $"Field '{title}' had invalid max setting");
 	}
 
 	private static void AssertCheckbox(IEnumerator<Field> enumerator, string title, bool value, bool readOnly,
-		bool switchStyle, string? description = null) {
+		bool switchStyle, string? description = null
+	) {
 		var checkbox = AssertFieldInfo<Field.Checkbox>(enumerator, title, description);
 		Assert.That(checkbox!.Value, Is.EqualTo(value), $"Field '{title}' returned invalid state");
 
@@ -206,15 +222,20 @@ public class FieldReflectorTest {
 		Assert.That(checkbox.SwitchStyle, Is.EqualTo(switchStyle), $"Field '{title}' has invalid style");
 
 		if (readOnly)
-			Assert.That(checkbox.Value, Is.EqualTo(value),
-				$"Field '{title}' updated its value despite being read-only");
+			Assert.That(
+				checkbox.Value, Is.EqualTo(value),
+				$"Field '{title}' updated its value despite being read-only"
+			);
 		else
-			Assert.That(checkbox.Value, Is.EqualTo(newValue),
-				$"Field '{title}' didn't update its value after being set");
+			Assert.That(
+				checkbox.Value, Is.EqualTo(newValue),
+				$"Field '{title}' didn't update its value after being set"
+			);
 	}
 
 	private static void AssertEnum(IEnumerator<Field> enumerator, string title, string currentValue, string newValue,
-		bool readOnly, string? description = null, string? valueDescription = null) {
+		bool readOnly, string? description = null, string? valueDescription = null
+	) {
 		var enumField = AssertFieldInfo<Field.Choice>(enumerator, title, description);
 		Assert.That(enumField!.Value, Is.EqualTo(currentValue), $"Field '{title}' returned invalid value");
 		Assert.That(enumField.Variants, Is.Not.Empty, $"Field '{title}' didn't have any variants listed");
@@ -222,10 +243,14 @@ public class FieldReflectorTest {
 		enumField.Value = newValue;
 
 		if (readOnly)
-			Assert.That(enumField.Value, Is.EqualTo(currentValue),
-				$"Field '{title}' updated its value despite being read-only");
+			Assert.That(
+				enumField.Value, Is.EqualTo(currentValue),
+				$"Field '{title}' updated its value despite being read-only"
+			);
 		else
-			Assert.That(enumField.Value, Is.EqualTo(newValue),
-				$"Field '{title}' didn't update its value after being set");
+			Assert.That(
+				enumField.Value, Is.EqualTo(newValue),
+				$"Field '{title}' didn't update its value after being set"
+			);
 	}
 }

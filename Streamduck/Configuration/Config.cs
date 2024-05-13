@@ -56,6 +56,11 @@ public class Config {
 	public int WebSocketPort { get; set; } = 42131;
 
 	/**
+	 * List of paths Streamduck will check for plugins
+	 */
+	public List<string> PluginPaths { get; set; } = ["plugins"];
+
+	/**
 	 * Devices that should be automatically connected to
 	 */
 	[JsonInclude]
@@ -147,7 +152,7 @@ public class Config {
 				buffer,
 				this
 			);
-			
+
 			Console.WriteLine(path);
 
 			L.Info("Saving app config...");

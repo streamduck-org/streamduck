@@ -12,10 +12,12 @@ namespace Streamduck.Plugins.Methods;
 public class ConfigurableReflectedAction<T, C>(
 	string name,
 	Func<T, C, Task> actionToCall,
-	string? description = null)
+	string? description = null
+)
 	: PluginAction<T>, IConfigurable<C> where T : class, new() where C : class, new() {
 	public override string Name { get; } = name;
 	public override string? Description { get; } = description;
 	public C Config { get; set; } = new();
+
 	public override Task Invoke(T data) => actionToCall.Invoke(data, Config);
 }
