@@ -1,0 +1,13 @@
+[package]
+name = "streamduck-daemon"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+streamduck-core = {path = "../streamduck-core"}
+anyhow = "1.0"
+flexi_logger = { version = "0.31", features = ["colors"] }
+hidapi = { version = "2.6.3", features = ["windows-native"] }
+mlua = { version = "0.11", features = ["luajit52", "macros", "serde", "vendored"] }
+nu-ansi-term = "0.50"
+log = "0.4.27"
